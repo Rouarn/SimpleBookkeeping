@@ -57,11 +57,13 @@
           <text class="td td-amt">¥{{ formatAmount(item.amount) }}</text>
         </view>
       </view>
-
-      <button class="add-btn" hover-class="add-btn--active" @click="openAdd">
-        添加支出
-      </button>
     </view>
+
+    <uni-fab
+      @fabClick="openAdd"
+      horizontal="right"
+      :pattern="{ buttonColor: '#4CAF87' }"
+    />
   </view>
 
   <view
@@ -480,6 +482,7 @@ function navigateToSetting() {
     margin-top: 8rpx;
     border-radius: 28rpx;
     overflow: hidden;
+    position: relative;
 
     .tr {
       background: rgba(255, 255, 255, 0.72);
@@ -658,6 +661,7 @@ function navigateToSetting() {
   justify-content: center;
   padding: 0 28rpx 36rpx;
   box-sizing: border-box;
+  z-index: 12;
 
   .modal {
     width: 100%;
@@ -665,6 +669,7 @@ function navigateToSetting() {
     border-radius: 40rpx;
     padding: 26rpx 22rpx 22rpx;
     box-shadow: 0 28rpx 70rpx rgba(56, 142, 107, 0.18);
+    position: relative;
 
     .modal-title {
       font-size: 30rpx;

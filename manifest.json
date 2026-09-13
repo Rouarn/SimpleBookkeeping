@@ -108,9 +108,9 @@
             "splashscreen" : {
                 "androidStyle" : "default",
                 "android" : {
-                    "hdpi" : "unpackage/res/splash/09.png",
-                    "xhdpi" : "unpackage/res/splash/09.png",
-                    "xxhdpi" : "unpackage/res/splash/09.png"
+                    "hdpi" : "static/09.png",
+                    "xhdpi" : "static/09.png",
+                    "xxhdpi" : "static/09.png"
                 }
             }
         }
