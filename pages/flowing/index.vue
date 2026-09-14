@@ -1,3 +1,16 @@
+<!--
+  @file 流水页（pages/flowing/index.vue）
+  @description 按「月份 + 收支类型」筛选账单并按天分组展示：
+               1. 顶部导航：类型选择（全部类型 / 支出 / 收入，ActionSheet）与搜索入口；
+               2. 日期选择：uni-app 标准 picker（mode=date, fields=month）；
+               3. 本月总支出 / 总收入双卡；
+               4. 按天分组的流水列表，每组显示日标签（今天/昨天/周X）、日期与
+                  当日收支合计，组内账单点击进入详情；无数据时显示空态提示。
+               月份与类型选择态持久化在 app store，分组数据由 bill store 实时派生。
+  @author 夏季 <2937375029@qq.com>
+  @date 2026-09-14
+  @modify 2026-09-14
+-->
 <template>
   <view class="flowing-water">
     <!-- 顶部导航 -->
@@ -33,7 +46,7 @@
         <view class="card-icon-wrap">
           <uni-icons type="bars" size="34" color="#fff"></uni-icons>
         </view>
-        <view class="card-amount">{{ monthExpense }}</view>
+        <view class="card-amount">{{ monthCard.expense }}</view>
         <view class="card-label">本月总支出（元）</view>
       </view>
       <view class="summary-card income-card">
@@ -43,15 +56,20 @@
         <view class="card-icon-wrap">
           <uni-icons type="redo" size="34" color="#fff"></uni-icons>
         </view>
-        <view class="card-amount">{{ monthIncome }}</view>
+        <view class="card-amount">{{ monthCard.income }}</view>
         <view class="card-label">本月总收入（元）</view>
       </view>
     </view>
 
     <!-- 流水列表 -->
     <view class="flow-list-wrap">
+      <view v-if="groups.length === 0" class="empty-tip">
+        <text class="empty-text">本月暂无流水</text>
+        <text class="empty-sub">记一笔，开始追踪你的收支</text>
+      </view>
       <view
-        v-for="(group, gIndex) in filteredGroups"
+        v-for="(group, gIndex) in groups"
+        v-else
         :key="gIndex"
         class="flow-group"
       >
@@ -81,7 +99,12 @@
             </view>
             <view class="flow-info">
               <view class="flow-title-row">
-                <text class="flow-title">{{ item.title }}</text>
+                <view class="flow-title-wrap">
+                  <text class="flow-title">{{ item.title }}</text>
+                  <text v-if="item.remark" class="flow-remark"
+                    >- {{ item.remark }}</text
+                  >
+                </view>
                 <text class="flow-amount" :class="{ income: item.amount > 0 }">
                   {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
                 </text>
@@ -100,99 +123,22 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
-import { onLoad } from "@dcloudio/uni-app";
+/**
+ * 流水页脚本模块
+ * 模块说明：
+ * - useFlowingData()：取得可读写的 currentMonth / currentType（自动持久化）、
+ *   按天分组 groups 与当月汇总 monthCard；
+ * - 本页仅负责三个交互入口：类型 ActionSheet、月份 picker、搜索占位按钮。
+ */
+import { useFlowingData, goBillDetail } from "@/composables/useBookkeeping";
 
-// 类型选项
+// 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
 const typeOptions = ["全部类型", "支出", "收入"];
-const currentType = ref(typeOptions[0]);
 
-const getCurrentMonth = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${year}-${month}`;
-};
+// 月份 / 类型选择态持久化在 app store；分组与月汇总由 bill store 实时派生
+const { currentMonth, currentType, groups, monthCard } = useFlowingData();
 
-const currentMonth = ref(getCurrentMonth());
-const monthExpense = ref("130295.85");
-const monthIncome = ref("4865.46");
-
-const flowGroups = ref([
-  {
-    day: "今天",
-    date: "12月19日",
-    expense: "390.29",
-    income: "8.66",
-    items: [
-      {
-        title: "公共交通",
-        iconText: "🚌",
-        iconBg: "#eef2ff",
-        amount: -12.0,
-        time: "18:39",
-        payMethod: "微信支付",
-      },
-      {
-        title: "收益",
-        iconText: "💰",
-        iconBg: "#fff0f0",
-        amount: 8.66,
-        time: "09:45",
-        payMethod: "支付宝",
-      },
-      {
-        title: "餐饮",
-        iconText: "🍽️",
-        iconBg: "#eef2ff",
-        amount: -29.5,
-        time: "10:02",
-        payMethod: "微信支付",
-      },
-    ],
-  },
-  {
-    day: "昨天",
-    date: "12月18日",
-    expense: "1696.23",
-    income: "8.66",
-    items: [
-      {
-        title: "购物",
-        iconText: "🛍️",
-        iconBg: "#eef2ff",
-        amount: -520.0,
-        time: "18:39",
-        payMethod: "微信支付",
-      },
-      {
-        title: "收益",
-        iconText: "💰",
-        iconBg: "#fff0f0",
-        amount: 8.66,
-        time: "09:45",
-        payMethod: "支付宝",
-      },
-    ],
-  },
-]);
-
-// 根据当前类型筛选流水分组
-const filteredGroups = computed(() => {
-  const type = currentType.value;
-  if (type === "全部类型") return flowGroups.value;
-
-  return flowGroups.value
-    .map(group => {
-      const items = group.items.filter(item =>
-        type === "支出" ? item.amount < 0 : item.amount > 0,
-      );
-      if (items.length === 0) return null;
-      return { ...group, items };
-    })
-    .filter(Boolean);
-});
-
+/** 点击顶部类型文字 → 弹出 ActionSheet 切换筛选类型（写入后列表自动重算） */
 const handleTypeClick = () => {
   uni.showActionSheet({
     itemList: typeOptions,
@@ -202,26 +148,26 @@ const handleTypeClick = () => {
   });
 };
 
+/** 搜索按钮（功能占位，后续接入账单检索） */
 const handleSearch = () => {
   uni.showToast({ title: "搜索", icon: "none" });
 };
 
+/**
+ * 月份 picker 选中回调
+ * @param {object} e uni-app picker change 事件，e.detail.value 形如 '2026-09'
+ */
 const handleDateChange = e => {
   currentMonth.value = e.detail.value;
 };
 
+/**
+ * 点击流水单条 → 跳转详情页
+ * @param {import('@/store/types').BillViewModel} item 被点击的流水项
+ */
 const goDetail = item => {
-  uni.navigateTo({
-    url: "/pages/detail/index",
-    success: res => {
-      res.eventChannel.emit("billData", item);
-    },
-  });
+  goBillDetail(item.id);
 };
-
-onLoad(() => {
-  // 可以在这里添加初始化逻辑
-});
 </script>
 
 <style lang="scss" scoped>
@@ -442,16 +388,37 @@ onLoad(() => {
           justify-content: space-between;
           margin-bottom: 10rpx;
 
+          .flow-title-wrap {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            margin-right: 16rpx;
+            overflow: hidden;
+          }
+
           .flow-title {
             font-size: 32rpx;
             font-weight: 600;
             color: #1d1d1f;
+            flex-shrink: 0;
+          }
+
+          .flow-remark {
+            font-size: 26rpx;
+            color: #b3b9c7;
+            margin-left: 10rpx;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
 
           .flow-amount {
             font-size: 38rpx;
             font-weight: 700;
             color: #1d1d1f;
+            flex-shrink: 0;
 
             &.income {
               color: #e94e6b;
@@ -474,6 +441,24 @@ onLoad(() => {
         }
       }
     }
+  }
+}
+
+.empty-tip {
+  padding: 100rpx 0;
+  text-align: center;
+
+  .empty-text {
+    display: block;
+    font-size: 30rpx;
+    color: #8a8f9c;
+  }
+
+  .empty-sub {
+    display: block;
+    font-size: 24rpx;
+    color: #b3b9c7;
+    margin-top: 12rpx;
   }
 }
 </style>

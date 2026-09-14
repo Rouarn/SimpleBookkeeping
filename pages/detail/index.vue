@@ -1,3 +1,17 @@
+<!--
+  @file 账单详情页（pages/detail/index.vue）
+  @description 以票据卡片样式展示单笔账单的完整信息：
+               1. 顶部分类 emoji 图标、分类名与带符号金额；
+               2. 票据分隔线及信息列表：所属账本、账户（支付方式）、记录人、
+                  记录时间、备注、凭证照片缩略图（点击全屏预览）；
+               3. 卡片底部展示「截止本单该月目前支出」累计金额；
+               4. 底部操作：删除（二次确认）与编辑（携 id 跳转记账页）。
+               页面自身不持有数据，onLoad 时通过 eventChannel 的 id 从 bill store
+               装载，账单被编辑后会依据变更事件自动刷新。
+  @author 夏季 <2937375029@qq.com>
+  @date 2026-09-14
+  @modify 2026-09-14
+-->
 <template>
   <view class="detail-page">
     <!-- 导航栏 -->
@@ -13,15 +27,15 @@
     />
 
     <!-- 账单卡片 -->
-    <view class="bill-card">
+    <view v-if="detail" class="bill-card">
       <!-- 顶部图标 -->
       <view class="bill-icon-wrap">
-        <text class="bill-icon">{{ bill.iconText }}</text>
+        <text class="bill-icon">{{ detail.iconText }}</text>
       </view>
 
-      <view class="bill-category">{{ bill.title }}</view>
+      <view class="bill-category">{{ detail.title }}</view>
       <view class="bill-amount">
-        {{ bill.amount > 0 ? "+" : "" }}{{ bill.amount.toFixed(2) }}
+        {{ detail.amount > 0 ? "+" : "" }}{{ detail.amount.toFixed(2) }}
       </view>
 
       <!-- 票据分隔线 -->
@@ -34,33 +48,49 @@
       <view class="info-list">
         <view class="info-row">
           <text class="info-label">所属账本</text>
-          <text class="info-value">{{ bill.bookName }}</text>
+          <text class="info-value">{{ detail.bookName }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">账户</text>
-          <text class="info-value">{{ bill.payMethod }}</text>
+          <text class="info-value">{{ detail.payMethod }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">记录人</text>
-          <text class="info-value">{{ bill.recorder }}</text>
+          <text class="info-value">{{ detail.recorder }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">记录时间</text>
-          <text class="info-value">{{ bill.recordTime }}</text>
+          <text class="info-value">{{ detail.recordTime }}</text>
         </view>
         <view class="info-row">
           <text class="info-label">备注</text>
-          <text class="info-value remark">{{ bill.remark }}</text>
+          <text class="info-value remark">{{ detail.remark }}</text>
+        </view>
+        <view v-if="detail.photos?.length" class="info-row photo-row">
+          <text class="info-label">凭证照片</text>
+          <view class="photo-thumbs">
+            <image
+              v-for="(photo, index) in detail.photos"
+              :key="index"
+              class="photo-thumb"
+              :src="photo"
+              mode="aspectFill"
+              @click="previewPhotos(index)"
+            />
+          </view>
         </view>
       </view>
 
       <view class="month-summary">
-        截止本单该月目前支出{{ bill.monthExpense }}元
+        截止本单该月目前支出{{ detail.monthExpense }}元
       </view>
     </view>
 
+    <!-- 数据加载占位 -->
+    <view v-else class="loading-tip">账单加载中...</view>
+
     <!-- 底部操作 -->
-    <view class="action-bar">
+    <view v-if="detail" class="action-bar">
       <view class="action-item" @click="handleDelete">
         <view class="action-btn">
           <uni-icons type="trash" size="26" color="#e94e6b"></uni-icons>
@@ -78,49 +108,57 @@
 </template>
 
 <script setup>
-import { reactive } from "vue";
+/**
+ * 详情页脚本模块
+ * 模块说明：
+ * - useBillDetail()：按 eventChannel 中的 id 装载详情视图模型（含账本名 /
+ *   记录人 / 记录时间 / 当月截止支出），并提供删除动作与变更自动刷新；
+ * - 本页仅负责导航返回、删除二次确认、跳转编辑与图片预览四个交互。
+ */
 import { onLoad } from "@dcloudio/uni-app";
+import { useBillDetail } from "@/composables/useBookkeeping";
 
-const bill = reactive({
-  title: "公共交通",
-  iconText: "🚌",
-  amount: -500,
-  payMethod: "微信支付",
-  time: "13:05:36",
-  bookName: "个人账本",
-  recorder: "小绿",
-  recordTime: "2026-12-18 13:05:36",
-  remark: "公司周年庆团建汽车大巴费用支出",
-  monthExpense: "6080.29",
-});
+// 详情数据按 id 从 bill store 读取，删除后通过 store 广播变更，各页面自动联动
+const { detail, loadFromChannel, removeCurrent } = useBillDetail();
 
+/** 页面加载：注册 eventChannel 监听，等待上一页 emit('billData', { id }) */
 onLoad(() => {
-  const pages = getCurrentPages();
-  const eventChannel = pages[pages.length - 1].getOpenerEventChannel?.();
-  eventChannel?.on("billData", data => {
-    Object.assign(bill, data);
-    bill.recordTime = `2026-12-18 ${data.time || "13:05:36"}`;
-  });
+  loadFromChannel();
 });
 
+/** 返回上一页 */
 const goBack = () => {
   uni.navigateBack();
 };
 
+/** 删除账单：先弹确认框，确认后调用 store 删除并提示、延迟返回（列表会收到变更广播） */
 const handleDelete = () => {
   uni.showModal({
     title: "提示",
     content: "确定删除该账单吗？",
     success: res => {
-      if (res.confirm) {
-        uni.navigateBack();
+      if (!res.confirm) return;
+      if (detail.value?.id) {
+        removeCurrent();
+        uni.showToast({ title: "已删除", icon: "success" });
       }
+      setTimeout(() => uni.navigateBack(), 300);
     },
   });
 };
 
+/** 编辑账单：携带账单 id 跳转记账页，由其 onLoad 进入编辑回填模式 */
 const handleEdit = () => {
-  uni.showToast({ title: "编辑", icon: "none" });
+  if (!detail.value?.id) return;
+  uni.navigateTo({ url: `/pages/add/index?id=${detail.value.id}` });
+};
+
+/**
+ * 点击缩略图全屏预览凭证（支持左右滑动查看多张）
+ * @param {number} index 当前点击图片的下标，作为预览起始位置
+ */
+const previewPhotos = index => {
+  uni.previewImage({ urls: detail.value.photos, current: index });
 };
 </script>
 
@@ -128,6 +166,13 @@ const handleEdit = () => {
 .detail-page {
   min-height: 100vh;
   background-color: #3c64f6;
+}
+
+.loading-tip {
+  margin-top: 200rpx;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 28rpx;
 }
 
 // 账单卡片
@@ -228,6 +273,25 @@ const handleEdit = () => {
 
         &.remark {
           line-height: 1.5;
+        }
+      }
+
+      // 凭证照片缩略图（.photo-row 与 .info-row 同节点，用复合选择器）
+      &.photo-row {
+        align-items: flex-start;
+
+        .photo-thumbs {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+          gap: 12rpx;
+          margin-left: 40rpx;
+
+          .photo-thumb {
+            width: 128rpx;
+            height: 128rpx;
+            border-radius: 12rpx;
+          }
         }
       }
     }

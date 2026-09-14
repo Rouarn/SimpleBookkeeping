@@ -1,3 +1,16 @@
+<!--
+  @file 我的页（pages/my/index.vue）
+  @description 个人中心页面：
+               1. 顶部个人信息区：装饰背景、消息铃铛、头像与昵称（点击可修改昵称 /
+                  更换头像）、加入产品天数提示；
+               2. 记账统计：记账总笔数、记账总天数、账本数量（跨 bill / book store 实时联动）；
+               3. 功能菜单：邀请好友、记账提醒、意见反馈、关于我们、设置
+                  （当前为占位项，点击仅 toast 提示）。
+               用户资料持久化在 user store，统计数字不落地存储。
+  @author 夏季 <2937375029@qq.com>
+  @date 2026-09-14
+  @modify 2026-09-14
+-->
 <template>
   <view class="my">
     <!-- 顶部个人信息区 -->
@@ -16,10 +29,15 @@
 
       <!-- 用户资料 -->
       <view class="profile">
-        <image class="avatar" :src="avatar" mode="aspectFill"></image>
+        <image
+          class="avatar"
+          :src="profile.avatar"
+          mode="aspectFill"
+          @click="onEditProfile"
+        ></image>
         <view class="profile-info">
           <view class="name-row">
-            <text class="name">{{ user.name }}</text>
+            <text class="name">{{ profile.name }}</text>
             <uni-icons
               class="edit-icon"
               type="compose"
@@ -28,7 +46,7 @@
               @click="onEditProfile"
             ></uni-icons>
           </view>
-          <text class="welcome">欢迎来到小绿记账的第{{ user.days }}天</text>
+          <text class="welcome">欢迎来到小绿记账的第{{ joinDays }}天</text>
         </view>
       </view>
 
@@ -72,21 +90,21 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+/**
+ * 我的页脚本模块
+ * 模块说明：
+ * - useProfile()：取得用户资料、加入天数、跨模块统计，以及修改昵称 / 更换头像动作；
+ * - 菜单与铃铛为静态入口，当前仅做占位反馈。
+ */
+import { ref } from "vue";
+import { useProfile } from "@/composables/useBookkeeping";
 
-const avatar = ref("/static/other/01.png");
+// 用户资料持久化在 user store；记账笔数/天数/账本数由 bill、book store 实时联动
+const { profile, joinDays, stats, editName, changeAvatar } = useProfile();
 
-const user = reactive({
-  name: "小绿",
-  days: 98,
-});
-
-const stats = reactive({
-  records: 382,
-  days: 90,
-  books: 1,
-});
-
+/**
+ * 功能菜单配置（title 文案 + icon 样式类名，图标素材见本页 style 中的 .ic-* 类）
+ */
 const menuList = ref([
   { title: "邀请好友", icon: "ic-invite" },
   { title: "记账提醒", icon: "ic-alarm" },
@@ -95,16 +113,28 @@ const menuList = ref([
   { title: "设置", icon: "ic-settings" },
 ]);
 
+/**
+ * 菜单项点击（功能占位，后续按 item.title 路由到对应子页）
+ * @param {{title: string, icon: string}} item 被点击的菜单项
+ */
 const onMenuTap = item => {
   uni.showToast({ title: item.title, icon: "none" });
 };
 
+/** 消息铃铛点击（占位） */
 const onNotice = () => {
   uni.showToast({ title: "消息通知", icon: "none" });
 };
 
+/** 头像 / 昵称编辑入口：弹出 ActionSheet 选择修改昵称或更换头像 */
 const onEditProfile = () => {
-  uni.showToast({ title: "编辑资料", icon: "none" });
+  uni.showActionSheet({
+    itemList: ["修改昵称", "更换头像"],
+    success: res => {
+      if (res.tapIndex === 0) editName();
+      if (res.tapIndex === 1) changeAvatar();
+    },
+  });
 };
 </script>
 

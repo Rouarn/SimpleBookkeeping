@@ -1,9 +1,22 @@
+<!--
+  @file 首页（pages/index/index.vue）
+  @description 账本应用首页，展示三大区块：
+               1. 顶部问候与用户昵称；
+               2. 本月统计卡：本月支出（大字）、本月收入、本月预算（可点击设置）、
+                  结余与预算执行进度条；
+               3. 今日流水：按时间倒序展示当天账单（图标 / 标题 / 备注 / 带符号金额 /
+                  时间 / 支付方式），点击单条跳转账单详情，空数据时显示引导提示。
+               页面不直接操作 store，全部数据与动作来自 useHomeData / goBillDetail。
+  @author 夏季 <2937375029@qq.com>
+  @date 2026-09-14
+  @modify 2026-09-14
+-->
 <template>
   <view class="home">
     <view class="home-content">
       <!-- 顶部问候 -->
       <view class="greeting">
-        <view class="greeting-text">Hi, 小绿!</view>
+        <view class="greeting-text">Hi, {{ userName }}!</view>
         <view class="more-btn">
           <uni-icons type="more-filled" size="30" color="#1d1d1f"></uni-icons>
         </view>
@@ -26,9 +39,10 @@
             <text class="info-label">本月收入（元）：</text>
             <text class="info-value">{{ stats.income }}</text>
           </view>
-          <view class="stats-info-item">
+          <view class="stats-info-item" @click="editBudget">
             <text class="info-label">本月预算（元）：</text>
             <text class="info-value">{{ stats.budget }}</text>
+            <text class="info-edit">设置</text>
           </view>
         </view>
         <view class="stats-balance">
@@ -51,7 +65,7 @@
       <view class="today-header">
         <view class="today-title">
           <text class="today-text">今天</text>
-          <text class="today-date"> 12月19日</text>
+          <text class="today-date">{{ todayDate }}</text>
         </view>
         <view class="today-summary">
           <text class="summary-item">支：{{ todayExpense }}</text>
@@ -60,8 +74,13 @@
       </view>
 
       <view class="flow-list">
+        <view v-if="flowList.length === 0" class="empty-tip">
+          <text class="empty-text">今天还没有记账</text>
+          <text class="empty-sub">点击下方 + 开始记一笔</text>
+        </view>
         <view
           v-for="(item, index) in flowList"
+          v-else
           :key="index"
           class="flow-item"
           @click="goDetail(item)"
@@ -74,7 +93,12 @@
           </view>
           <view class="flow-info">
             <view class="flow-title-row">
-              <text class="flow-title">{{ item.title }}</text>
+              <view class="flow-title-wrap">
+                <text class="flow-title">{{ item.title }}</text>
+                <text v-if="item.remark" class="flow-remark"
+                  >- {{ item.remark }}</text
+                >
+              </view>
               <text class="flow-amount" :class="{ income: item.amount > 0 }">
                 {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
               </text>
@@ -92,68 +116,33 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from "vue";
-import { onLoad } from "@dcloudio/uni-app";
+/**
+ * 首页脚本模块
+ * 模块说明：
+ * - useHomeData()：一次性取得本月统计（bill + book 联动）、今日流水、
+ *   今日收支、用户昵称、今日日期与预算设置动作；
+ * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行从 store 取数。
+ */
+import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
 
-const stats = reactive({
-  expense: "5681.95",
-  income: "8950.00",
-  budget: "9900.00",
-  balance: "3268.05",
-  progress: 57.4,
-});
+// 首页数据全部由 Pinia 派生，模板中直接消费，无需本地状态
+const {
+  stats,
+  flowList,
+  todayExpense,
+  todayIncome,
+  userName,
+  todayDate,
+  editBudget,
+} = useHomeData();
 
-const flowList = ref([
-  {
-    title: "公共交通",
-    iconText: "🚇",
-    iconBg: "#eef2ff",
-    amount: -12.0,
-    time: "18:39",
-    payMethod: "微信支付",
-  },
-  {
-    title: "收益",
-    iconText: "💰",
-    iconBg: "#fff0f0",
-    amount: 8.66,
-    time: "09:45",
-    payMethod: "支付宝",
-  },
-  {
-    title: "餐饮",
-    iconText: "🍽️",
-    iconBg: "#eef2ff",
-    amount: -29.5,
-    time: "10:02",
-    payMethod: "微信支付",
-  },
-]);
-
+/**
+ * 点击今日流水单条 → 跳转详情页
+ * @param {import('@/store/types').BillViewModel} item 被点击的流水项
+ */
 const goDetail = item => {
-  uni.navigateTo({
-    url: "/pages/detail/index",
-    success: res => {
-      res.eventChannel.emit("billData", item);
-    },
-  });
+  goBillDetail(item.id);
 };
-
-const todayExpense = computed(() => {
-  const total = flowList.value
-    .filter(i => i.amount < 0)
-    .reduce((s, i) => s + Math.abs(i.amount), 0);
-  return total.toFixed(2);
-});
-
-const todayIncome = computed(() => {
-  const total = flowList.value
-    .filter(i => i.amount > 0)
-    .reduce((s, i) => s + i.amount, 0);
-  return total.toFixed(2);
-});
-
-onLoad(() => {});
 </script>
 
 <style lang="scss" scoped>
@@ -266,6 +255,12 @@ onLoad(() => {});
         font-size: 26rpx;
         font-weight: 600;
         color: #fff;
+      }
+      .info-edit {
+        font-size: 22rpx;
+        color: rgba(255, 255, 255, 0.6);
+        margin-left: 8rpx;
+        text-decoration: underline;
       }
     }
   }
@@ -386,16 +381,37 @@ onLoad(() => {});
           justify-content: space-between;
           margin-bottom: 8rpx;
 
+          .flow-title-wrap {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            margin-right: 16rpx;
+            overflow: hidden;
+          }
+
           .flow-title {
             font-size: 32rpx;
             font-weight: 600;
             color: #1d1d1f;
+            flex-shrink: 0;
+          }
+
+          .flow-remark {
+            font-size: 26rpx;
+            color: #b3b9c7;
+            margin-left: 10rpx;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
           }
 
           .flow-amount {
             font-size: 34rpx;
             font-weight: 700;
             color: #1d1d1f;
+            flex-shrink: 0;
 
             &.income {
               color: #e94e6b;
@@ -417,6 +433,24 @@ onLoad(() => {});
         }
       }
     }
+  }
+}
+
+.empty-tip {
+  padding: 80rpx 0;
+  text-align: center;
+
+  .empty-text {
+    display: block;
+    font-size: 30rpx;
+    color: #8a8f9c;
+  }
+
+  .empty-sub {
+    display: block;
+    font-size: 24rpx;
+    color: #b3b9c7;
+    margin-top: 12rpx;
   }
 }
 </style>

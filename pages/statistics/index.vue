@@ -1,3 +1,17 @@
+<!--
+  @file 统计页（pages/statistics/index.vue）
+  @description 按月与收支类型展示账单分析：
+               1. 顶部：标题、月份选择（picker 月份模式）与支出/收入切换；
+               2. 概览卡片：当月支出（或收入）总额、较上月环比、对向金额、
+                  记账笔数、日均（按当月已过天数）与结余，卡片配色随类型切换；
+               3. 近 6 个月收支柱状趋势图（点击柱子查看数值，高度按 6 个月最大值归一化）；
+               4. 分类排行：金额、笔数、占比与进度条；
+               5. 支付方式分布（仅支出时展示）。
+               月份与类型选择持久化在 app store，聚合数据全部由 bill store 实时计算。
+  @author 夏季 <2937375029@qq.com>
+  @date 2026-09-14
+  @modify 2026-09-14
+-->
 <template>
   <view class="statistics">
     <!-- 顶部标题 + 月份选择 -->
@@ -130,7 +144,13 @@
       </view>
 
       <view class="rank-list">
+        <view v-if="categoryStats.length === 0" class="empty-tip">
+          <text class="empty-text"
+            >暂无{{ billType === "expense" ? "支出" : "收入" }}数据</text
+          >
+        </view>
         <view
+          v-else
           v-for="(cat, index) in categoryStats"
           :key="cat.name"
           class="rank-row"
@@ -174,7 +194,15 @@
       </view>
 
       <view class="rank-list">
-        <view v-for="(pay, index) in payStats" :key="pay.name" class="rank-row">
+        <view v-if="payStats.length === 0" class="empty-tip">
+          <text class="empty-text">暂无支付方式数据</text>
+        </view>
+        <view
+          v-else
+          v-for="(pay, index) in payStats"
+          :key="pay.name"
+          class="rank-row"
+        >
           <text class="rank-index" :class="{ top: index < 3 }">{{
             index + 1
           }}</text>
@@ -212,349 +240,107 @@
 </template>
 
 <script setup>
+/**
+ * 统计页脚本模块
+ * 模块说明：
+ * - 选中月份 / 收支类型用可写 computed 双向绑定 app store（自动持久化）；
+ * - 分类排行、支付方式排行、月汇总由 useStatisticsData 从 bill store 实时聚合；
+ * - 近 6 个月趋势、柱状图归一化高度、环比百分比为本页基于月汇总二次派生。
+ */
 import { ref, computed } from "vue";
-import { onLoad } from "@dcloudio/uni-app";
+import { useAppStore, useBillStore } from "@/store";
+import { useStatisticsData } from "@/composables/useBookkeeping";
 
-// 金额格式化，避免浮点累加误差
+/**
+ * 金额格式化：四舍五入到两位小数并固定两位展示，避免浮点累加误差
+ * @param {number|string} n 原始数值
+ * @returns {string} 如 '1234.50'
+ */
 const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 
-// 分类元数据：图标 / 主题色 / 浅底色（与记账页分类保持一致）
-const CATEGORY_META = {
-  expense: {
-    购物: { icon: "🛍️", color: "#ff8f1f", bg: "#fff3e6" },
-    交通: { icon: "🚌", color: "#4a8cff", bg: "#eaf2ff" },
-    娱乐: { icon: "🎬", color: "#a45dff", bg: "#f4ecff" },
-    餐饮: { icon: "🍽️", color: "#ff6a3d", bg: "#ffefea" },
-    住房: { icon: "🏠", color: "#22b573", bg: "#e8f8f1" },
-    就医: { icon: "💊", color: "#f2484b", bg: "#ffecec" },
-    教育: { icon: "📚", color: "#2ea8e6", bg: "#e8f6fd" },
-    旅行: { icon: "✈️", color: "#14b8a6", bg: "#e6f7f5" },
-  },
-  income: {
-    工资: { icon: "💵", color: "#f2484b", bg: "#ffecec" },
-    退还款: { icon: "🔄", color: "#5b8ff9", bg: "#eaf2ff" },
-    红包: { icon: "🧧", color: "#ff7a45", bg: "#fff0e8" },
-    收益: { icon: "📈", color: "#34c759", bg: "#e9faf0" },
-    礼金: { icon: "🎁", color: "#ffb020", bg: "#fff7e3" },
-    佣金: { icon: "💰", color: "#b06be0", bg: "#f5edff" },
-  },
-};
+const appStore = useAppStore();
+const billStore = useBillStore();
 
-const PAY_META = {
-  微信支付: { short: "微", color: "#07c160", bg: "#e7f8ef" },
-  支付宝: { short: "支", color: "#1677ff", bg: "#e8f2ff" },
-  信用卡: { short: "信", color: "#ff7d00", bg: "#fff2e3" },
-  储蓄卡: { short: "卡", color: "#5a6072", bg: "#eef0f5" },
-  现金: { short: "现", color: "#f2994a", bg: "#fdf2e4" },
-};
+// 月份 / 收支类型：双向绑定 app store（切换后持久化记忆）
+const month = computed({
+  get: () => appStore.ui.statsMonth,
+  set: value => appStore.setStatsMonth(value),
+});
+const billType = computed({
+  get: () => appStore.ui.statsType,
+  set: value => appStore.setStatsType(value),
+});
 
-// 本月账单（mock 数据，与首页 / 流水页口径一致）
-const bills = ref([
-  {
-    type: "expense",
-    day: "09-01",
-    category: "住房",
-    amount: 2500,
-    payMethod: "储蓄卡",
-  },
-  {
-    type: "expense",
-    day: "09-02",
-    category: "餐饮",
-    amount: 38.5,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-02",
-    category: "交通",
-    amount: 12,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-03",
-    category: "购物",
-    amount: 299,
-    payMethod: "支付宝",
-  },
-  {
-    type: "expense",
-    day: "09-03",
-    category: "餐饮",
-    amount: 56,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-04",
-    category: "娱乐",
-    amount: 88,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-05",
-    category: "交通",
-    amount: 6,
-    payMethod: "现金",
-  },
-  {
-    type: "expense",
-    day: "09-05",
-    category: "餐饮",
-    amount: 42.3,
-    payMethod: "支付宝",
-  },
-  {
-    type: "expense",
-    day: "09-06",
-    category: "购物",
-    amount: 128.8,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-07",
-    category: "旅行",
-    amount: 1280,
-    payMethod: "信用卡",
-  },
-  {
-    type: "expense",
-    day: "09-08",
-    category: "餐饮",
-    amount: 67,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-08",
-    category: "教育",
-    amount: 199,
-    payMethod: "支付宝",
-  },
-  {
-    type: "expense",
-    day: "09-09",
-    category: "交通",
-    amount: 58,
-    payMethod: "支付宝",
-  },
-  {
-    type: "expense",
-    day: "09-10",
-    category: "购物",
-    amount: 45.6,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-10",
-    category: "餐饮",
-    amount: 33.9,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-11",
-    category: "娱乐",
-    amount: 128,
-    payMethod: "信用卡",
-  },
-  {
-    type: "expense",
-    day: "09-12",
-    category: "就医",
-    amount: 236.5,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-12",
-    category: "餐饮",
-    amount: 29.9,
-    payMethod: "支付宝",
-  },
-  {
-    type: "expense",
-    day: "09-13",
-    category: "交通",
-    amount: 14,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-13",
-    category: "购物",
-    amount: 89.9,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-14",
-    category: "餐饮",
-    amount: 45.5,
-    payMethod: "微信支付",
-  },
-  {
-    type: "expense",
-    day: "09-14",
-    category: "交通",
-    amount: 8,
-    payMethod: "微信支付",
-  },
-  {
-    type: "income",
-    day: "09-01",
-    category: "工资",
-    amount: 8950,
-    payMethod: "储蓄卡",
-  },
-  {
-    type: "income",
-    day: "09-03",
-    category: "收益",
-    amount: 8.66,
-    payMethod: "支付宝",
-  },
-  {
-    type: "income",
-    day: "09-05",
-    category: "红包",
-    amount: 200,
-    payMethod: "微信支付",
-  },
-  {
-    type: "income",
-    day: "09-08",
-    category: "退还款",
-    amount: 120,
-    payMethod: "支付宝",
-  },
-  {
-    type: "income",
-    day: "09-10",
-    category: "收益",
-    amount: 12.88,
-    payMethod: "支付宝",
-  },
-  {
-    type: "income",
-    day: "09-12",
-    category: "佣金",
-    amount: 500,
-    payMethod: "支付宝",
-  },
-  {
-    type: "income",
-    day: "09-14",
-    category: "收益",
-    amount: 6.66,
-    payMethod: "支付宝",
-  },
-]);
-
-const billType = ref("expense");
-const month = ref("2026-09");
+// 当前高亮查看的趋势柱下标（0-5，5 为选中月；默认即选中当月）
 const activeTrend = ref(5);
 
+// 分类排行 / 支付方式排行 / 月汇总全部由 bill store 实时聚合，
+// 分类与支付方式的图标配色统一来自 category / book store
+const { categoryStats, payStats, summary } = useStatisticsData(month, billType);
+
+/** 月份中文展示，如 '2026年9月' */
 const monthText = computed(() => {
   const [y, m] = month.value.split("-");
   return `${y}年${Number(m)}月`;
 });
 
+/**
+ * 月份 picker 选中回调：更新月份并把趋势高亮重置为当月柱
+ * @param {object} e e.detail.value 形如 '2026-09'
+ */
 const onMonthChange = e => {
   month.value = e.detail.value;
   activeTrend.value = 5;
 };
 
+/**
+ * 切换支出 / 收入视图
+ * @param {import('@/store/types').BillType} type
+ */
 const switchType = type => {
   billType.value = type;
 };
 
-// 收支汇总
-const expenseBills = computed(() =>
-  bills.value.filter(i => i.type === "expense"),
-);
-const totalExpense = computed(() =>
-  expenseBills.value.reduce((s, i) => s + i.amount, 0),
-);
-const totalIncome = computed(() =>
-  bills.value
-    .filter(i => i.type === "income")
-    .reduce((s, i) => s + i.amount, 0),
-);
+// ---------- 概览卡片派生（数据源为 bill store 的月汇总） ----------
+const totalExpense = computed(() => summary.value.expense);
+const totalIncome = computed(() => summary.value.income);
+/** 卡片主金额：跟随当前收支类型取支出或收入 */
 const currentTotal = computed(() =>
   billType.value === "expense" ? totalExpense.value : totalIncome.value,
 );
-const currentCount = computed(
-  () => bills.value.filter(i => i.type === billType.value).length,
+/** 当前类型的记账笔数 */
+const currentCount = computed(() =>
+  billType.value === "expense"
+    ? summary.value.expenseCount
+    : summary.value.incomeCount,
 );
-const balance = computed(() => totalIncome.value - totalExpense.value);
-// 日均按当月已过天数计算
+const balance = computed(() => summary.value.balance);
+/** 日均支出/收入 = 当前总额 ÷ 当月已过天数（今天至少按 1 天，避免月初除零） */
 const dailyAverage = computed(() => {
   const elapsed = new Date().getDate() || 1;
   return currentTotal.value / elapsed;
 });
 
-// 分类聚合：金额 / 笔数 / 占比，按金额倒序
-const categoryStats = computed(() => {
-  const meta = CATEGORY_META[billType.value];
-  const map = {};
-  bills.value.forEach(i => {
-    if (i.type !== billType.value) return;
-    if (!map[i.category]) map[i.category] = { amount: 0, count: 0 };
-    map[i.category].amount += i.amount;
-    map[i.category].count += 1;
-  });
-  const total = Object.values(map).reduce((s, v) => s + v.amount, 0) || 1;
-  return Object.keys(map)
-    .map(name => ({
-      name,
-      amount: Math.round(map[name].amount * 100) / 100,
-      count: map[name].count,
-      percent: Math.round((map[name].amount / total) * 1000) / 10,
-      ...meta[name],
-    }))
-    .sort((a, b) => b.amount - a.amount);
-});
-
-// 支付方式聚合（仅支出口径）
-const payStats = computed(() => {
-  const map = {};
-  expenseBills.value.forEach(i => {
-    if (!map[i.payMethod]) map[i.payMethod] = { amount: 0, count: 0 };
-    map[i.payMethod].amount += i.amount;
-    map[i.payMethod].count += 1;
-  });
-  const total = totalExpense.value || 1;
-  return Object.keys(map)
-    .map(name => ({
-      name,
-      amount: Math.round(map[name].amount * 100) / 100,
-      count: map[name].count,
-      percent: Math.round((map[name].amount / total) * 1000) / 10,
-      ...PAY_META[name],
-    }))
-    .sort((a, b) => b.amount - a.amount);
-});
-
-// 近6个月趋势（最近5个月为 mock，当前月取实际汇总）
-const PREV_EXPENSE = [5280, 6120, 4890, 7350, 5980];
-const PREV_INCOME = [8700, 8950, 9200, 8950, 10300];
-
+/**
+ * 近 6 个月趋势：以选中月为第 6 项（下标 5），前 5 项逐月回退，
+ * 每月从 bill store 取支出 / 收入汇总（无数据自然为 0）
+ * @returns {Array<{label: string, expense: number, income: number}>}
+ */
 const trend = computed(() => {
   const [y, m] = month.value.split("-").map(Number);
   const list = [];
   for (let i = 5; i >= 1; i--) {
+    // 借助 Date 自动处理跨年：月份传 0 基且允许负数偏移
     const d = new Date(y, m - 1 - i, 1);
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const s = billStore.monthSummary(monthStr);
     list.push({
       label: `${d.getMonth() + 1}月`,
-      expense: PREV_EXPENSE[5 - i],
-      income: PREV_INCOME[5 - i],
+      expense: s.expense,
+      income: s.income,
     });
   }
+  // 选中月直接用当前汇总，保证与卡片数字完全一致
   list.push({
     label: `${m}月`,
     expense: Math.round(totalExpense.value * 100) / 100,
@@ -563,25 +349,37 @@ const trend = computed(() => {
   return list;
 });
 
+/** 6 个月内支出 / 收入的全局最大值，作为柱状图高度归一化的分母 */
 const trendMax = computed(() =>
   trend.value.reduce((max, i) => Math.max(max, i.expense, i.income), 0),
 );
 
-const barHeight = v => Math.max(Math.round((v / trendMax.value) * 100), 2);
+/**
+ * 计算单根柱子的高度百分比
+ * @param {number} v 该柱金额
+ * @returns {number} 0-100 的高度百分比；无数据时给 2% 保底可见，最大值为 100
+ */
+const barHeight = v =>
+  trendMax.value > 0 ? Math.max(Math.round((v / trendMax.value) * 100), 2) : 2;
 
-// 环比
+/**
+ * 选中月相对上月的环比（跟随当前收支类型）
+ * 上月为 0 时不计算百分比：当月有值显示「新增」，均为 0 显示「—」
+ * @returns {{up: boolean, text: string}} up 控制箭头方向，text 为展示文案
+ */
 const mom = computed(() => {
   const key = billType.value;
-  const cur = trend.value[5][key];
-  const prev = trend.value[4][key];
+  const cur = trend.value[5][key]; // 选中月
+  const prev = trend.value[4][key]; // 上月
+  if (prev === 0) {
+    return { up: cur > 0, text: cur > 0 ? "新增" : "—" };
+  }
   const pct = ((cur - prev) / prev) * 100;
   return {
     up: pct >= 0,
     text: `${pct >= 0 ? "+" : "-"}${Math.abs(pct).toFixed(1)}%`,
   };
 });
-
-onLoad(() => {});
 </script>
 
 <style lang="scss" scoped>
@@ -1008,6 +806,16 @@ onLoad(() => {});
         transition: width 0.3s ease;
       }
     }
+  }
+}
+
+.empty-tip {
+  padding: 80rpx 0;
+  text-align: center;
+
+  .empty-text {
+    font-size: 28rpx;
+    color: #8a8f9c;
   }
 }
 </style>

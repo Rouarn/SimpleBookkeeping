@@ -57,8 +57,8 @@
       },
       {
         "pagePath": "pages/flowing/index",
-        "iconPath": "static/tabBar/message.png",
-        "selectedIconPath": "static/tabBar/messageHL.png",
+        "iconPath": "static/tabBar/flowing.png",
+        "selectedIconPath": "static/tabBar/flowingHL.png",
         "text": "流水"
       },
       {
