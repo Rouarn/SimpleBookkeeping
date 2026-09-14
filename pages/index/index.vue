@@ -1,749 +1,418 @@
 <template>
-  <view class="container">
-    <view class="header">
-      <text class="page-title">支出记录</text>
-      <view class="setting" @click="navigateToSetting">
-        <uni-icons type="gear-filled" size="24" color="#4CAF87"></uni-icons>
-      </view>
-    </view>
-
-    <view class="card card--green">
-      <text class="card-title">总金额</text>
-      <view class="amount-display">
-        <uni-icons type="wallet" size="24" color="#4CAF87"></uni-icons>
-        <text class="amount-value">¥{{ formatAmount(totalAmount) }}</text>
-      </view>
-      <view class="amount-details">
-        <view class="detail-row">
-          <text class="detail-label">总支出</text>
-          <text class="detail-value">
-            ¥{{ formatAmount(getTotalExpense()) }}
-          </text>
-        </view>
-        <view class="detail-row">
-          <text class="detail-label">剩余金额</text>
-          <text class="detail-value">
-            ¥{{ formatAmount(getRemainingAmount()) }}
-          </text>
+  <view class="home">
+    <view class="home-content">
+      <!-- 顶部问候 -->
+      <view class="greeting">
+        <view class="greeting-text">Hi, 小绿!</view>
+        <view class="more-btn">
+          <uni-icons type="more-filled" size="30" color="#1d1d1f"></uni-icons>
         </view>
       </view>
-    </view>
 
-    <view class="card card--paper">
-      <text class="card-title">支出记录</text>
+      <!-- 账本列表 -->
+      <view class="section-title">账本</view>
 
-      <view class="table-head">
-        <text class="th th-date">日期</text>
-        <text class="th th-item">项目</text>
-        <text class="th th-amt">金额</text>
-      </view>
-
-      <view v-if="records.length === 0" class="empty">
-        <view class="plant">
-          <view class="plant-leaves">
-            <view class="leaf l1"></view>
-            <view class="leaf l2"></view>
-            <view class="leaf l3"></view>
+      <!-- 本月统计卡片 -->
+      <view class="stats-card">
+        <view class="stats-decor">
+          <view class="stats-line"></view>
+        </view>
+        <view class="stats-main">
+          <view class="stats-label">本月支出（元）</view>
+          <view class="stats-amount">{{ stats.expense }}</view>
+        </view>
+        <view class="stats-info">
+          <view class="stats-info-item">
+            <text class="info-label">本月收入（元）：</text>
+            <text class="info-value">{{ stats.income }}</text>
           </view>
-          <view class="pot"></view>
+          <view class="stats-info-item">
+            <text class="info-label">本月预算（元）：</text>
+            <text class="info-value">{{ stats.budget }}</text>
+          </view>
         </view>
-        <text class="empty-text">还没有支出记录哦～</text>
-      </view>
-
-      <view v-else class="table">
-        <view v-for="item in records" :key="item.id" class="tr">
-          <text class="td td-date">{{ item.date }}</text>
-          <text class="td td-item">{{ item.item }}</text>
-          <text class="td td-amt">¥{{ formatAmount(item.amount) }}</text>
+        <view class="stats-balance">
+          <text class="balance-label">结余（元）：</text>
+          <text class="balance-value">{{ stats.balance }}</text>
+        </view>
+        <view class="stats-progress">
+          <view class="progress-bar">
+            <view
+              class="progress-fill"
+              :style="{ width: stats.progress + '%' }"
+            ></view>
+          </view>
         </view>
       </view>
     </view>
 
-    <uni-fab
-      @fabClick="openAdd"
-      horizontal="right"
-      :pattern="{ buttonColor: '#4CAF87' }"
-    />
-  </view>
-
-  <view
-    v-if="leafAnimating"
-    class="leaf-fall"
-    @animationend="leafAnimating = false"
-  >
-    <view class="mini-leaf"></view>
-  </view>
-
-  <view v-if="showAdd" class="mask" @click="closeAdd">
-    <view class="modal" @click.stop>
-      <text class="modal-title">添加支出</text>
-
-      <view class="form-row">
-        <text class="form-label">日期</text>
-        <picker mode="date" :value="addForm.dateRaw" @change="onPickDate">
-          <view class="form-value">{{ addForm.dateText }}</view>
-        </picker>
+    <!-- 今日流水 -->
+    <view class="today-section">
+      <view class="today-header">
+        <view class="today-title">
+          <text class="today-text">今天</text>
+          <text class="today-date"> 12月19日</text>
+        </view>
+        <view class="today-summary">
+          <text class="summary-item">支：{{ todayExpense }}</text>
+          <text class="summary-item income">收：{{ todayIncome }}</text>
+        </view>
       </view>
 
-      <view class="form-row">
-        <text class="form-label">项目</text>
-        <input
-          class="form-input"
-          placeholder="例如：早餐"
-          placeholder-class="placeholder-soft"
-          v-model="addForm.item"
-        />
-      </view>
-
-      <view class="form-row">
-        <text class="form-label">金额</text>
-        <input
-          class="form-input form-input--right"
-          type="digit"
-          placeholder="请输入金额"
-          placeholder-class="placeholder-soft"
-          v-model="addForm.amount"
-        />
-      </view>
-
-      <view class="modal-actions">
-        <button
-          class="btn btn--ghost"
-          hover-class="btn--ghost-active"
-          @click="closeAdd"
+      <view class="flow-list">
+        <view
+          v-for="(item, index) in flowList"
+          :key="index"
+          class="flow-item"
+          @click="goDetail(item)"
         >
-          取消
-        </button>
-        <button
-          class="btn btn--primary"
-          hover-class="btn--primary-active"
-          @click="saveAdd"
-        >
-          保存
-        </button>
+          <view
+            class="flow-icon-wrap"
+            :style="{ backgroundColor: item.iconBg }"
+          >
+            <text class="flow-icon">{{ item.iconText }}</text>
+          </view>
+          <view class="flow-info">
+            <view class="flow-title-row">
+              <text class="flow-title">{{ item.title }}</text>
+              <text class="flow-amount" :class="{ income: item.amount > 0 }">
+                {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
+              </text>
+            </view>
+            <view class="flow-meta">
+              <text class="flow-time">{{ item.time }}</text>
+              <text class="flow-divider">|</text>
+              <text class="flow-pay">{{ item.payMethod }}</text>
+            </view>
+          </view>
+        </view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, nextTick } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { ref, reactive, computed } from "vue";
+import { onLoad } from "@dcloudio/uni-app";
 
-// 页面：支出记录 + 初始金额设置
-// 数据持久化：
-// - sbk_total_amount：初始金额（字符串/数字都可能出现，这里统一转成字符串展示）
-// - sbk_records：支出记录数组（历史版本数据结构可能不同，normalizeRecord 负责兼容）
-
-// 初始金额输入框（使用 v-model 绑定，保持为字符串，避免输入中间态丢失）
-const totalAmount = ref("");
-
-// 支出记录列表
-// record 结构：
-// { id: string, date: string, item: string, amount: number }
-const records = ref([]);
-
-// 添加支出后的小叶子动画开关（通过先 false 再 nextTick->true 触发重播）
-const leafAnimating = ref(false);
-
-// 添加支出弹窗显示开关
-const showAdd = ref(false);
-
-// 添加支出表单
-// dateRaw：picker 返回的 YYYY-MM-DD
-// dateText：展示用 YYYY.MM.DD
-// item：项目名称
-// amount：金额输入（字符串，保存时再转 number）
-const addForm = ref({
-  dateRaw: "",
-  dateText: "",
-  item: "",
-  amount: "",
+const stats = reactive({
+  expense: "5681.95",
+  income: "8950.00",
+  budget: "9900.00",
+  balance: "3268.05",
+  progress: 57.4,
 });
 
-// 将 YYYY-MM-DD 转成 YYYY.MM.DD（仅用于展示）
-function formatDateText(raw) {
-  if (!raw) return "";
-  return String(raw).replace(/-/g, ".");
-}
+const flowList = ref([
+  {
+    title: "公共交通",
+    iconText: "🚇",
+    iconBg: "#eef2ff",
+    amount: -12.0,
+    time: "18:39",
+    payMethod: "微信支付",
+  },
+  {
+    title: "收益",
+    iconText: "💰",
+    iconBg: "#fff0f0",
+    amount: 8.66,
+    time: "09:45",
+    payMethod: "支付宝",
+  },
+  {
+    title: "餐饮",
+    iconText: "🍽️",
+    iconBg: "#eef2ff",
+    amount: -29.5,
+    time: "10:02",
+    payMethod: "微信支付",
+  },
+]);
 
-// 兼容旧数据中的 timeText（例如 "04-21 12:00"），拼出 YYYY.MM.DD
-function guessDateFromTimeText(timeText, year) {
-  const m = String(timeText).match(/^(\d{2})-(\d{2})\s+/);
-  if (!m) return `${year}.01.01`;
-  return `${year}.${m[1]}.${m[2]}`;
-}
-
-// 兼容/清洗本地存储中的记录对象，尽量转成当前页面需要的结构
-function normalizeRecord(r) {
-  if (!r || typeof r !== "object") return null;
-  const amount = Number(r.amount);
-  const id = r.id
-    ? String(r.id)
-    : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-  if (r.date && r.item) {
-    return {
-      id,
-      date: String(r.date),
-      item: String(r.item),
-      amount: Number.isFinite(amount) ? amount : 0,
-    };
-  }
-
-  const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const date = r.timeText
-    ? guessDateFromTimeText(String(r.timeText), yyyy)
-    : `${yyyy}.${String(now.getMonth() + 1).padStart(2, "0")}.${String(now.getDate()).padStart(2, "0")}`;
-  const item = r.category ? String(r.category) : "支出";
-
-  return {
-    id,
-    date,
-    item,
-    amount: Number.isFinite(amount) ? amount : 0,
-  };
-}
-
-// 金额展示格式：最多两位小数，去掉末尾无意义的 0
-function formatAmount(value) {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "0";
-  const fixed = Math.round(num * 100) / 100;
-  return String(fixed).includes(".")
-    ? fixed.toFixed(2).replace(/\.?0+$/, "")
-    : String(fixed);
-}
-
-// 计算总支出数
-function getTotalExpense() {
-  return records.value.reduce((sum, record) => sum + Number(record.amount), 0);
-}
-
-// 计算剩余金额
-function getRemainingAmount() {
-  const totalNum = Number(totalAmount.value);
-  const expenseNum = getTotalExpense();
-  return totalNum - expenseNum;
-}
-
-// 重置“添加支出”表单（默认日期为今天）
-function resetAddForm() {
-  const now = new Date();
-  const yyyy = String(now.getFullYear());
-  const mm = String(now.getMonth() + 1).padStart(2, "0");
-  const dd = String(now.getDate()).padStart(2, "0");
-  addForm.value = {
-    dateRaw: `${yyyy}-${mm}-${dd}`,
-    dateText: `${yyyy}.${mm}.${dd}`,
-    item: "",
-    amount: "",
-  };
-}
-
-// 打开“添加支出”弹窗
-function openAdd() {
-  resetAddForm();
-  showAdd.value = true;
-}
-
-// 关闭“添加支出”弹窗
-function closeAdd() {
-  showAdd.value = false;
-}
-
-// 选择日期回调：同步 dateRaw/dateText
-function onPickDate(e) {
-  const value = (e && e.detail && e.detail.value) || "";
-  addForm.value.dateRaw = value;
-  addForm.value.dateText = formatDateText(value);
-}
-
-// 保存新增支出：
-// 1) 校验项目与金额
-// 2) 生成记录并写入 records
-// 3) 持久化到本地存储
-// 4) 关闭弹窗并触发动画
-function saveAdd() {
-  const itemText = String(addForm.value.item || "").trim();
-  const amountNumber = parseFloat(
-    String(addForm.value.amount).replace(/[^\d.]/g, ""),
-  );
-  if (!itemText) {
-    uni.showToast({ title: "请输入项目", icon: "none" });
-    return;
-  }
-  if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
-    uni.showToast({ title: "请输入正确金额", icon: "none" });
-    return;
-  }
-
-  const now = new Date();
-  const record = {
-    id: `${now.getTime()}_${Math.random().toString(16).slice(2)}`,
-    date: addForm.value.dateText || formatDateText(addForm.value.dateRaw),
-    item: itemText,
-    amount: amountNumber,
-  };
-  records.value = [record, ...records.value];
-  uni.setStorageSync("sbk_records", records.value);
-  showAdd.value = false;
-
-  leafAnimating.value = false;
-  nextTick(() => {
-    leafAnimating.value = true;
-  });
-}
-
-// 页面加载时：
-// - 读取初始金额与记录列表
-// - 兼容历史结构（normalizeRecord）
-// - 初始化添加表单
-onShow(() => {
-  const storedTotal = uni.getStorageSync("sbk_total_amount");
-  const storedRecords = uni.getStorageSync("sbk_records");
-  if (storedTotal !== undefined && storedTotal !== null && storedTotal !== "") {
-    totalAmount.value = String(storedTotal);
-  } else {
-    uni.reLaunch({
-      url: "/pages/initialAmount/index",
-    });
-    return;
-  }
-  if (Array.isArray(storedRecords)) {
-    records.value = storedRecords.map(r => normalizeRecord(r)).filter(Boolean);
-  }
-  resetAddForm();
-});
-
-// 导航到设置页面
-function navigateToSetting() {
+const goDetail = item => {
   uni.navigateTo({
-    url: "/pages/setting/index",
+    url: "/pages/detail/index",
+    success: res => {
+      res.eventChannel.emit("billData", item);
+    },
   });
-}
+};
+
+const todayExpense = computed(() => {
+  const total = flowList.value
+    .filter(i => i.amount < 0)
+    .reduce((s, i) => s + Math.abs(i.amount), 0);
+  return total.toFixed(2);
+});
+
+const todayIncome = computed(() => {
+  const total = flowList.value
+    .filter(i => i.amount > 0)
+    .reduce((s, i) => s + i.amount, 0);
+  return total.toFixed(2);
+});
+
+onLoad(() => {});
 </script>
 
 <style lang="scss" scoped>
-.container {
-  padding: 96rpx 44rpx 96rpx;
-  /* #ifdef H5 */
-  padding-top: 52rpx;
-  /* #endif */
+.home {
+  width: 100%;
+  height: 100%;
+  margin-top: var(--status-bar-height);
+  background-color: rgba(244, 245, 253, 1);
+}
 
-  .header {
+.home-content {
+  background-color: #fff;
+  padding: 0 12rpx 10rpx;
+  margin-bottom: 24rpx;
+}
+
+// 顶部问候
+.greeting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 20rpx;
+
+  .greeting-text {
+    font-size: 48rpx;
+    font-weight: 700;
+    color: #1d1d1f;
+    letter-spacing: 2rpx;
+    padding-left: 12rpx;
+  }
+
+  .more-btn {
+    width: 64rpx;
+    height: 64rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// 分区标题
+.section-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1d1d1f;
+  padding: 16rpx 12rpx 14rpx;
+  letter-spacing: 2rpx;
+}
+
+// 统计卡片
+.stats-card {
+  margin: 16rpx 12rpx 40rpx;
+  padding: 36rpx 36rpx 28rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, #4a6ef7 0%, #3c64f6 50%, #2e54e0 100%);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 16rpx 48rpx rgba(60, 100, 246, 0.35);
+
+  // 装饰折线图
+  .stats-decor {
+    position: absolute;
+    top: 40rpx;
+    right: 32rpx;
+    width: 240rpx;
+    height: 140rpx;
+    opacity: 0.45;
+    z-index: 0;
+
+    .stats-line {
+      width: 100%;
+      height: 100%;
+      background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 140' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='white' stop-opacity='0.5'/><stop offset='100%' stop-color='white' stop-opacity='0'/></linearGradient></defs><path d='M0,100 L30,80 L60,95 L90,60 L120,75 L150,45 L180,55 L210,30 L240,40 L240,140 L0,140 Z' fill='url(%23g)'/><path d='M0,100 L30,80 L60,95 L90,60 L120,75 L150,45 L180,55 L210,30 L240,40' fill='none' stroke='white' stroke-width='2' stroke-opacity='0.7' fill-opacity='0'/></svg>")
+        no-repeat center / contain;
+    }
+  }
+
+  .stats-main {
+    position: relative;
+    z-index: 1;
+
+    .stats-label {
+      font-size: 26rpx;
+      color: rgba(255, 255, 255, 0.75);
+      letter-spacing: 1rpx;
+    }
+
+    .stats-amount {
+      font-size: 72rpx;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 8rpx;
+      letter-spacing: 2rpx;
+    }
+  }
+
+  .stats-info {
+    position: relative;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    /* #ifdef MP-WEIXIN */
-    margin-top: calc(var(--window-top) + var(--status-bar-height));
-    /* #endif */
+    margin-top: 24rpx;
 
-    .page-title {
-      font-size: 52rpx;
-      font-weight: 700;
-      color: #1d1d1f;
-      letter-spacing: 1rpx;
-      display: block;
-    }
-
-    .setting {
-      font-size: 32rpx;
-      font-weight: 700;
-      color: #1d1d1f;
-      letter-spacing: 1rpx;
+    .stats-info-item {
+      .info-label {
+        font-size: 24rpx;
+        color: rgba(255, 255, 255, 0.7);
+      }
+      .info-value {
+        font-size: 26rpx;
+        font-weight: 600;
+        color: #fff;
+      }
     }
   }
 
-  .card {
-    margin-top: 28rpx;
-    border-radius: 44rpx;
-    padding: 30rpx 28rpx 28rpx;
+  .stats-balance {
+    position: relative;
+    z-index: 1;
+    margin-top: 20rpx;
 
-    &--green {
-      position: relative;
-      overflow: hidden;
-      background: linear-gradient(
-        180deg,
-        rgba(76, 175, 135, 0.28) 0%,
-        rgba(102, 194, 165, 0.18) 56%,
-        rgba(255, 255, 255, 0.78) 100%
-      );
-      box-shadow: 0 24rpx 64rpx rgba(56, 142, 107, 0.14);
-
-      &::before {
-        content: "";
-        position: absolute;
-        inset: -60rpx -60rpx auto -60rpx;
-        height: 360rpx;
-        background:
-          radial-gradient(
-            circle at 20% 10%,
-            rgba(255, 255, 255, 0.76) 0%,
-            rgba(255, 255, 255, 0) 56%
-          ),
-          radial-gradient(
-            circle at 86% 0%,
-            rgba(255, 255, 255, 0.46) 0%,
-            rgba(255, 255, 255, 0) 60%
-          );
-        pointer-events: none;
-      }
+    .balance-label {
+      font-size: 24rpx;
+      color: rgba(255, 255, 255, 0.7);
     }
-
-    &--paper {
-      background: rgba(255, 255, 255, 0.86);
-      box-shadow: 0 24rpx 64rpx rgba(56, 142, 107, 0.1);
-    }
-
-    .card-title {
-      position: relative;
+    .balance-value {
       font-size: 30rpx;
-      font-weight: 700;
-      color: #1d1d1f;
-    }
-
-    .amount-display {
-      margin-top: 36rpx;
-      display: flex;
-      align-items: center;
-      gap: 16rpx;
-
-      .amount-value {
-        flex: 1;
-        font-size: 56rpx;
-        font-weight: 700;
-        color: #1d1d1f;
-        text-align: right;
-        letter-spacing: 1rpx;
-      }
-    }
-
-    .amount-details {
-      margin-top: 24rpx;
-      padding-top: 24rpx;
-      border-top: 2rpx solid rgba(76, 175, 135, 0.16);
-
-      .detail-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 12rpx;
-
-        &:first-child {
-          margin-top: 0;
-        }
-
-        .detail-label {
-          font-size: 26rpx;
-          color: rgba(56, 142, 107, 0.88);
-        }
-
-        .detail-value {
-          font-size: 28rpx;
-          font-weight: 600;
-          color: #1d1d1f;
-        }
-      }
+      font-weight: 600;
+      color: #fff;
     }
   }
 
-  .table-head {
-    margin-top: 22rpx;
+  .stats-progress {
+    position: relative;
+    z-index: 1;
+    margin-top: 24rpx;
+
+    .progress-bar {
+      width: 100%;
+      height: 16rpx;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 12rpx;
+      overflow: hidden;
+
+      .progress-fill {
+        height: 100%;
+        border-radius: 12rpx;
+        background: linear-gradient(90deg, #4cf0d4 0%, #6edfff 100%);
+        transition: width 0.3s ease;
+      }
+    }
+  }
+}
+
+// 今日流水
+.today-section {
+  padding: 0 12rpx;
+  background-color: #fff;
+
+  .today-header {
     display: flex;
     align-items: center;
-    padding: 16rpx 18rpx;
-    border-radius: 22rpx;
-    background: rgba(102, 194, 165, 0.16);
+    justify-content: space-between;
+    padding: 24rpx 8rpx 20rpx;
 
-    .th {
-      font-size: 26rpx;
-      font-weight: 600;
-      color: #388e6b;
-
-      &-date {
-        width: 34%;
+    .today-title {
+      .today-text {
+        font-size: 36rpx;
+        font-weight: 700;
+        color: #1d1d1f;
+        letter-spacing: 2rpx;
       }
-
-      &-item {
-        width: 33%;
-        text-align: center;
+      .today-date {
+        font-size: 28rpx;
+        color: #8a8f9c;
+        font-weight: 400;
       }
+    }
 
-      &-amt {
-        width: 33%;
-        text-align: right;
+    .today-summary {
+      .summary-item {
+        font-size: 26rpx;
+        color: #6a7080;
+        margin-left: 16rpx;
+
+        &.income {
+          color: #e94e6b;
+        }
       }
     }
   }
 
-  .table {
-    margin-top: 8rpx;
+  .flow-list {
+    background: #fff;
     border-radius: 28rpx;
-    overflow: hidden;
-    position: relative;
+    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
 
-    .tr {
-      background: rgba(255, 255, 255, 0.72);
+    .flow-item {
       display: flex;
-      justify-content: flex-start;
       align-items: center;
-      padding: 22rpx 18rpx;
-      border-bottom: 2rpx solid rgba(56, 142, 107, 0.08);
+      padding: 28rpx 28rpx;
+      border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
 
       &:last-child {
         border-bottom: none;
       }
 
-      .td {
-        font-size: 28rpx;
-        color: #333333;
+      .flow-icon-wrap {
+        width: 88rpx;
+        height: 88rpx;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 24rpx;
+        flex-shrink: 0;
 
-        &-date {
-          width: 34%;
-        }
-
-        &-item {
-          width: 33%;
-          text-align: center;
-          color: rgba(51, 51, 51, 0.92);
-        }
-
-        &-amt {
-          width: 33%;
-          font-weight: 700;
-          text-align: right;
-        }
-      }
-    }
-  }
-
-  .add-btn {
-    margin-top: 22rpx;
-    width: 100%;
-    height: 88rpx;
-    line-height: 88rpx;
-    border-radius: 999rpx;
-    background: linear-gradient(90deg, #66c2a5 0%, #4caf87 100%);
-    color: #ffffff;
-    font-size: 32rpx;
-
-    &::after {
-      border: none;
-    }
-
-    &--active {
-      opacity: 0.88;
-    }
-  }
-
-  .empty {
-    margin-top: 12rpx;
-    background: rgba(255, 255, 255, 0.72);
-    border-radius: 28rpx;
-    padding: 54rpx 24rpx;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18rpx;
-
-    .plant {
-      width: 140rpx;
-      height: 120rpx;
-      position: relative;
-
-      .plant-leaves {
-        position: absolute;
-        top: 4rpx;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 140rpx;
-        height: 80rpx;
-
-        .leaf {
-          position: absolute;
-          width: 46rpx;
-          height: 60rpx;
-          border-radius: 999rpx 999rpx 999rpx 0;
-          background: linear-gradient(
-            180deg,
-            rgba(102, 194, 165, 0.95) 0%,
-            rgba(76, 175, 135, 0.9) 100%
-          );
-          opacity: 0.92;
-
-          &.l1 {
-            left: 22rpx;
-            top: 18rpx;
-            transform: rotate(-24deg);
-          }
-
-          &.l2 {
-            left: 56rpx;
-            top: 6rpx;
-            transform: rotate(4deg);
-          }
-
-          &.l3 {
-            left: 88rpx;
-            top: 20rpx;
-            transform: rotate(26deg);
-          }
+        .flow-icon {
+          font-size: 44rpx;
         }
       }
 
-      .pot {
-        position: absolute;
-        bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 110rpx;
-        height: 54rpx;
-        border-radius: 0 0 26rpx 26rpx;
-        background: rgba(56, 142, 107, 0.16);
-      }
-    }
-
-    .empty-text {
-      font-size: 26rpx;
-      color: #888888;
-    }
-  }
-
-  .mini-leaf {
-    width: 26rpx;
-    height: 26rpx;
-    border-radius: 999rpx 999rpx 999rpx 0;
-    background: linear-gradient(
-      180deg,
-      rgba(102, 194, 165, 0.95) 0%,
-      rgba(76, 175, 135, 0.9) 100%
-    );
-    transform: rotate(14deg);
-    box-shadow: 0 10rpx 18rpx rgba(76, 175, 135, 0.12);
-  }
-
-  .leaf-fall {
-    position: absolute;
-    top: 140rpx;
-    right: 54rpx;
-    animation: leafFall 820ms ease-out forwards;
-    pointer-events: none;
-  }
-}
-
-@keyframes leafFall {
-  0% {
-    transform: translateY(-16rpx) rotate(0deg);
-    opacity: 0;
-  }
-
-  20% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(180rpx) rotate(38deg);
-    opacity: 0;
-  }
-}
-
-.mask {
-  position: fixed;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(29, 29, 31, 0.28);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 28rpx 36rpx;
-  box-sizing: border-box;
-  z-index: 12;
-
-  .modal {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.96);
-    border-radius: 40rpx;
-    padding: 26rpx 22rpx 22rpx;
-    box-shadow: 0 28rpx 70rpx rgba(56, 142, 107, 0.18);
-    position: relative;
-
-    .modal-title {
-      font-size: 30rpx;
-      font-weight: 700;
-      color: #1d1d1f;
-    }
-
-    .form-row {
-      margin-top: 18rpx;
-      display: flex;
-      align-items: center;
-      gap: 16rpx;
-      padding: 18rpx 18rpx;
-      border-radius: 24rpx;
-      background: rgba(102, 194, 165, 0.1);
-
-      .form-label {
-        width: 84rpx;
-        font-size: 26rpx;
-        color: rgba(56, 142, 107, 0.88);
-        flex: none;
-      }
-
-      .form-value {
+      .flow-info {
         flex: 1;
-        font-size: 28rpx;
-        color: #333333;
-        text-align: right;
-      }
+        min-width: 0;
 
-      .form-input {
-        flex: 1;
-        height: 72rpx;
-        font-size: 28rpx;
-        color: #333333;
-        text-align: left;
+        .flow-title-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8rpx;
 
-        &--right {
-          text-align: right;
-        }
-      }
-    }
+          .flow-title {
+            font-size: 32rpx;
+            font-weight: 600;
+            color: #1d1d1f;
+          }
 
-    .modal-actions {
-      margin-top: 22rpx;
-      display: flex;
-      gap: 16rpx;
+          .flow-amount {
+            font-size: 34rpx;
+            font-weight: 700;
+            color: #1d1d1f;
 
-      .btn {
-        flex: 1;
-        height: 84rpx;
-        line-height: 84rpx;
-        border-radius: 999rpx;
-        font-size: 30rpx;
-
-        &::after {
-          border: none;
-        }
-
-        &--ghost {
-          background: rgba(56, 142, 107, 0.1);
-          color: #388e6b;
-
-          &-active {
-            background: rgba(56, 142, 107, 0.14);
+            &.income {
+              color: #e94e6b;
+            }
           }
         }
 
-        &--primary {
-          background: #4caf87;
-          color: #ffffff;
-
-          &-active {
-            background: #3f9d78;
+        .flow-meta {
+          .flow-time,
+          .flow-pay {
+            font-size: 24rpx;
+            color: #8a8f9c;
+          }
+          .flow-divider {
+            font-size: 24rpx;
+            color: #d0d4de;
+            margin: 0 12rpx;
           }
         }
       }

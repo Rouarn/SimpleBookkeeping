@@ -8,55 +8,79 @@
       }
     },
     {
-      "path": "pages/initialAmount/index",
+      "path": "pages/flowing/index",
       "style": {
-        "navigationBarTitleText": "初始金额设置",
+        "navigationBarTitleText": "流水",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/dataBackup/index",
+      "path": "pages/statistics/index",
       "style": {
-        "navigationBarTitleText": "数据备份",
+        "navigationBarTitleText": "统计",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/setting/index",
+      "path": "pages/my/index",
       "style": {
-        "navigationBarTitleText": "设置",
+        "navigationBarTitleText": "我的",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/dataRestore/index",
+      "path": "pages/add/index",
       "style": {
-        "navigationBarTitleText": "数据恢复",
+        "navigationBarTitleText": "添加",
         "navigationStyle": "custom"
       }
     },
     {
-      "path": "pages/account/index",
+      "path": "pages/detail/index",
       "style": {
-        "navigationBarTitleText": "账户管理",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/reminder/index",
-      "style": {
-        "navigationBarTitleText": "提醒设置",
-        "navigationStyle": "custom"
-      }
-    },
-    {
-      "path": "pages/category/index",
-      "style": {
-        "navigationBarTitleText": "分类管理",
+        "navigationBarTitleText": "账单详情",
         "navigationStyle": "custom"
       }
     }
   ],
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#4CAF87",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "static/tabBar/home.png",
+        "selectedIconPath": "static/tabBar/homeHL.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/flowing/index",
+        "iconPath": "static/tabBar/message.png",
+        "selectedIconPath": "static/tabBar/messageHL.png",
+        "text": "流水"
+      },
+      {
+        "pagePath": "pages/statistics/index",
+        "iconPath": "static/tabBar/apply.png",
+        "selectedIconPath": "static/tabBar/applyHL.png",
+        "text": "统计"
+      },
+      {
+        "pagePath": "pages/my/index",
+        "iconPath": "static/tabBar/my.png",
+        "selectedIconPath": "static/tabBar/myHL.png",
+        "text": "我的"
+      }
+    ],
+    "midButton": {
+      "width": "70px",
+      "height": "70px",
+      "iconWidth": "70px",
+      "iconPath": "static/tabBar/add.png"
+    }
+  },
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "小绿记账",

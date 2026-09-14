@@ -1,26 +1,18 @@
 <script>
-import {
-  initNotification,
-  startReminderCheck,
-  checkReminder,
-} from "./utils/notification";
-
 export default {
   onLaunch: function () {
     console.log("App Launch");
-    // #ifdef APP-PLUS
-    // 初始化通知功能
-    initNotification();
-    // 启动定时检查
-    startReminderCheck(checkReminder);
-    // #endif
+    uni.onTabBarMidButtonTap(() => {
+      console.log("点击了中间按钮");
+      uni.navigateTo({
+        url: "/pages/add/index",
+        animationType: "slide-in-bottom",
+        animationDuration: 150,
+      });
+    });
   },
   onShow: function () {
     console.log("App Show");
-    // #ifdef APP-PLUS
-    // 每次应用显示时检查是否需要发送通知
-    checkReminder();
-    // #endif
   },
   onHide: function () {
     console.log("App Hide");
@@ -36,8 +28,10 @@ export default {
 
 // 设置整个项目的背景色
 page {
-  background-color: #f2f9e7;
-  height: 100%;
+  width: 100%;
+  height: calc(
+    100vh - var(--status-bar-height) - var(--window-top) - var(--window-bottom)
+  );
 }
 
 /* #endif */
