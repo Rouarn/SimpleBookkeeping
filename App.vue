@@ -15,10 +15,23 @@
 /**
  * 应用级生命周期配置（Options API，uni-app  App 入口固定写法）
  */
+import { useAppUpdate } from "@/composables/use-app-update";
+import { reportInstallResult } from "@/utils/app-update/install-result";
+import { initNetworkType } from "@/utils/app-update/device";
+
 export default {
   /** 应用初始化完成时触发（全局只触发一次）：注册中间记账按钮跳转 */
   onLaunch: function () {
     console.log("App Launch");
+
+    // —— APP 在线更新（仅 APP-PLUS 端实际执行，内部已做条件编译）——
+    // 1. 缓存网络类型（升级事件上报用）
+    initNetworkType();
+    // 2. 新版本首次启动：回补 install_success/new_version_launch（必须在 check 之前）
+    reportInstallResult();
+    // 3. 启动静默检查（内部带 6 小时节流，无更新/失败不打扰、不阻断启动）
+    useAppUpdate().check({ silent: true });
+
     // 监听 tabBar 中间按钮点击：进入记账页（slide-in-bottom 模拟由下弹出的录入面板）
     uni.onTabBarMidButtonTap(() => {
       console.log("点击了中间按钮");

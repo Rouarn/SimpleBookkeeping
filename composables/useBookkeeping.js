@@ -28,6 +28,7 @@ import {
   round2,
 } from "@/store";
 import { currentMonth, todayStr, formatMD } from "@/utils/date";
+import { fileToBase64 } from "@/utils/image";
 
 /**
  * 一次拿到全部 store（少数复杂页面使用；普通页面优先使用下方按页拆分的 composable）
@@ -350,18 +351,26 @@ export function useProfile() {
     });
   }
 
-  /** 选择头像并写入 store（临时路径，演示用） */
+  /** 选择头像并转 base64 写入 store 持久化 */
   function changeAvatar() {
     return new Promise(resolve => {
       uni.chooseImage({
         count: 1,
-        success: res => {
+        success: async res => {
           const path = res.tempFilePaths?.[0];
-          if (path) {
+          if (!path) {
+            resolve(null);
+            return;
+          }
+          try {
+            const base64 = await fileToBase64(path);
+            userStore.updateProfile({ avatar: base64 });
+            resolve(base64);
+          } catch {
+            // 转换失败时回退临时路径，保证流程不中断
             userStore.updateProfile({ avatar: path });
             resolve(path);
           }
-          resolve(null);
         },
         fail: () => resolve(null),
       });

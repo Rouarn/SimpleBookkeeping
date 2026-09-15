@@ -86,6 +86,11 @@
         ></uni-icons>
       </view>
     </view>
+
+    <!-- APP 在线更新弹窗（单例状态，本页手动检查时可直接弹出） -->
+    <!-- #ifdef APP-PLUS -->
+    <update-popup />
+    <!-- #endif -->
   </view>
 </template>
 
@@ -98,9 +103,14 @@
  */
 import { ref } from "vue";
 import { useProfile } from "@/composables/useBookkeeping";
+import { useAppUpdate } from "@/composables/use-app-update";
+import { getCurrentVersion } from "@/utils/app-update/device";
 
 // 用户资料持久化在 user store；记账笔数/天数/账本数由 bill、book store 实时联动
 const { profile, joinDays, stats, editName, changeAvatar } = useProfile();
+
+// APP 在线更新：手动检查入口
+const { check: checkAppUpdate } = useAppUpdate();
 
 /**
  * 功能菜单配置（title 文案 + icon 样式类名，图标素材见本页 style 中的 .ic-* 类）
@@ -113,12 +123,34 @@ const menuList = ref([
   { title: "设置", icon: "ic-settings" },
 ]);
 
+// 「检查更新」入口仅 App 端展示，右侧显示当前运行时版本号
+// #ifdef APP-PLUS
+const currentVersionName = getCurrentVersion().versionName;
+menuList.value.push({
+  title: "检查更新",
+  icon: "ic-update",
+  extra: currentVersionName ? `v${currentVersionName}` : "",
+});
+// #endif
+
 /**
- * 菜单项点击（功能占位，后续按 item.title 路由到对应子页）
+ * 菜单项点击：检查更新走在线更新流程，其余当前为占位反馈
  * @param {{title: string, icon: string}} item 被点击的菜单项
  */
 const onMenuTap = item => {
+  // #ifdef APP-PLUS
+  if (item.title === "检查更新") {
+    onManualCheck();
+    return;
+  }
+  // #endif
   uni.showToast({ title: item.title, icon: "none" });
+};
+
+/** 手动检查更新：带 loading，无更新/失败由更新模块给出 toast */
+const onManualCheck = () => {
+  uni.showLoading({ title: "检查中…" });
+  checkAppUpdate({ silent: false }).finally(() => uni.hideLoading());
 };
 
 /** 消息铃铛点击（占位） */
@@ -352,5 +384,10 @@ const onEditProfile = () => {
 .ic-settings {
   background-color: #f0e9fd;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='12' cy='12' r='3.1' fill='%23f5b52e'/><path fill='%238b5cf6' d='M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.03-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z'/></svg>");
+}
+
+.ic-update {
+  background-color: #e3f6ec;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M24 6 C15 6 8 12.5 8 21 c0 4 1.6 7.6 4 10v5a3 3 0 0 0 3 3h18a3 3 0 0 0 3-3v-5c2.4-2.4 4-6 4-10 C40 12.5 33 6 24 6z' fill='%232bb673'/><path d='M17 20.5l7 7 7-7M24 14v13.5' fill='none' stroke='%23ffffff' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 }
 </style>

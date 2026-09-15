@@ -112,6 +112,9 @@
         </view>
       </view>
     </view>
+
+    <!-- APP 在线更新弹窗（单例状态，仅 App 端检查到更新时显示） -->
+    <update-popup />
   </view>
 </template>
 
@@ -124,6 +127,7 @@
  * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行从 store 取数。
  */
 import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
+import UpdatePopup from "@/components/update-popup.vue";
 
 // 首页数据全部由 Pinia 派生，模板中直接消费，无需本地状态
 const {
