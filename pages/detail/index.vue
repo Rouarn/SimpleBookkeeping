@@ -19,7 +19,7 @@
       title="账单详情"
       left-icon="left"
       right-icon="redo"
-      background-color="#0c3a2e"
+      background-color="transparent"
       color="#ffffff"
       :border="false"
       status-bar

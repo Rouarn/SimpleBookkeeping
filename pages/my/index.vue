@@ -8,8 +8,8 @@
                   （当前为占位项，点击仅 toast 提示）。
                用户资料持久化在 user store，统计数字不落地存储。
   @author 夏季 <2937375029@qq.com>
-  @date 2026-09-14
-  @modify 2026-09-15
+ * @date 2026-09-14
+ * @modify 2026-09-16
 -->
 <template>
   <view class="my">
@@ -31,9 +31,10 @@
       <view class="profile">
         <image
           class="avatar"
-          :src="profile.avatar"
+          :src="avatarSrc"
           mode="aspectFill"
           @click="onEditProfile"
+          @error="onAvatarError"
         ></image>
         <view class="profile-info">
           <view class="name-row">
@@ -105,14 +106,29 @@
  * - useProfile()：取得用户资料、加入天数、跨模块统计，以及修改昵称 / 更换头像动作；
  * - 菜单与铃铛为静态入口，当前仅做占位反馈。
  */
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useProfile } from "@/composables/useBookkeeping";
+import { DEFAULT_AVATAR } from "@/store";
 import { useAppUpdate } from "@/composables/use-app-update";
 import { getCurrentVersion } from "@/utils/app-update/device";
 import UpdatePopup from "@/components/update-popup.vue";
 
 // 用户资料持久化在 user store；记账笔数/天数/账本数由 bill、book store 实时联动
-const { profile, joinDays, stats, editName, changeAvatar } = useProfile();
+const { profile, avatar, joinDays, stats, editName, changeAvatar } =
+  useProfile();
+
+// 头像加载失败（如历史持久化的临时路径重启后失效）时回退默认头像，保证头像位不留白
+const avatarLoadFailed = ref(false);
+const avatarSrc = computed(() =>
+  avatarLoadFailed.value ? DEFAULT_AVATAR : avatar.value,
+);
+// 更换头像后重置失败标记，给新地址一次加载机会
+watch(avatar, () => {
+  avatarLoadFailed.value = false;
+});
+const onAvatarError = () => {
+  avatarLoadFailed.value = true;
+};
 
 // APP 在线更新：手动检查入口
 const { check: checkAppUpdate } = useAppUpdate();

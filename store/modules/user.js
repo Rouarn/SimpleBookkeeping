@@ -7,13 +7,32 @@
  *              主要导出：useUserStore，暴露 profile、派生统计与 updateProfile / resetProfile。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-14
+ * @modify 2026-09-16
  */
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useBillStore } from "./bill";
 import { useBookStore } from "./book";
 import { diffFromToday, todayStr } from "@/utils/date";
+
+/** 默认头像（应用内置静态资源，任何异常头像值的最终兜底） */
+export const DEFAULT_AVATAR = "/static/other/01.png";
+
+/**
+ * 归一化头像地址：非字符串 / 空白 / "null" / "undefined" 等脏值一律回退默认头像。
+ * 历史上换头像失败可能把临时路径或异常字符串持久化（临时路径重启后失效），
+ * 在数据层统一清洗，保证头像位永远拿到可用地址。
+ * @param {unknown} value 待校验的头像值
+ * @returns {string} 合法头像地址
+ */
+export function normalizeAvatar(value) {
+  if (typeof value !== "string") return DEFAULT_AVATAR;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") {
+    return DEFAULT_AVATAR;
+  }
+  return trimmed;
+}
 
 /**
  * 生成默认用户资料（首次安装时的种子数据，加入日期取当天）
@@ -22,7 +41,7 @@ import { diffFromToday, todayStr } from "@/utils/date";
 function createDefaultProfile() {
   return {
     name: "小绿",
-    avatar: "/static/other/01.png",
+    avatar: DEFAULT_AVATAR,
     joinDate: todayStr(),
   };
 }
@@ -37,7 +56,8 @@ export const useUserStore = defineStore(
     const profile = ref(createDefaultProfile());
 
     const name = computed(() => profile.value.name);
-    const avatar = computed(() => profile.value.avatar);
+    // 出口处再归一化一次：即使持久化恢复了历史脏值，渲染取到的仍是合法地址
+    const avatar = computed(() => normalizeAvatar(profile.value.avatar));
 
     /** 加入产品的第 N 天（含加入当天） */
     const joinDays = computed(() => {
@@ -64,7 +84,7 @@ export const useUserStore = defineStore(
         profile.value.name = patch.name.trim().slice(0, 12);
       }
       if (typeof patch.avatar === "string" && patch.avatar) {
-        profile.value.avatar = patch.avatar;
+        profile.value.avatar = normalizeAvatar(patch.avatar);
       }
       if (
         typeof patch.joinDate === "string" &&
@@ -100,7 +120,7 @@ export const useUserStore = defineStore(
           if (saved && !saved.profile) {
             saved.profile = {
               name: saved.name ?? "小绿",
-              avatar: saved.avatar ?? "/static/other/01.png",
+              avatar: normalizeAvatar(saved.avatar),
               joinDate: saved.joinDate ?? "2026-06-09",
             };
             delete saved.name;

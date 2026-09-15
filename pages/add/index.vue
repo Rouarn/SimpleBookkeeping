@@ -18,7 +18,7 @@
     <uni-nav-bar
       :title="pageTitle"
       left-icon="closeempty"
-      background-color="#0c3a2e"
+      background-color="transparent"
       color="#ffffff"
       :border="false"
       status-bar
@@ -123,7 +123,12 @@
                 :key="photo"
                 class="photo-item"
               >
-                <image class="photo-img" :src="photo" mode="aspectFill" />
+                <image
+                  class="photo-img"
+                  :src="photo"
+                  mode="aspectFill"
+                  @click="previewPhoto(index)"
+                />
                 <view class="photo-del" @click="removePhoto(index)">
                   <uni-icons
                     type="closeempty"
@@ -332,6 +337,17 @@ function choosePhoto() {
  */
 function removePhoto(index) {
   photos.value.splice(index, 1);
+}
+
+/**
+ * 全屏预览凭证图片，支持左右滑动切换
+ * @param {number} index 当前点击图片在 photos 中的下标
+ */
+function previewPhoto(index) {
+  uni.previewImage({
+    current: photos.value[index],
+    urls: photos.value,
+  });
 }
 
 /** 点击左上角关闭：放弃录入 / 编辑并返回上一页 */

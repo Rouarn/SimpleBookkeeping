@@ -28,4 +28,4 @@ export { useAppStore } from "./modules/app";
 export { useBookStore } from "./modules/book";
 export { useCategoryStore } from "./modules/category";
 export { useBillStore, BILL_CHANGE_EVENT, round2, fmtMoney } from "./modules/bill";
-export { useUserStore } from "./modules/user";
+export { useUserStore, DEFAULT_AVATAR } from "./modules/user";

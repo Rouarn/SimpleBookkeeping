@@ -13,7 +13,7 @@
  *              8. onBillChange / goBillDetail：账单变更订阅与详情跳转的通用入口。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-14
+ * @modify 2026-09-16
  */
 import { computed, ref } from "vue";
 import { onUnload } from "@dcloudio/uni-app";
@@ -329,6 +329,8 @@ export function useProfile() {
   const userStore = useUserStore();
 
   const profile = computed(() => userStore.profile);
+  // 头像走 store 的归一化 getter：脏值（空串 / "null" / 历史异常值）自动回退默认头像
+  const avatar = computed(() => userStore.avatar);
   const joinDays = computed(() => userStore.joinDays);
   const stats = computed(() => userStore.bookkeepingStats);
 
@@ -377,7 +379,15 @@ export function useProfile() {
     });
   }
 
-  return { profile, joinDays, stats, editName, changeAvatar, userStore };
+  return {
+    profile,
+    avatar,
+    joinDays,
+    stats,
+    editName,
+    changeAvatar,
+    userStore,
+  };
 }
 
 /* -------------------------------------------------------------
