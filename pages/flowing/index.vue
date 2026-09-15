@@ -9,7 +9,7 @@
                月份与类型选择态持久化在 app store，分组数据由 bill store 实时派生。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-14
+  @modify 2026-09-15
 -->
 <template>
   <view class="flowing-water">
@@ -17,10 +17,10 @@
     <view class="top-bar">
       <view class="type-selector" @click="handleTypeClick">
         <text class="type-text">{{ currentType }}</text>
-        <uni-icons type="bottom" size="22" color="#1d1d1f"></uni-icons>
+        <uni-icons type="bottom" size="20" color="#1e2521"></uni-icons>
       </view>
       <view class="search-btn" @click="handleSearch">
-        <uni-icons type="search" size="34" color="#1d1d1f"></uni-icons>
+        <uni-icons type="search" size="28" color="#3c4a42"></uni-icons>
       </view>
     </view>
 
@@ -32,8 +32,9 @@
       @change="handleDateChange"
     >
       <view class="date-filter">
+        <uni-icons type="calendar" size="26" color="#2f6b54"></uni-icons>
         <text class="date-text">{{ currentMonth }}</text>
-        <uni-icons type="bottom" size="22" color="#4a6ef7"></uni-icons>
+        <uni-icons type="bottom" size="16" color="#2f6b54"></uni-icons>
       </view>
     </picker>
 
@@ -41,20 +42,24 @@
     <view class="summary-cards">
       <view class="summary-card expense-card">
         <view class="card-decor">
-          <view class="card-line"></view>
+          <view class="decor-ring r1"></view>
+          <view class="decor-ring r2"></view>
+          <view class="decor-ring r3"></view>
         </view>
         <view class="card-icon-wrap">
-          <uni-icons type="bars" size="34" color="#fff"></uni-icons>
+          <uni-icons type="bars" size="26" color="#fff"></uni-icons>
         </view>
         <view class="card-amount">{{ monthCard.expense }}</view>
         <view class="card-label">本月总支出（元）</view>
       </view>
       <view class="summary-card income-card">
         <view class="card-decor">
-          <view class="card-line income-line"></view>
+          <view class="decor-ring r1"></view>
+          <view class="decor-ring r2"></view>
+          <view class="decor-ring r3"></view>
         </view>
         <view class="card-icon-wrap">
-          <uni-icons type="redo" size="34" color="#fff"></uni-icons>
+          <uni-icons type="redo" size="26" color="#fff"></uni-icons>
         </view>
         <view class="card-amount">{{ monthCard.income }}</view>
         <view class="card-label">本月总收入（元）</view>
@@ -64,6 +69,7 @@
     <!-- 流水列表 -->
     <view class="flow-list-wrap">
       <view v-if="groups.length === 0" class="empty-tip">
+        <view class="empty-coin">¥</view>
         <text class="empty-text">本月暂无流水</text>
         <text class="empty-sub">记一笔，开始追踪你的收支</text>
       </view>
@@ -79,16 +85,18 @@
             <text class="group-date">{{ group.date }}</text>
           </view>
           <view class="group-summary">
-            <text class="summary-item">支：{{ group.expense }}</text>
-            <text class="summary-item income">收：{{ group.income }}</text>
+            <text class="summary-chip">支 {{ group.expense }}</text>
+            <text class="summary-chip income">收 {{ group.income }}</text>
           </view>
         </view>
 
         <view class="flow-list">
           <view
-            v-for="(item, index) in group.items"
-            :key="index"
+            v-for="item in group.items"
+            :key="item.id"
             class="flow-item"
+            hover-class="row-hover"
+            :hover-stay-time="60"
             @click="goDetail(item)"
           >
             <view
@@ -101,9 +109,9 @@
               <view class="flow-title-row">
                 <view class="flow-title-wrap">
                   <text class="flow-title">{{ item.title }}</text>
-                  <text v-if="item.remark" class="flow-remark"
-                    >- {{ item.remark }}</text
-                  >
+                  <text v-if="item.remark" class="flow-remark">{{
+                    item.remark
+                  }}</text>
                 </view>
                 <text class="flow-amount" :class="{ income: item.amount > 0 }">
                   {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
@@ -111,10 +119,16 @@
               </view>
               <view class="flow-meta">
                 <text class="flow-time">{{ item.time }}</text>
-                <text class="flow-divider">|</text>
+                <text class="flow-dot">·</text>
                 <text class="flow-pay">{{ item.payMethod }}</text>
               </view>
             </view>
+            <uni-icons
+              class="flow-arrow"
+              type="right"
+              size="14"
+              color="#c2c9c3"
+            ></uni-icons>
           </view>
         </view>
       </view>
@@ -175,8 +189,8 @@ const goDetail = item => {
   width: 100%;
   min-height: 100vh;
   margin-top: var(--status-bar-height);
-  background-color: #f4f5fd;
-  padding-bottom: 40rpx;
+  background: #f3f5f2;
+  padding-bottom: 160rpx;
 }
 
 // 顶部导航
@@ -184,17 +198,17 @@ const goDetail = item => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 32rpx 20rpx;
+  padding: 28rpx 28rpx 20rpx;
 
   .type-selector {
     display: flex;
     align-items: center;
 
     .type-text {
-      font-size: 44rpx;
+      font-size: 42rpx;
       font-weight: 700;
-      color: #1d1d1f;
-      letter-spacing: 2rpx;
+      color: #1e2521;
+      letter-spacing: 1rpx;
       margin-right: 8rpx;
     }
   }
@@ -202,9 +216,12 @@ const goDetail = item => {
   .search-btn {
     width: 64rpx;
     height: 64rpx;
+    border-radius: 50%;
+    background: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.08);
   }
 }
 
@@ -212,16 +229,18 @@ const goDetail = item => {
 .date-filter {
   display: inline-flex;
   align-items: center;
-  margin: 12rpx 0 24rpx 32rpx;
-  padding: 12rpx 28rpx;
-  background-color: #eaf0ff;
-  border-radius: 12rpx;
+  margin: 10rpx 0 28rpx 28rpx;
+  padding: 12rpx 24rpx;
+  background: #fff;
+  border-radius: 999rpx;
+  box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
 
   .date-text {
-    font-size: 32rpx;
+    margin: 0 10rpx 0 12rpx;
+    font-size: 26rpx;
     font-weight: 600;
-    color: #4a6ef7;
-    margin-right: 12rpx;
+    color: #2f6b54;
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -229,79 +248,90 @@ const goDetail = item => {
 .summary-cards {
   display: flex;
   padding: 0 24rpx;
-  gap: 24rpx;
-  margin-bottom: 32rpx;
+  gap: 20rpx;
+  margin-bottom: 30rpx;
 }
 
 .summary-card {
   flex: 1;
   position: relative;
   border-radius: 24rpx;
-  padding: 32rpx 28rpx;
+  padding: 30rpx 26rpx;
   overflow: hidden;
 
+  // 同心圆环暗纹（与首页主卡同源）
   .card-decor {
     position: absolute;
-    top: 16rpx;
-    right: 16rpx;
-    width: 180rpx;
-    height: 100rpx;
-    opacity: 0.4;
-    z-index: 0;
+    top: -90rpx;
+    right: -70rpx;
+    width: 240rpx;
+    height: 240rpx;
+    pointer-events: none;
 
-    .card-line {
-      width: 100%;
-      height: 100%;
-      background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 100' preserveAspectRatio='none'><path d='M0,70 L25,55 L50,65 L75,40 L100,55 L125,30 L150,42 L180,20 L180,100 L0,100 Z' fill='none' stroke='white' stroke-width='2' stroke-opacity='0.5'/><path d='M0,70 L25,55 L50,65 L75,40 L100,55 L125,30 L150,42 L180,20' fill='none' stroke='white' stroke-width='2.5' stroke-opacity='0.8'/></svg>")
-        no-repeat center / contain;
+    .decor-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 50%;
+      border: 2rpx solid rgba(255, 255, 255, 0.08);
+      transform: translate(-50%, -50%);
     }
-
-    .income-line {
-      background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 100' preserveAspectRatio='none'><path d='M0,80 L25,70 L50,75 L75,55 L100,65 L125,40 L150,50 L180,25 L180,100 L0,100 Z' fill='white' fill-opacity='0.15'/><path d='M0,80 L25,70 L50,75 L75,55 L100,65 L125,40 L150,50 L180,25' fill='none' stroke='white' stroke-width='2.5' stroke-opacity='0.8'/></svg>")
-        no-repeat center / contain;
+    .r1 {
+      width: 240rpx;
+      height: 240rpx;
+    }
+    .r2 {
+      width: 166rpx;
+      height: 166rpx;
+      border-color: rgba(255, 255, 255, 0.11);
+    }
+    .r3 {
+      width: 92rpx;
+      height: 92rpx;
+      border-color: rgba(255, 255, 255, 0.15);
     }
   }
 
   .card-icon-wrap {
     position: relative;
     z-index: 1;
-    width: 64rpx;
-    height: 64rpx;
+    width: 58rpx;
+    height: 58rpx;
     border-radius: 16rpx;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.18);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20rpx;
+    margin-bottom: 18rpx;
   }
 
   .card-amount {
     position: relative;
     z-index: 1;
-    font-size: 56rpx;
+    font-size: 48rpx;
     font-weight: 700;
     color: #fff;
-    letter-spacing: 1rpx;
     line-height: 1.1;
+    font-variant-numeric: tabular-nums;
   }
 
   .card-label {
     position: relative;
     z-index: 1;
-    font-size: 26rpx;
-    color: rgba(255, 255, 255, 0.85);
-    margin-top: 12rpx;
+    font-size: 23rpx;
+    color: rgba(255, 255, 255, 0.72);
+    margin-top: 10rpx;
   }
 }
 
 .expense-card {
-  background: linear-gradient(135deg, #4a6ef7 0%, #3c64f6 50%, #2e54e0 100%);
-  box-shadow: 0 12rpx 32rpx rgba(60, 100, 246, 0.3);
+  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
+  box-shadow: 0 14rpx 32rpx rgba(12, 58, 46, 0.24);
 }
 
 .income-card {
-  background: linear-gradient(135deg, #ff7a93 0%, #ff5c7a 50%, #f0486a 100%);
-  box-shadow: 0 12rpx 32rpx rgba(240, 72, 106, 0.3);
+  background: linear-gradient(150deg, #b5523e 0%, #913527 100%);
+  box-shadow: 0 14rpx 32rpx rgba(145, 53, 39, 0.24);
 }
 
 // 流水列表
@@ -316,33 +346,46 @@ const goDetail = item => {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20rpx 12rpx 16rpx;
+    padding: 14rpx 8rpx 14rpx;
 
     .group-title {
       display: flex;
       align-items: baseline;
 
       .group-day {
-        font-size: 38rpx;
+        font-size: 32rpx;
         font-weight: 700;
-        color: #1d1d1f;
-        margin-right: 16rpx;
+        color: #1e2521;
       }
 
       .group-date {
-        font-size: 26rpx;
-        color: #8a8f9c;
+        margin-left: 12rpx;
+        font-size: 22rpx;
+        color: #98a099;
+        font-variant-numeric: tabular-nums;
       }
     }
 
     .group-summary {
-      .summary-item {
-        font-size: 26rpx;
-        color: #6a7080;
-        margin-left: 20rpx;
+      display: flex;
+      align-items: center;
+
+      .summary-chip {
+        padding: 7rpx 16rpx;
+        font-size: 21rpx;
+        line-height: 1.4;
+        border-radius: 999rpx;
+        background: #e9f0eb;
+        color: #56645c;
+        font-variant-numeric: tabular-nums;
+
+        & + & {
+          margin-left: 10rpx;
+        }
 
         &.income {
-          color: #e94e6b;
+          background: #fcebe8;
+          color: #d54e3c;
         }
       }
     }
@@ -351,30 +394,44 @@ const goDetail = item => {
   .flow-list {
     background: #fff;
     border-radius: 24rpx;
-    box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
+    box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+    overflow: hidden;
+
+    .row-hover {
+      background: #f6f9f6;
+    }
 
     .flow-item {
+      position: relative;
       display: flex;
       align-items: center;
-      padding: 28rpx 28rpx;
-      border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
+      padding: 26rpx 26rpx;
 
-      &:last-child {
-        border-bottom: none;
+      &::after {
+        content: "";
+        position: absolute;
+        left: 128rpx;
+        right: 0;
+        bottom: 0;
+        height: 1rpx;
+        background: #edf0ec;
+      }
+      &:last-child::after {
+        display: none;
       }
 
       .flow-icon-wrap {
-        width: 88rpx;
-        height: 88rpx;
+        width: 80rpx;
+        height: 80rpx;
+        margin-right: 22rpx;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-right: 24rpx;
         flex-shrink: 0;
 
         .flow-icon {
-          font-size: 44rpx;
+          font-size: 38rpx;
         }
       }
 
@@ -386,7 +443,6 @@ const goDetail = item => {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 10rpx;
 
           .flow-title-wrap {
             flex: 1;
@@ -398,16 +454,16 @@ const goDetail = item => {
           }
 
           .flow-title {
-            font-size: 32rpx;
-            font-weight: 600;
-            color: #1d1d1f;
+            font-size: 29rpx;
+            font-weight: 500;
+            color: #202622;
             flex-shrink: 0;
           }
 
           .flow-remark {
-            font-size: 26rpx;
-            color: #b3b9c7;
             margin-left: 10rpx;
+            font-size: 23rpx;
+            color: #98a099;
             min-width: 0;
             overflow: hidden;
             white-space: nowrap;
@@ -415,50 +471,74 @@ const goDetail = item => {
           }
 
           .flow-amount {
-            font-size: 38rpx;
-            font-weight: 700;
-            color: #1d1d1f;
+            font-size: 31rpx;
+            font-weight: 600;
+            color: #222924;
             flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
 
             &.income {
-              color: #e94e6b;
+              color: #df543f;
             }
           }
         }
 
         .flow-meta {
+          margin-top: 7rpx;
+
           .flow-time,
           .flow-pay {
-            font-size: 24rpx;
-            color: #8a8f9c;
+            font-size: 21rpx;
+            color: #98a099;
           }
-
-          .flow-divider {
-            font-size: 24rpx;
-            color: #d0d4de;
-            margin: 0 12rpx;
+          .flow-dot {
+            margin: 0 9rpx;
+            font-size: 21rpx;
+            color: #c6ccc6;
           }
         }
+      }
+
+      .flow-arrow {
+        flex-shrink: 0;
+        margin-left: 12rpx;
       }
     }
   }
 }
 
+// 空状态
 .empty-tip {
-  padding: 100rpx 0;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72rpx 0 80rpx;
+
+  .empty-coin {
+    width: 104rpx;
+    height: 104rpx;
+    margin-bottom: 28rpx;
+    border-radius: 50%;
+    border: 2rpx solid #d6e2da;
+    background: #f8faf8;
+    box-shadow: 0 0 0 10rpx rgba(76, 175, 135, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40rpx;
+    font-weight: 600;
+    color: #7ba48f;
+  }
 
   .empty-text {
-    display: block;
-    font-size: 30rpx;
-    color: #8a8f9c;
+    font-size: 28rpx;
+    color: #8b938d;
   }
 
   .empty-sub {
-    display: block;
-    font-size: 24rpx;
-    color: #b3b9c7;
-    margin-top: 12rpx;
+    margin-top: 10rpx;
+    font-size: 22rpx;
+    color: #abb3ac;
   }
 }
 </style>

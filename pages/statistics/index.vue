@@ -10,7 +10,7 @@
                月份与类型选择持久化在 app store，聚合数据全部由 bill store 实时计算。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-14
+  @modify 2026-09-15
 -->
 <template>
   <view class="statistics">
@@ -20,7 +20,7 @@
       <picker mode="date" fields="month" :value="month" @change="onMonthChange">
         <view class="month-pill">
           <text class="month-text">{{ monthText }}</text>
-          <uni-icons type="bottom" size="14" color="#4a6ef7"></uni-icons>
+          <uni-icons type="bottom" size="14" color="#2f6b54"></uni-icons>
         </view>
       </picker>
     </view>
@@ -46,7 +46,9 @@
     <!-- 本月概览卡片 -->
     <view class="overview-card" :class="billType">
       <view class="card-decor">
-        <view class="decor-line"></view>
+        <view class="decor-ring r1"></view>
+        <view class="decor-ring r2"></view>
+        <view class="decor-ring r3"></view>
       </view>
       <view class="ov-top">
         <text class="ov-label">{{
@@ -387,7 +389,7 @@ const mom = computed(() => {
   width: 100%;
   min-height: 100vh;
   margin-top: var(--status-bar-height);
-  background-color: #f4f5fd;
+  background: #f3f5f2;
   padding-bottom: 180rpx;
   box-sizing: border-box;
 }
@@ -397,27 +399,28 @@ const mom = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 32rpx 20rpx;
+  padding: 28rpx 28rpx 20rpx;
 
   .top-title {
-    font-size: 44rpx;
+    font-size: 42rpx;
     font-weight: 700;
-    color: #1d1d1f;
-    letter-spacing: 2rpx;
+    color: #1e2521;
+    letter-spacing: 1rpx;
   }
 
   .month-pill {
     display: flex;
     align-items: center;
-    padding: 12rpx 24rpx;
-    background-color: #eaf0ff;
-    border-radius: 12rpx;
+    padding: 11rpx 22rpx;
+    background: #fff;
+    border-radius: 999rpx;
+    box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
 
     .month-text {
-      font-size: 28rpx;
+      font-size: 25rpx;
       font-weight: 600;
-      color: #4a6ef7;
-      margin-right: 10rpx;
+      color: #2f6b54;
+      margin-right: 8rpx;
     }
   }
 }
@@ -425,30 +428,30 @@ const mom = computed(() => {
 // 收支切换
 .type-tabs {
   display: flex;
-  margin: 8rpx 24rpx 24rpx;
+  margin: 8rpx 24rpx 26rpx;
   padding: 6rpx;
-  background: #e7ebfa;
+  background: #e4eae4;
   border-radius: 999rpx;
 
   .tab-item {
     flex: 1;
     text-align: center;
-    padding: 16rpx 0;
-    font-size: 30rpx;
+    padding: 15rpx 0;
+    font-size: 28rpx;
     font-weight: 600;
-    color: #7b8198;
+    color: #767e78;
     border-radius: 999rpx;
     transition: all 0.25s ease;
 
     &.on {
       background: #ffffff;
-      box-shadow: 0 6rpx 18rpx rgba(60, 100, 246, 0.16);
+      box-shadow: 0 5rpx 16rpx rgba(28, 54, 45, 0.1);
 
       &.expense {
-        color: #4a6ef7;
+        color: #175142;
       }
       &.income {
-        color: #f0486a;
+        color: #c04a36;
       }
     }
   }
@@ -458,34 +461,50 @@ const mom = computed(() => {
 .overview-card {
   position: relative;
   margin: 0 24rpx 24rpx;
-  padding: 36rpx 32rpx 30rpx;
+  padding: 34rpx 30rpx 28rpx;
   border-radius: 28rpx;
   overflow: hidden;
 
   &.expense {
-    background: linear-gradient(135deg, #4a6ef7 0%, #3c64f6 50%, #2e54e0 100%);
-    box-shadow: 0 16rpx 48rpx rgba(60, 100, 246, 0.35);
+    background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
+    box-shadow: 0 16rpx 40rpx rgba(12, 58, 46, 0.28);
   }
 
   &.income {
-    background: linear-gradient(135deg, #ff7a93 0%, #ff5c7a 50%, #f0486a 100%);
-    box-shadow: 0 16rpx 48rpx rgba(240, 72, 106, 0.32);
+    background: linear-gradient(150deg, #b5523e 0%, #913527 100%);
+    box-shadow: 0 16rpx 40rpx rgba(145, 53, 39, 0.26);
   }
 
+  // 同心圆环暗纹
   .card-decor {
     position: absolute;
-    top: 20rpx;
-    right: 20rpx;
-    width: 220rpx;
-    height: 120rpx;
-    opacity: 0.4;
-    z-index: 0;
+    top: -100rpx;
+    right: -80rpx;
+    width: 270rpx;
+    height: 270rpx;
+    pointer-events: none;
 
-    .decor-line {
-      width: 100%;
-      height: 100%;
-      background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 100' preserveAspectRatio='none'><path d='M0,70 L25,55 L50,65 L75,40 L100,55 L125,30 L150,42 L180,20 L180,100 L0,100 Z' fill='none' stroke='white' stroke-width='2' stroke-opacity='0.5'/><path d='M0,70 L25,55 L50,65 L75,40 L100,55 L125,30 L150,42 L180,20' fill='none' stroke='white' stroke-width='2.5' stroke-opacity='0.8'/></svg>")
-        no-repeat center / contain;
+    .decor-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border-radius: 50%;
+      border: 2rpx solid rgba(255, 255, 255, 0.08);
+      transform: translate(-50%, -50%);
+    }
+    .r1 {
+      width: 270rpx;
+      height: 270rpx;
+    }
+    .r2 {
+      width: 186rpx;
+      height: 186rpx;
+      border-color: rgba(255, 255, 255, 0.11);
+    }
+    .r3 {
+      width: 102rpx;
+      height: 102rpx;
+      border-color: rgba(255, 255, 255, 0.15);
     }
   }
 
@@ -497,21 +516,20 @@ const mom = computed(() => {
     justify-content: space-between;
 
     .ov-label {
-      font-size: 26rpx;
-      color: rgba(255, 255, 255, 0.75);
-      letter-spacing: 1rpx;
+      font-size: 24rpx;
+      color: rgba(237, 245, 240, 0.6);
     }
 
     .ov-chip {
       display: flex;
       align-items: center;
-      padding: 8rpx 18rpx;
-      background: rgba(255, 255, 255, 0.18);
+      padding: 7rpx 16rpx;
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 999rpx;
 
       .chip-text {
-        font-size: 22rpx;
-        color: #ffffff;
+        font-size: 21rpx;
+        color: rgba(255, 255, 255, 0.92);
         margin-left: 4rpx;
       }
     }
@@ -520,12 +538,12 @@ const mom = computed(() => {
   .ov-amount {
     position: relative;
     z-index: 1;
-    font-size: 72rpx;
-    font-weight: 700;
-    color: #ffffff;
     margin-top: 10rpx;
-    letter-spacing: 2rpx;
+    font-size: 68rpx;
+    font-weight: 700;
+    color: #f1f7f3;
     line-height: 1.15;
+    font-variant-numeric: tabular-nums;
   }
 
   .ov-stats {
@@ -542,40 +560,46 @@ const mom = computed(() => {
       align-items: center;
 
       .stat-value {
-        font-size: 32rpx;
+        font-size: 30rpx;
         font-weight: 700;
-        color: #ffffff;
+        color: #f1f7f3;
+        font-variant-numeric: tabular-nums;
       }
 
       .stat-label {
-        margin-top: 10rpx;
-        font-size: 22rpx;
-        color: rgba(255, 255, 255, 0.7);
+        margin-top: 9rpx;
+        font-size: 21rpx;
+        color: rgba(237, 245, 240, 0.55);
       }
     }
 
     .ov-divider {
       width: 1rpx;
-      height: 56rpx;
-      background: rgba(255, 255, 255, 0.22);
+      height: 52rpx;
+      background: rgba(255, 255, 255, 0.16);
     }
   }
 
   .ov-balance {
     position: relative;
     z-index: 1;
-    margin-top: 26rpx;
-    padding-top: 22rpx;
-    border-top: 1rpx solid rgba(255, 255, 255, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24rpx;
+    padding: 16rpx 22rpx;
+    border-radius: 14rpx;
+    background: rgba(255, 255, 255, 0.07);
 
     .balance-label {
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.7);
+      font-size: 23rpx;
+      color: rgba(237, 245, 240, 0.55);
     }
     .balance-value {
-      font-size: 30rpx;
+      font-size: 28rpx;
       font-weight: 600;
-      color: #ffffff;
+      color: #f1f7f3;
+      font-variant-numeric: tabular-nums;
     }
   }
 }
@@ -583,10 +607,10 @@ const mom = computed(() => {
 // 通用白色面板
 .panel {
   margin: 0 24rpx 24rpx;
-  padding: 32rpx 28rpx 28rpx;
+  padding: 30rpx 28rpx 26rpx;
   background: #ffffff;
-  border-radius: 28rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.04);
+  border-radius: 26rpx;
+  box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
 
   .panel-header {
     display: flex;
@@ -594,15 +618,14 @@ const mom = computed(() => {
     justify-content: space-between;
 
     .panel-title {
-      font-size: 32rpx;
-      font-weight: 700;
-      color: #1d1d1f;
-      letter-spacing: 1rpx;
+      font-size: 31rpx;
+      font-weight: 600;
+      color: #1e2521;
     }
 
     .panel-extra {
-      font-size: 24rpx;
-      color: #9aa0ad;
+      font-size: 22rpx;
+      color: #98a099;
     }
 
     .legend {
@@ -610,23 +633,23 @@ const mom = computed(() => {
       align-items: center;
 
       .legend-dot {
-        width: 16rpx;
-        height: 16rpx;
+        width: 14rpx;
+        height: 14rpx;
         border-radius: 50%;
-        margin: 0 8rpx 0 20rpx;
+        margin: 0 7rpx 0 18rpx;
 
         &.expense-dot {
-          background: #4a6ef7;
+          background: #2f6b54;
         }
         &.income-dot {
-          background: #ff5c7a;
+          background: #c04a36;
           margin-left: 0;
         }
       }
 
       .legend-text {
-        font-size: 22rpx;
-        color: #8a8f9c;
+        font-size: 21rpx;
+        color: #98a099;
       }
     }
   }
@@ -636,7 +659,7 @@ const mom = computed(() => {
 .chart {
   display: flex;
   align-items: flex-end;
-  margin-top: 24rpx;
+  margin-top: 26rpx;
 
   .bar-group {
     flex: 1;
@@ -646,7 +669,7 @@ const mom = computed(() => {
   }
 
   .bar-tip {
-    height: 64rpx;
+    height: 60rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -658,24 +681,24 @@ const mom = computed(() => {
       line-height: 1.5;
     }
     .tip-expense {
-      color: #4a6ef7;
+      color: #2f6b54;
     }
     .tip-income {
-      color: #f0486a;
+      color: #c04a36;
     }
   }
 
   .bars {
-    height: 300rpx;
+    height: 280rpx;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     gap: 8rpx;
 
     .bar {
-      width: 20rpx;
-      border-radius: 10rpx 10rpx 4rpx 4rpx;
-      opacity: 0.45;
+      width: 22rpx;
+      border-radius: 999rpx 999rpx 6rpx 6rpx;
+      opacity: 0.38;
       transition:
         height 0.3s ease,
         opacity 0.2s ease;
@@ -686,20 +709,20 @@ const mom = computed(() => {
     }
 
     .bar-expense {
-      background: linear-gradient(180deg, #6d8bff 0%, #4a6ef7 100%);
+      background: linear-gradient(180deg, #4fc794 0%, #2f6b54 100%);
     }
     .bar-income {
-      background: linear-gradient(180deg, #ff94a8 0%, #f0486a 100%);
+      background: linear-gradient(180deg, #d97a66 0%, #b5523e 100%);
     }
   }
 
   .bar-month {
-    margin-top: 14rpx;
-    font-size: 22rpx;
-    color: #8a8f9c;
+    margin-top: 12rpx;
+    font-size: 21rpx;
+    color: #98a099;
 
     &.on {
-      color: #4a6ef7;
+      color: #175142;
       font-weight: 700;
     }
   }
@@ -707,13 +730,13 @@ const mom = computed(() => {
 
 // 排行列表（分类 / 支付方式）
 .rank-list {
-  margin-top: 8rpx;
+  margin-top: 6rpx;
 
   .rank-row {
     display: flex;
     align-items: center;
-    padding: 28rpx 0;
-    border-bottom: 1rpx solid rgba(0, 0, 0, 0.05);
+    padding: 26rpx 0;
+    border-bottom: 1rpx solid #edf0ec;
 
     &:last-child {
       border-bottom: none;
@@ -721,42 +744,42 @@ const mom = computed(() => {
   }
 
   .rank-index {
-    width: 40rpx;
+    width: 38rpx;
     text-align: center;
-    font-size: 26rpx;
+    font-size: 25rpx;
     font-weight: 700;
-    color: #b4bac6;
+    color: #b9bfb9;
     flex-shrink: 0;
 
     &.top {
-      color: #ff8f1f;
+      color: #c08a3e;
     }
   }
 
   .cat-icon {
-    width: 76rpx;
-    height: 76rpx;
+    width: 74rpx;
+    height: 74rpx;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 20rpx 0 12rpx;
+    margin: 0 18rpx 0 12rpx;
     flex-shrink: 0;
 
     .cat-emoji {
-      font-size: 38rpx;
+      font-size: 36rpx;
     }
   }
 
   .pay-avatar {
-    width: 76rpx;
-    height: 76rpx;
+    width: 74rpx;
+    height: 74rpx;
     border-radius: 20rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 20rpx 0 12rpx;
-    font-size: 34rpx;
+    margin: 0 18rpx 0 12rpx;
+    font-size: 32rpx;
     font-weight: 700;
     flex-shrink: 0;
   }
@@ -771,51 +794,53 @@ const mom = computed(() => {
       justify-content: space-between;
 
       .rank-name {
-        font-size: 30rpx;
-        font-weight: 600;
-        color: #1d1d1f;
+        font-size: 28rpx;
+        font-weight: 500;
+        color: #202622;
       }
 
       .rank-amount {
-        font-size: 30rpx;
+        font-size: 29rpx;
         font-weight: 700;
-        color: #1d1d1f;
+        color: #222924;
+        font-variant-numeric: tabular-nums;
       }
 
       .rank-count {
-        font-size: 22rpx;
-        color: #9aa0ad;
+        font-size: 21rpx;
+        color: #98a099;
       }
 
       .rank-percent {
-        font-size: 24rpx;
+        font-size: 23rpx;
         font-weight: 700;
       }
     }
 
     .rank-track {
-      height: 12rpx;
-      margin: 14rpx 0 10rpx;
-      background: #f1f2f7;
-      border-radius: 8rpx;
+      height: 10rpx;
+      margin: 13rpx 0 9rpx;
+      background: #edf1ed;
+      border-radius: 999rpx;
       overflow: hidden;
 
       .rank-fill {
         height: 100%;
-        border-radius: 8rpx;
+        border-radius: 999rpx;
         transition: width 0.3s ease;
       }
     }
   }
 }
 
+// 空数据
 .empty-tip {
-  padding: 80rpx 0;
+  padding: 72rpx 0;
   text-align: center;
 
   .empty-text {
-    font-size: 28rpx;
-    color: #8a8f9c;
+    font-size: 27rpx;
+    color: #8b938d;
   }
 }
 </style>

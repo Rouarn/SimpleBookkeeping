@@ -1,83 +1,131 @@
 <!--
   @file APP 更新弹窗（components/update-popup.vue）
-  @description 全局唯一的版本更新弹窗（状态来自 use-app-update 模块级单例）：
-               1. 普通更新：展示版本号、更新说明、包大小，提供
-                  「立即更新 / 稍后再说」；
-               2. 下载中：进度条 + 百分比，不可关闭；
-               3. 下载失败：错误提示 + 重试；强更失败额外提供「退出」；
-               4. 强制更新：无「稍后」、无关闭途径，底部红色强更提示。
+  @description 全局唯一的版本更新弹窗（状态来自 use-app-update 模块级单例），
+               视觉对齐全站设计语言（品牌蓝 #4060f8 + pastel 浅色引导头）：
+               1. 顶部浅色引导头：装饰圆 + 白色图标砖 + 「发现新版本」+
+                  版本号胶囊（强更时同行展示红色标签），非强更且非下载中
+                  时右上角可关闭；
+               2. 内容区：更新说明卡片、包大小、下载进度（百分比 + 已下载
+                  字节）、失败提示条；
+               3. 普通更新：提供「立即更新 / 稍后再说」；
+               4. 下载中：进度条展示，不可关闭；
+               5. 下载失败：错误提示 + 重试；强更失败额外提供「退出」；
+               6. 强制更新：无「稍后」、无关闭途径，底部内联强更提示。
                弹窗可在多个 tab 页各挂载一次，共享同一份单例状态。
+               注意：本组件为扁平路径（components/update-popup.vue），不满足
+               easycom 默认规则，使用页面必须显式 import（首页 / 我的页均已引入）。
   @date 2026-09-15
 -->
 <template>
-  <view v-if="state.visible" class="upd-mask">
+  <view v-if="state.visible" class="upd-mask" @touchmove.stop.prevent>
     <view
       class="upd-box"
       :class="{ 'upd-box--force': state.info?.forceUpdate }"
     >
-      <view class="upd-title">发现新版本 v{{ state.info?.versionName }}</view>
+      <!-- 浅色引导头 -->
+      <view class="upd-hero">
+        <view class="upd-decor upd-decor-arc"></view>
+        <view class="upd-decor upd-decor-circle"></view>
 
-      <scroll-view scroll-y class="upd-log">
-        <text class="upd-log-text">{{
-          state.info?.updateLog || "性能优化与问题修复，建议立即更新。"
-        }}</text>
-      </scroll-view>
-
-      <view v-if="!state.downloading && !state.failedMsg" class="upd-size">
-        大小约 {{ formatSize(state.info?.packageSize) }}
-      </view>
-
-      <!-- 下载进度 -->
-      <view v-if="state.downloading" class="upd-progress-wrap">
-        <view class="upd-progress-bar">
-          <view
-            class="upd-progress-inner"
-            :style="{ width: state.progress + '%' }"
-          />
-        </view>
-        <text class="upd-progress-text">{{ state.progress }}%</text>
-      </view>
-
-      <!-- 失败提示 -->
-      <view v-if="state.failedMsg" class="upd-error">{{
-        state.failedMsg
-      }}</view>
-
-      <view class="upd-actions">
-        <button
-          v-if="state.failedMsg"
-          class="upd-btn upd-btn--primary"
-          @click="retry"
-        >
-          重试
-        </button>
-        <button
-          v-else-if="!state.downloading"
-          class="upd-btn upd-btn--primary"
-          @click="startDownload"
-        >
-          立即更新
-        </button>
-
-        <button
+        <view
           v-if="!state.info?.forceUpdate && !state.downloading"
-          class="upd-btn"
+          class="upd-close"
           @click="dismiss"
         >
-          稍后再说
-        </button>
+          <uni-icons type="closeempty" size="17" color="#8a8f9c"></uni-icons>
+        </view>
 
-        <button
-          v-if="state.info?.forceUpdate && state.failedMsg"
-          class="upd-btn"
-          @click="exitApp"
-        >
-          退出
-        </button>
+        <view class="upd-icon"></view>
+        <view class="upd-title">发现新版本</view>
+        <view class="upd-tags">
+          <view class="upd-version">v{{ state.info?.versionName }}</view>
+          <view v-if="state.info?.forceUpdate" class="upd-force-tag"
+            >强制更新</view
+          >
+        </view>
       </view>
 
-      <view v-if="state.info?.forceUpdate" class="upd-force-tip">
-        当前版本过低，需更新后才能继续使用
+      <!-- 内容区 -->
+      <view class="upd-body">
+        <!-- 更新日志 -->
+        <view class="upd-log">
+          <view class="upd-log-head">
+            <view class="upd-log-bar"></view>
+            <text>更新内容</text>
+          </view>
+          <scroll-view scroll-y class="upd-log-scroll">
+            <text class="upd-log-text">{{
+              state.info?.updateLog || "性能优化与问题修复，建议立即更新。"
+            }}</text>
+          </scroll-view>
+        </view>
+
+        <!-- 包大小 -->
+        <view v-if="!state.downloading && !state.failedMsg" class="upd-size">
+          <text class="upd-size-dot"></text>
+          <text>安装包约 {{ formatSize(state.info?.packageSize) }}</text>
+        </view>
+
+        <!-- 下载进度 -->
+        <view v-if="state.downloading" class="upd-progress">
+          <view class="upd-progress-head">
+            <text class="upd-progress-label">正在下载更新</text>
+            <text class="upd-progress-pct">{{ state.progress }}%</text>
+          </view>
+          <view class="upd-progress-track">
+            <view
+              class="upd-progress-fill"
+              :style="{ width: state.progress + '%' }"
+            ></view>
+          </view>
+          <text v-if="state.totalBytes" class="upd-progress-bytes">
+            {{ formatSize(state.downloadedBytes) }} /
+            {{ formatSize(state.totalBytes) }}
+          </text>
+          <text class="upd-progress-tip">下载完成后将自动调起安装，请稍候</text>
+        </view>
+
+        <!-- 失败提示 -->
+        <view v-if="state.failedMsg" class="upd-error">
+          <view class="upd-error-badge">!</view>
+          <text class="upd-error-text">{{ state.failedMsg }}</text>
+        </view>
+
+        <!-- 强更提示 -->
+        <view v-if="state.info?.forceUpdate" class="upd-force-hint">
+          <view class="upd-force-dot">!</view>
+          <text>当前版本过低，需更新后才能继续使用</text>
+        </view>
+
+        <!-- 按钮区 -->
+        <view class="upd-actions">
+          <button v-if="state.failedMsg" class="upd-btn" @click="retry">
+            重新下载
+          </button>
+          <button
+            v-else-if="!state.downloading"
+            class="upd-btn"
+            @click="startDownload"
+          >
+            立即更新
+          </button>
+
+          <view
+            v-if="!state.info?.forceUpdate && !state.downloading"
+            class="upd-text-btn"
+            @click="dismiss"
+          >
+            稍后再说
+          </view>
+
+          <view
+            v-if="state.info?.forceUpdate && state.failedMsg"
+            class="upd-text-btn upd-text-btn--danger"
+            @click="exitApp"
+          >
+            退出应用
+          </view>
+        </view>
       </view>
     </view>
   </view>
@@ -95,92 +143,369 @@ function formatSize(bytes) {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+// 遮罩
 .upd-mask {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(22, 26, 42, 0.5);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: upd-fade 0.2s ease both;
 }
+
+// 弹窗卡片
 .upd-box {
-  width: 580rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  padding: 40rpx 36rpx 32rpx;
+  width: 620rpx;
+  max-height: 88vh;
+  background: #ffffff;
+  border-radius: 32rpx;
+  overflow: hidden;
+  box-shadow: 0 24rpx 72rpx rgba(31, 45, 82, 0.22);
+  animation: upd-in 0.28s ease-out both;
 }
-.upd-title {
-  font-size: 34rpx;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 24rpx;
-}
-.upd-log {
-  max-height: 280rpx;
-  margin-bottom: 16rpx;
-}
-.upd-log-text {
-  font-size: 26rpx;
-  color: #555;
-  line-height: 1.7;
-  white-space: pre-wrap;
-}
-.upd-size {
-  font-size: 24rpx;
-  color: #999;
-  margin-bottom: 20rpx;
-}
-.upd-progress-wrap {
-  margin: 10rpx 0 24rpx;
-}
-.upd-progress-bar {
-  height: 14rpx;
-  background: #eef0f3;
-  border-radius: 7rpx;
+
+// 浅色引导头
+.upd-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 44rpx 40rpx 34rpx;
+  background: linear-gradient(135deg, #edeefc 0%, #f3f1fb 52%, #f7f0f6 100%);
   overflow: hidden;
 }
-.upd-progress-inner {
+
+.upd-decor {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.upd-decor-arc {
+  width: 360rpx;
+  height: 360rpx;
+  left: -150rpx;
+  top: -170rpx;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.upd-decor-circle {
+  width: 280rpx;
+  height: 280rpx;
+  right: -110rpx;
+  top: -120rpx;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+// 关闭按钮
+.upd-close {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+
+  &:active {
+    background: rgba(60, 64, 90, 0.1);
+  }
+}
+
+// 更新图标：白色图标砖 + 品牌蓝云下载描边
+.upd-icon {
+  position: relative;
+  width: 116rpx;
+  height: 116rpx;
+  border-radius: 30rpx;
+  background-color: #ffffff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M16.5 34H32a8.5 8.5 0 0 0 1.4-16.9A12.4 12.4 0 0 0 9.8 20.8 7.1 7.1 0 0 0 16.5 34z' fill='none' stroke='%234060f8' stroke-width='3.2' stroke-linejoin='round'/><path d='M24 24v11.6M19.2 30.8 24 35.6l4.8-4.8' fill='none' stroke='%234060f8' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 62rpx 62rpx;
+  box-shadow: 0 12rpx 28rpx rgba(64, 96, 248, 0.18);
+}
+
+.upd-title {
+  position: relative;
+  margin-top: 24rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1d1d1f;
+  letter-spacing: 1rpx;
+}
+
+.upd-tags {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: 14rpx;
+}
+
+// 版本胶囊：浅蓝底 + 品牌蓝字
+.upd-version {
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  background: #e9eefd;
+  color: #4060f8;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+// 强更标签：与版本号同行
+.upd-force-tag {
+  margin-left: 12rpx;
+  padding: 6rpx 22rpx;
+  border-radius: 999rpx;
+  background: #fde8ee;
+  color: #e94e6b;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+// 内容区
+.upd-body {
+  padding: 30rpx 36rpx 34rpx;
+}
+
+// 更新日志
+.upd-log {
+  background: #f6f8fc;
+  border-radius: 20rpx;
+  padding: 22rpx 24rpx 18rpx;
+}
+
+.upd-log-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #30313c;
+}
+
+.upd-log-bar {
+  width: 8rpx;
+  height: 26rpx;
+  border-radius: 4rpx;
+  margin-right: 12rpx;
+  background: #4060f8;
+}
+
+.upd-log-scroll {
+  max-height: 220rpx;
+}
+
+.upd-log-text {
+  display: block;
+  font-size: 26rpx;
+  color: #6a7080;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+// 包大小
+.upd-size {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 22rpx;
+  font-size: 24rpx;
+  color: #8a8f9c;
+}
+
+.upd-size-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  margin-right: 12rpx;
+  background: #b9c0d4;
+}
+
+// 下载进度
+.upd-progress {
+  margin-top: 28rpx;
+}
+
+.upd-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14rpx;
+}
+
+.upd-progress-label {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #30313c;
+}
+
+.upd-progress-pct {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #4060f8;
+}
+
+.upd-progress-track {
+  height: 14rpx;
+  border-radius: 8rpx;
+  background: #edf0f7;
+  overflow: hidden;
+}
+
+.upd-progress-fill {
   height: 100%;
-  background: #2bb673;
-  border-radius: 7rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #4a6ef7, #3d6bff);
   transition: width 0.2s;
 }
-.upd-progress-text {
+
+.upd-progress-bytes {
   display: block;
-  text-align: center;
-  font-size: 24rpx;
-  color: #2bb673;
   margin-top: 10rpx;
-}
-.upd-error {
-  font-size: 24rpx;
-  color: #fa3534;
-  margin-bottom: 16rpx;
   text-align: center;
-}
-.upd-actions {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 8rpx;
-}
-.upd-btn {
-  flex: 1;
-  font-size: 28rpx;
-  border-radius: 44rpx;
-}
-.upd-btn--primary {
-  background: #2bb673;
-  color: #fff;
-}
-.upd-force-tip {
-  margin-top: 18rpx;
   font-size: 22rpx;
-  color: #fa3534;
+  color: #9b9cac;
+}
+
+.upd-progress-tip {
+  display: block;
+  margin-top: 8rpx;
   text-align: center;
+  font-size: 22rpx;
+  color: #b3b9c7;
+}
+
+// 失败提示
+.upd-error {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 24rpx;
+  padding: 18rpx 22rpx;
+  border-radius: 16rpx;
+  background: #fdecef;
+}
+
+.upd-error-badge {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  margin-right: 14rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e94e6b;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.upd-error-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #d63f5c;
+  line-height: 1.5;
+}
+
+// 强更内联提示
+.upd-force-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24rpx;
+  font-size: 24rpx;
+  color: #e94e6b;
+}
+
+.upd-force-dot {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  margin-right: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fde8ee;
+  color: #e94e6b;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+// 按钮区：品牌主按钮独占一行，次操作为文字按钮
+.upd-actions {
+  margin-top: 30rpx;
+}
+
+.upd-btn {
+  width: 100%;
+  height: 92rpx;
+  line-height: 92rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 20rpx;
+  background: #4060f8;
+  color: #ffffff;
+  font-size: 32rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  box-shadow: 0 12rpx 28rpx rgba(64, 96, 248, 0.26);
+  transition: transform 0.15s ease;
+
+  &::after {
+    border: none;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.upd-text-btn {
+  margin-top: 18rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #8a8f9c;
+  transition: opacity 0.15s ease;
+
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.upd-text-btn--danger {
+  color: #e94e6b;
+}
+
+// 动画
+@keyframes upd-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes upd-in {
+  from {
+    opacity: 0;
+    transform: translateY(28rpx) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

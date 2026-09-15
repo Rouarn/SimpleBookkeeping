@@ -10,7 +10,7 @@
                装载，账单被编辑后会依据变更事件自动刷新。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-14
+  @modify 2026-09-15
 -->
 <template>
   <view class="detail-page">
@@ -19,7 +19,7 @@
       title="账单详情"
       left-icon="left"
       right-icon="redo"
-      background-color="#3c64f6"
+      background-color="#0c3a2e"
       color="#ffffff"
       :border="false"
       status-bar
@@ -93,13 +93,13 @@
     <view v-if="detail" class="action-bar">
       <view class="action-item" @click="handleDelete">
         <view class="action-btn">
-          <uni-icons type="trash" size="26" color="#e94e6b"></uni-icons>
+          <uni-icons type="trash" size="26" color="#d54e3c"></uni-icons>
         </view>
         <text class="action-text">删除</text>
       </view>
       <view class="action-item" @click="handleEdit">
         <view class="action-btn">
-          <uni-icons type="compose" size="26" color="#3c64f6"></uni-icons>
+          <uni-icons type="compose" size="26" color="#2f6b54"></uni-icons>
         </view>
         <text class="action-text">编辑</text>
       </view>
@@ -165,83 +165,84 @@ const previewPhotos = index => {
 <style lang="scss" scoped>
 .detail-page {
   min-height: 100vh;
-  background-color: #3c64f6;
+  background: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
 }
 
 .loading-tip {
   margin-top: 200rpx;
   text-align: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(237, 245, 240, 0.7);
   font-size: 28rpx;
 }
 
 // 账单卡片
 .bill-card {
   position: relative;
-  margin: 128rpx 40rpx 0;
-  padding: 0 48rpx 48rpx;
+  margin: 120rpx 32rpx 0;
+  padding: 0 40rpx 44rpx;
   background-color: #fff;
-  border-radius: 24rpx;
+  border-radius: 28rpx;
+  box-shadow: 0 18rpx 44rpx rgba(4, 24, 18, 0.28);
 
   // 顶部图标
   .bill-icon-wrap {
     position: absolute;
-    top: -80rpx;
+    top: -72rpx;
     left: 50%;
     transform: translateX(-50%);
-    width: 152rpx;
-    height: 152rpx;
+    width: 144rpx;
+    height: 144rpx;
     border-radius: 50%;
     background-color: #fff;
-    border: 6rpx solid #3c64f6;
+    border: 5rpx solid #175142;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10rpx 24rpx rgba(4, 24, 18, 0.18);
 
     .bill-icon {
-      font-size: 72rpx;
+      font-size: 66rpx;
       line-height: 1;
     }
   }
 
   .bill-category {
-    padding-top: 112rpx;
+    padding-top: 104rpx;
     text-align: center;
-    font-size: 30rpx;
-    color: #8a8f9c;
+    font-size: 28rpx;
+    color: #98a099;
   }
 
   .bill-amount {
-    margin-top: 24rpx;
+    margin-top: 18rpx;
     text-align: center;
-    font-size: 64rpx;
+    font-size: 60rpx;
     font-weight: 700;
-    color: #1d1d1f;
-    letter-spacing: 2rpx;
+    color: #1e2521;
+    font-variant-numeric: tabular-nums;
   }
 
   // 票据分隔线
   .ticket-divider {
     position: relative;
-    margin: 56rpx 0;
+    margin: 48rpx 0;
     height: 0;
-    border-top: 2rpx dashed #e2e6f0;
+    border-top: 2rpx dashed #dbe1db;
 
     .notch {
       position: absolute;
-      top: -22rpx;
-      width: 44rpx;
-      height: 44rpx;
+      top: -21rpx;
+      width: 42rpx;
+      height: 42rpx;
       border-radius: 50%;
-      background-color: #3c64f6;
+      background: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
 
       &.notch-left {
-        left: -70rpx;
+        left: -61rpx;
       }
 
       &.notch-right {
-        right: -70rpx;
+        right: -61rpx;
       }
     }
   }
@@ -252,22 +253,22 @@ const previewPhotos = index => {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 44rpx;
+      margin-bottom: 36rpx;
 
       &:last-child {
         margin-bottom: 0;
       }
 
       .info-label {
-        font-size: 30rpx;
-        color: #8a8f9c;
+        font-size: 27rpx;
+        color: #98a099;
         flex-shrink: 0;
       }
 
       .info-value {
-        font-size: 30rpx;
+        font-size: 27rpx;
         font-weight: 500;
-        color: #1d1d1f;
+        color: #202622;
         text-align: right;
         margin-left: 40rpx;
 
@@ -290,40 +291,20 @@ const previewPhotos = index => {
           .photo-thumb {
             width: 128rpx;
             height: 128rpx;
-            border-radius: 12rpx;
+            border-radius: 14rpx;
           }
         }
       }
     }
   }
 
-  // 成员头像
-  .member-list {
-    display: flex;
-
-    .member-avatar {
-      width: 56rpx;
-      height: 56rpx;
-      border-radius: 50%;
-      border: 4rpx solid #fff;
-      margin-left: -12rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28rpx;
-      overflow: hidden;
-
-      &:first-child {
-        margin-left: 0;
-      }
-    }
-  }
-
   .month-summary {
-    margin-top: 100rpx;
+    margin-top: 56rpx;
+    padding-top: 30rpx;
+    border-top: 2rpx dashed #dbe1db;
     text-align: center;
-    font-size: 26rpx;
-    color: #b3b9c9;
+    font-size: 24rpx;
+    color: #98a099;
   }
 }
 
@@ -331,7 +312,7 @@ const previewPhotos = index => {
 .action-bar {
   display: flex;
   justify-content: space-around;
-  padding: 96rpx 80rpx calc(80rpx + env(safe-area-inset-bottom));
+  padding: 72rpx 80rpx calc(72rpx + env(safe-area-inset-bottom));
 
   .action-item {
     display: flex;
@@ -339,25 +320,25 @@ const previewPhotos = index => {
     align-items: center;
 
     .action-btn {
-      width: 116rpx;
-      height: 116rpx;
+      width: 108rpx;
+      height: 108rpx;
       border-radius: 50%;
       background-color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+      box-shadow: 0 10rpx 28rpx rgba(4, 24, 18, 0.24);
 
       &:active {
-        transform: scale(0.95);
+        transform: scale(0.94);
       }
     }
 
     .action-text {
-      margin-top: 20rpx;
-      font-size: 28rpx;
+      margin-top: 16rpx;
+      font-size: 25rpx;
       font-weight: 500;
-      color: #fff;
+      color: rgba(237, 245, 240, 0.82);
     }
   }
 }

@@ -1,8 +1,8 @@
 <!--
   @file 记账页（pages/add/index.vue，新增 / 编辑共用）
   @description 账单录入与编辑页面，通过 onLoad 是否携带 id 区分两种模式：
-               1. 顶部蓝色区：收支切换（支出/收入）、记账日期选择、大金额输入、
-                  横向滚动的分类图标（线性 SVG，选中态使用分类主题色）；
+ *               1. 顶部深绿区：收支切换（支出/收入）、记账日期选择、大金额输入、
+ *                  横向滚动的分类图标（线性 SVG，选中态使用分类主题色）；
                2. 白色内容区：收/付款方式选择、凭证照片（最多 3 张，可删可拍）、
                   备注（限 50 字）；
                3. 底部保存：校验金额 → 凭证图片统一转 base64 → 写入 bill store
@@ -10,7 +10,7 @@
                新增时表单默认值取上次记账记忆；编辑时按 id 回填原账单。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-14
+  @modify 2026-09-15
 -->
 <template>
   <view class="add-page">
@@ -18,7 +18,7 @@
     <uni-nav-bar
       :title="pageTitle"
       left-icon="closeempty"
-      background-color="#4060f8"
+      background-color="#0c3a2e"
       color="#ffffff"
       :border="false"
       status-bar
@@ -26,7 +26,7 @@
       @clickLeft="handleClose"
     />
 
-    <!-- 顶部蓝色区域 -->
+    <!-- 顶部深绿区域 -->
     <view class="header">
       <!-- 收支切换 + 日期 -->
       <view class="toolbar">
@@ -137,7 +137,7 @@
                 class="photo-add"
                 @click="choosePhoto"
               >
-                <uni-icons type="plus" size="42" color="#4060F8"></uni-icons>
+                <uni-icons type="plus" size="40" color="#2f6b54"></uni-icons>
               </view>
             </view>
           </view>
@@ -387,13 +387,13 @@ async function handleSave() {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: #4060f8;
+  background: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
 }
 
-// ===== 顶部蓝色区域 =====
+// ===== 顶部深绿区域 =====
 .header {
   flex-shrink: 0;
-  padding: 0 32rpx 20rpx;
+  padding: 0 32rpx 24rpx;
 }
 
 // 收支切换 + 日期
@@ -401,16 +401,16 @@ async function handleSave() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 20rpx;
+  margin-top: 22rpx;
 
   .tabs {
     display: flex;
     align-items: center;
 
     .tab {
-      font-size: 40rpx;
-      color: rgba(255, 255, 255, 0.65);
-      margin-right: 56rpx;
+      font-size: 38rpx;
+      color: rgba(255, 255, 255, 0.55);
+      margin-right: 52rpx;
       transition: color 0.2s;
 
       &.on {
@@ -423,13 +423,13 @@ async function handleSave() {
   .date-pill {
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.17);
-    border-radius: 14rpx;
-    padding: 12rpx 24rpx;
+    background: rgba(255, 255, 255, 0.13);
+    border-radius: 999rpx;
+    padding: 11rpx 22rpx;
 
     text {
-      font-size: 28rpx;
-      color: #ffffff;
+      font-size: 26rpx;
+      color: rgba(255, 255, 255, 0.9);
       margin-right: 8rpx;
     }
   }
@@ -437,22 +437,23 @@ async function handleSave() {
 
 // 金额
 .amount-row {
-  margin-top: 36rpx;
-  border-bottom: 2rpx solid rgba(255, 255, 255, 0.35);
+  margin-top: 34rpx;
+  border-bottom: 2rpx solid rgba(255, 255, 255, 0.28);
 
   .amount-input {
     width: 100%;
     height: 120rpx;
-    font-size: 96rpx;
+    font-size: 92rpx;
     font-weight: 700;
     color: #ffffff;
     line-height: 120rpx;
+    font-variant-numeric: tabular-nums;
   }
 }
 
 // 分类图标
 .category-scroll {
-  margin-top: 40rpx;
+  margin-top: 38rpx;
   white-space: nowrap;
 
   .category-list {
@@ -462,40 +463,40 @@ async function handleSave() {
 
   .category-item {
     flex-shrink: 0;
-    width: 132rpx;
+    width: 128rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
 
     .category-icon {
-      width: 112rpx;
-      height: 112rpx;
+      width: 106rpx;
+      height: 106rpx;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.13);
       display: flex;
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
 
       .category-img {
-        width: 54rpx;
-        height: 54rpx;
+        width: 52rpx;
+        height: 52rpx;
       }
 
       &.on {
         background: #ffffff;
-        box-shadow: 0 6rpx 16rpx rgba(20, 40, 120, 0.18);
+        box-shadow: 0 8rpx 20rpx rgba(4, 24, 18, 0.28);
       }
     }
 
     .category-name {
-      margin-top: 16rpx;
-      font-size: 26rpx;
-      color: rgba(255, 255, 255, 0.65);
+      margin-top: 14rpx;
+      font-size: 24rpx;
+      color: rgba(255, 255, 255, 0.55);
 
       &.on {
         color: #ffffff;
-        font-weight: 700;
+        font-weight: 600;
       }
     }
   }
@@ -530,16 +531,16 @@ async function handleSave() {
 // 内边距统一放在滚动内容上（直接给 scroll-view 设 padding 在部分平台会压缩滚动区），
 // 底部预留留白，保证最后一个区块（备注）在任何高度下都能完整滚出
 .sheet-inner {
-  padding: 16rpx 40rpx 48rpx;
+  padding: 20rpx 40rpx 48rpx;
   box-sizing: border-box;
 }
 
 .section {
   .section-title {
-    font-size: 36rpx;
-    font-weight: 700;
-    color: #23262d;
-    margin: 40rpx 0 28rpx;
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #1e2521;
+    margin: 36rpx 0 24rpx;
   }
 }
 
@@ -547,22 +548,22 @@ async function handleSave() {
 .pay-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 20rpx;
+  gap: 18rpx;
 
   .pay-pill {
-    padding: 12rpx 30rpx;
-    border: 2rpx solid #dfe3ee;
-    border-radius: 16rpx;
-    font-size: 28rpx;
-    color: #7b8198;
+    padding: 13rpx 30rpx;
+    border: 2rpx solid #e3e8e3;
+    border-radius: 999rpx;
+    font-size: 27rpx;
+    color: #767e78;
     background: #ffffff;
     box-sizing: border-box;
     text-align: center;
 
     &.on {
       border-color: transparent;
-      background: #e9eeff;
-      color: #4060f8;
+      background: #e6f3ec;
+      color: #175142;
       font-weight: 600;
     }
   }
@@ -577,12 +578,14 @@ async function handleSave() {
   .photo-add {
     width: 156rpx;
     height: 156rpx;
-    border-radius: 18rpx;
+    border-radius: 20rpx;
     margin: 0 20rpx 20rpx 0;
   }
 
   .photo-add {
-    background: #f4f6fc;
+    background: #f2f7f4;
+    border: 2rpx dashed #b9d4c7;
+    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -594,7 +597,7 @@ async function handleSave() {
     .photo-img {
       width: 100%;
       height: 100%;
-      border-radius: 18rpx;
+      border-radius: 20rpx;
     }
 
     .photo-del {
@@ -604,7 +607,7 @@ async function handleSave() {
       width: 40rpx;
       height: 40rpx;
       border-radius: 50%;
-      background: #3a3f4a;
+      background: #2a3a33;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -615,10 +618,10 @@ async function handleSave() {
 // 备注
 .remark-input {
   width: 100%;
-  height: 100rpx;
-  border-bottom: 2rpx solid #ededf2;
-  font-size: 30rpx;
-  color: #23262d;
+  height: 96rpx;
+  border-bottom: 2rpx solid #edf0ec;
+  font-size: 29rpx;
+  color: #1e2521;
 }
 
 // ===== 底部保存 =====
@@ -627,17 +630,17 @@ async function handleSave() {
   position: relative;
   z-index: 2;
   background: #ffffff;
-  padding: 16rpx 32rpx;
-  padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  padding: 14rpx 32rpx;
+  padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
 
   .save-btn {
-    height: 96rpx;
-    border-radius: 20rpx;
-    background: #4060f8;
+    height: 92rpx;
+    border-radius: 999rpx;
+    background: linear-gradient(90deg, #175142 0%, #246b56 100%);
     color: #ffffff;
-    font-size: 34rpx;
-    font-weight: 700;
+    font-size: 32rpx;
+    font-weight: 600;
     letter-spacing: 4rpx;
     display: flex;
     align-items: center;
