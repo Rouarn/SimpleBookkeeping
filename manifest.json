@@ -58,17 +58,7 @@
             },
             /* ios打包配置 */
             "sdkConfigs" : {
-                "push" : {
-                    "unipush" : {
-                        "version" : "2",
-                        "offline" : false,
-                        "icons" : {
-                            "small" : {
-                                "hdpi" : "unpackage/res/icons/72x72.png"
-                            }
-                        }
-                    }
-                }
+                "push" : {}
             },
             "icons" : {
                 "android" : {
