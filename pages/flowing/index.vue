@@ -140,17 +140,28 @@
 /**
  * 流水页脚本模块
  * 模块说明：
- * - useFlowingData()：取得可读写的 currentMonth / currentType（自动持久化）、
- *   按天分组 groups 与当月汇总 monthCard；
+ * - useFlowingData()：currentMonth / currentType 双向绑定 app store（持久化），
+ *   groups / monthCard 为接口拉取的 ref，由 load() 异步填充；
  * - 本页仅负责三个交互入口：类型 ActionSheet、月份 picker、搜索占位按钮。
  */
+import { watch } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import { useFlowingData, goBillDetail } from "@/composables/useBookkeeping";
 
 // 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
 const typeOptions = ["全部类型", "支出", "收入"];
 
-// 月份 / 类型选择态持久化在 app store；分组与月汇总由 bill store 实时派生
-const { currentMonth, currentType, groups, monthCard } = useFlowingData();
+// 月份 / 类型选择态持久化在 app store；分组与月汇总由 load() 异步拉取
+const { currentMonth, currentType, groups, monthCard, load } =
+  useFlowingData();
+
+// 进入页面 / 从后台恢复时拉取；月份或类型变化时重新拉取
+onShow(() => {
+  load();
+});
+watch([currentMonth, currentType], () => {
+  load();
+});
 
 /** 点击顶部类型文字 → 弹出 ActionSheet 切换筛选类型（写入后列表自动重算） */
 const handleTypeClick = () => {
@@ -177,7 +188,7 @@ const handleDateChange = e => {
 
 /**
  * 点击流水单条 → 跳转详情页
- * @param {import('@/store/types').BillViewModel} item 被点击的流水项
+ * @param {object} item 被点击的流水项
  */
 const goDetail = item => {
   goBillDetail(item.id);

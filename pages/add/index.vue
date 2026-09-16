@@ -120,12 +120,12 @@
             <view class="photo-list">
               <view
                 v-for="(photo, index) in photos"
-                :key="photo"
+                :key="photo.key || index"
                 class="photo-item"
               >
                 <image
                   class="photo-img"
-                  :src="photo"
+                  :src="photo.url"
                   mode="aspectFill"
                   @click="previewPhoto(index)"
                 />
@@ -174,21 +174,28 @@
  * 记账页脚本模块
  * 模块说明：
  * - 表单状态（收支类型 / 分类 / 金额 / 支付方式 / 日期 / 备注 / 照片）均为本地 ref；
- * - 分类名称与支付方式字典来自 category / book store，图标素材（SVG path）仅本页维护；
- * - useBillForm 提供「上次选择记忆」、编辑回填与统一保存动作；
- * - 图片通过 @/utils/image 在保存前转 base64，保证凭证随账单一起持久化。
+ * - 分类与支付方式字典来自 category / book store（接口缓存），图标素材（SVG path）仅本页维护；
+ * - useBillForm 提供「上次选择记忆」、编辑回填（GET /bills/:id）、统一保存动作（POST/PATCH /bills）；
+ * - 图片通过 POST /uploads/image 上传到服务端，保存时传 key 数组。
  */
 import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import { useBookStore, useCategoryStore } from "@/store";
 import { useBillForm } from "@/composables/useBookkeeping";
 import { todayStr } from "@/utils/date";
-import { photosToBase64 } from "@/utils/image";
+import { normalizeFileUrl } from "@/api";
 
 const categoryStore = useCategoryStore();
 const bookStore = useBookStore();
-// 表单记忆 + 保存动作（写入 bill store 并持久化）
-const { remembered, saveBill, loadBillForEdit } = useBillForm();
+// 表单记忆 + 保存动作（调服务端 POST/PATCH /bills）
+const {
+  remembered,
+  saveBill,
+  loadBillForEdit,
+  uploadPhoto,
+  getCategoryIdByName,
+  getPayMethodIdByName,
+} = useBillForm();
 
 // 编辑模式：详情页携带账单 id 跳转进来，先回填再改存
 const editId = ref("");
@@ -260,11 +267,11 @@ const billType = ref(remembered.value.type); // 收支方向 expense / income
 const activeCategory = ref(defaultCategory(billType.value)); // 当前选中分类名
 const amount = ref(""); // 金额输入（字符串，保存时统一转 Number）
 const remark = ref(""); // 备注
-const payMethod = ref(remembered.value.payMethod); // 收/付款方式
-const photos = ref([]); // 凭证图片路径 / dataURL，最多 3 张
+const payMethod = ref(remembered.value.payMethod); // 收/付款方式（名称）
+const photos = ref([]); // 凭证图片 [{key,url}]，最多 3 张
 
-// 收付款方式以 book store 字典为准
-const payMethods = computed(() => bookStore.payMethods);
+// 收付款方式以 book store 字典为准（name 列表，用于渲染选项）
+const payMethods = computed(() => bookStore.payMethods.map(p => p.name));
 
 const categoryList = computed(() =>
   categoryStore
@@ -285,23 +292,49 @@ const dateText = computed(() => {
 });
 
 /**
+ * 从服务端签名 URL 解析出图片 key（用于编辑模式回填后保存时传 key）
+ * URL 形如 .../api/v1/files/bills/xxx.jpg?e=&sign= ，key 为 bills/xxx.jpg
+ * @param {string} url
+ * @returns {string}
+ */
+function parseKeyFromUrl(url) {
+  if (!url) return "";
+  const idx = url.indexOf("/files/");
+  if (idx === -1) return "";
+  const tail = url.slice(idx + 7);
+  const qIdx = tail.indexOf("?");
+  return qIdx === -1 ? tail : tail.slice(0, qIdx);
+}
+
+/**
  * 页面加载生命周期：
- * - 无 id（从中间 + 按钮进入）→ 新增模式，保留记忆默认值；
- * - 携带 id（从详情页编辑进入）→ 读取原始账单并逐项回填表单。
+ * - 无 id（从中间 + 按钮进入）→ 新增模式，保留记忆默认值，并预热字典；
+ * - 携带 id（从详情页编辑进入）→ 调 GET /bills/:id 拉取详情并逐项回填。
  * @param {{id?: string}} [options] 页面路由参数
  */
-onLoad(options => {
-  const bill = options?.id ? loadBillForEdit(options.id) : null;
+onLoad(async options => {
+  // 预热字典（App.vue 已预热过则跳过）
+  categoryStore.fetchAll().catch(() => {});
+  bookStore.fetchPayMethods().catch(() => {});
+
+  if (!options?.id) return;
+  const bill = await loadBillForEdit(options.id);
   if (!bill) return;
   editId.value = bill.id;
   billType.value = bill.type;
   activeCategory.value = bill.category;
-  amount.value = String(bill.amount);
+  // 服务端 amount 带符号，表单输入用绝对值
+  amount.value = String(Math.abs(Number(bill.amount) || 0));
   payMethod.value = bill.payMethod;
   date.value = bill.date;
   remark.value = bill.remark;
-  // 已是 base64 的凭证直接回填，保存时不会重复转换
-  photos.value = Array.isArray(bill.photos) ? bill.photos.slice(0, 3) : [];
+  // 回填凭证：服务端返回签名 URL，归一化后解析出 key 便于保存时传回
+  photos.value = Array.isArray(bill.photos)
+    ? bill.photos.slice(0, 3).map(url => ({
+        key: parseKeyFromUrl(url),
+        url: normalizeFileUrl(url),
+      }))
+    : [];
 });
 
 /**
@@ -321,12 +354,38 @@ function onDateChange(e) {
   date.value = e.detail.value;
 }
 
-/** 调起系统选图 / 拍照，可选数量 = 3 - 已选数量，结果拼接到 photos（截断至 3 张） */
+/**
+ * 调起系统选图 / 拍照，逐张上传到服务端拿 {key,url}，拼接到 photos（截断至 3 张）
+ */
 function choosePhoto() {
+  const remain = 3 - photos.value.length;
+  if (remain <= 0) return;
   uni.chooseImage({
-    count: 3 - photos.value.length,
-    success: res => {
-      photos.value = photos.value.concat(res.tempFilePaths).slice(0, 3);
+    count: remain,
+    success: async res => {
+      const paths = res.tempFilePaths || [];
+      uni.showLoading({ title: "上传中", mask: true });
+      try {
+        for (const p of paths) {
+          if (photos.value.length >= 3) break;
+          try {
+            const r = await uploadPhoto(p);
+            photos.value.push({
+              key: r.key,
+              url: normalizeFileUrl(r.url),
+            });
+          } catch (e) {
+            // 单张失败跳过，不中断其余
+            console.error("上传失败:", e);
+            uni.showToast({
+              title: e?.message || "图片上传失败",
+              icon: "none",
+            });
+          }
+        }
+      } finally {
+        uni.hideLoading();
+      }
     },
   });
 }
@@ -345,8 +404,8 @@ function removePhoto(index) {
  */
 function previewPhoto(index) {
   uni.previewImage({
-    current: photos.value[index],
-    urls: photos.value,
+    current: photos.value[index].url,
+    urls: photos.value.map(p => p.url),
   });
 }
 
@@ -357,9 +416,8 @@ function handleClose() {
 
 /**
  * 保存账单（新增或更新）：
- * 1. 校验金额为正数；2. 凭证图片批量转 base64（失败保留原路径）；
- * 3. 交给 useBillForm.saveBill 写入 store（有 editId 即更新）；
- * 4. 成功后提示并延迟返回，保证持久化完成、列表页可见新数据。
+ * 1. 校验金额为正数；2. 按 name 反查 categoryId / payMethodId；3. 提取 photos key 数组；
+ * 4. 交给 useBillForm.saveBill 调 POST/PATCH /bills；5. 成功后提示并返回。
  */
 async function handleSave() {
   const value = Number(amount.value);
@@ -367,29 +425,37 @@ async function handleSave() {
     uni.showToast({ title: "请输入正确的金额", icon: "none" });
     return;
   }
-  // 凭证统一转 base64 落库（已是 base64 的自动跳过，不重复转换）
+  const categoryId = getCategoryIdByName(billType.value, activeCategory.value);
+  const payMethodId = getPayMethodIdByName(payMethod.value);
+  if (!categoryId) {
+    uni.showToast({ title: "分类数据未就绪，请稍后", icon: "none" });
+    return;
+  }
+  if (!payMethodId) {
+    uni.showToast({ title: "支付方式未就绪，请稍后", icon: "none" });
+    return;
+  }
   uni.showLoading({ title: "保存中", mask: true });
-  const savedPhotos = await photosToBase64(photos.value).finally(() =>
-    uni.hideLoading(),
-  );
-  const result = saveBill(
+  const result = await saveBill(
     {
       type: billType.value,
       amount: value,
       category: activeCategory.value,
+      categoryId,
       payMethod: payMethod.value,
+      payMethodId,
       date: date.value,
       remark: remark.value,
-      photos: savedPhotos,
+      photos: photos.value.map(p => p.key).filter(Boolean),
     },
     editId.value || undefined,
-  );
+  ).finally(() => uni.hideLoading());
   if (!result.ok) {
     uni.showToast({ title: result.error || "保存失败", icon: "none" });
     return;
   }
   uni.showToast({ title: "保存成功", icon: "success" });
-  // 持久化由 Pinia 插件同步完成，稍候返回即可在首页/流水/统计看到新账单
+  // 增删改已通过 BILL_CHANGE_EVENT 广播，返回后首页/流水/统计 onShow 会重新拉取
   setTimeout(() => uni.navigateBack(), 600);
 }
 </script>

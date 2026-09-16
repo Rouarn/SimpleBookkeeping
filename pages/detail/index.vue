@@ -131,16 +131,16 @@ const goBack = () => {
   uni.navigateBack();
 };
 
-/** 删除账单：先弹确认框，确认后调用 store 删除并提示、延迟返回（列表会收到变更广播） */
+/** 删除账单：先弹确认框，确认后调 DELETE /bills/:id 并提示、延迟返回 */
 const handleDelete = () => {
   uni.showModal({
     title: "提示",
     content: "确定删除该账单吗？",
-    success: res => {
+    success: async res => {
       if (!res.confirm) return;
       if (detail.value?.id) {
-        removeCurrent();
-        uni.showToast({ title: "已删除", icon: "success" });
+        const ok = await removeCurrent();
+        if (ok) uni.showToast({ title: "已删除", icon: "success" });
       }
       setTimeout(() => uni.navigateBack(), 300);
     },
@@ -158,7 +158,10 @@ const handleEdit = () => {
  * @param {number} index 当前点击图片的下标，作为预览起始位置
  */
 const previewPhotos = index => {
-  uni.previewImage({ urls: detail.value.photos, current: index });
+  uni.previewImage({
+    urls: detail.value.photos,
+    current: detail.value.photos[index],
+  });
 };
 </script>
 

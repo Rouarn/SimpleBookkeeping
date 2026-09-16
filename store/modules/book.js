@@ -1,51 +1,88 @@
 /**
- * @file 账本 store（book 模块）
- * @description 管理账本（多账本能力预留）、当前选中账本、月预算与收付款方式字典。
- *              持久化策略：只持久化业务数据 books / activeBookId；
- *              支付方式的简称与配色（PAY_META / PAY_METHODS）属于静态元数据，不入库。
+ * @file 账本 store（book 模块，接口数据缓存）
+ * @description 管理账本（多账本能力预留）、当前激活账本、月预算与收付款方式字典。
+ *              数据来源由服务端接口提供：GET /books、GET|PUT /books/active、GET /pay-methods。
+ *              本 store 作为缓存层：登录后由 App.vue / 页面 onShow 触发 fetch。
+ *              persist: false —— 数据来源为服务端，本地不再持久化账本业务数据。
  *              主要导出：useBookStore，提供账本增改、当前账本切换、
  *              预算设置与支付方式元数据查询。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-14
+ * @modify 2026-09-16
  */
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { booksApi, dictionariesApi } from "@/api";
 
-/** 支付方式展示元数据（简称 / 主题色 / 浅底色），统计页头像与流水页配色的唯一来源 */
-const PAY_META = {
-  微信支付: { short: "微", color: "#07c160", bg: "#e7f8ef" },
-  支付宝: { short: "支", color: "#1677ff", bg: "#e8f2ff" },
-  信用卡: { short: "信", color: "#ff7d00", bg: "#fff2e3" },
-  储蓄卡: { short: "卡", color: "#5a6072", bg: "#eef0f5" },
-  现金: { short: "现", color: "#f2994a", bg: "#fdf2e4" },
-};
-
-/** 收付款方式名称字典（运行时可扩展），记账页选项与账单合法性校验均以此为准 */
-const PAY_METHODS = ["现金", "微信支付", "支付宝", "信用卡", "储蓄卡"];
+/** 支付方式静态兜底元数据（接口未拉取或名称不匹配时） */
+const PAY_FALLBACK = { short: "其", color: "#8a8f9c", bg: "#f1f2f7" };
 
 /**
- * 生成内置默认账本（首次安装 / 持久化数据损坏时的种子数据）
- * @returns {import('@/store/types').Book[]}
+ * 把服务端支付方式字段映射为展示元数据
+ * @param {object} item {id,name,shortName,color,bg}
  */
-function createDefaultBooks() {
-  return [{ id: "book_1", name: "个人账本", budget: 0 }];
+function toPayMeta(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    short: item.shortName || item.name?.slice(0, 1) || "其",
+    color: item.color || PAY_FALLBACK.color,
+    bg: item.bg || PAY_FALLBACK.bg,
+  };
 }
 
 export const useBookStore = defineStore(
   "book",
   () => {
     /** @type {import('vue').Ref<import('@/store/types').Book[]>} */
-    const books = ref(createDefaultBooks());
-    const activeBookId = ref("book_1");
-    /** 收付款方式选项（运行时字典） */
-    const payMethods = ref(PAY_METHODS.slice());
+    const books = ref([]);
+    const activeBookId = ref("");
+    /** 收付款方式选项（接口缓存） */
+    const payMethods = ref([]);
 
     const activeBook = computed(
       () =>
         books.value.find(b => b.id === activeBookId.value) ||
         books.value[0] || { id: "", name: "默认账本", budget: 0 },
     );
+
+    /** 是否已拉取过账本列表 */
+    let booksLoaded = false;
+    /** 是否已拉取过支付方式 */
+    let payLoaded = false;
+
+    /**
+     * 拉取账本列表 + 当前激活账本
+     * @param {boolean} [force=false]
+     */
+    async function fetchBooks(force = false) {
+      if (booksLoaded && !force) return;
+      const [list, active] = await Promise.all([
+        booksApi.list(),
+        booksApi.getActive().catch(() => null),
+      ]);
+      // GET /books 返回 {list:[...]}；兼容直接数组形态
+      const arr = Array.isArray(list) ? list : list?.list || [];
+      books.value = arr.map(b => ({
+        id: b.id,
+        name: b.name,
+        budget: Number(b.budget) || 0,
+      }));
+      if (active && active.id) activeBookId.value = active.id;
+      else if (books.value[0]) activeBookId.value = books.value[0].id;
+      booksLoaded = true;
+    }
+
+    /**
+     * 拉取支付方式字典
+     * @param {boolean} [force=false]
+     */
+    async function fetchPayMethods(force = false) {
+      if (payLoaded && !force) return;
+      const list = await dictionariesApi.getPayMethods();
+      payMethods.value = (list || []).map(toPayMeta);
+      payLoaded = true;
+    }
 
     /**
      * @param {string} id
@@ -60,30 +97,36 @@ export const useBookStore = defineStore(
      * @param {string} name
      */
     function getPayMeta(name) {
-      return PAY_META[name] || { short: "其", color: "#8a8f9c", bg: "#f1f2f7" };
+      const found = payMethods.value.find(p => p.name === name);
+      return found
+        ? { short: found.short, color: found.color, bg: found.bg }
+        : { ...PAY_FALLBACK };
     }
 
     /**
-     * 切换当前账本
+     * 切换当前账本（调服务端 PUT /books/active）
      * @param {string} id
      */
-    function setActiveBook(id) {
-      if (books.value.some(b => b.id === id)) activeBookId.value = id;
+    async function setActiveBook(id) {
+      if (!books.value.some(b => b.id === id)) return;
+      await booksApi.setActive({ bookId: id });
+      activeBookId.value = id;
     }
 
     /**
-     * 新增账本
+     * 新增账本（调服务端 POST /books，成功后刷新本地列表）
      * @param {{name: string, budget?: number}} input
-     * @returns {import('@/store/types').Book}
+     * @returns {Promise<object>}
      */
-    function addBook({ name, budget = 0 }) {
-      const book = {
-        id: `book_${Date.now().toString(36)}`,
+    async function addBook({ name, budget = 0 }) {
+      const created = await booksApi.create({
         name: String(name || "新账本").slice(0, 12),
         budget: Math.max(0, Number(budget) || 0),
-      };
-      books.value.push(book);
-      return book;
+      });
+      // 主动刷新本地缓存
+      booksLoaded = false;
+      await fetchBooks(true);
+      return created;
     }
 
     /**
@@ -91,14 +134,19 @@ export const useBookStore = defineStore(
      * @param {string} id
      * @param {Partial<Pick<import('@/store/types').Book,'name'|'budget'>>} patch
      */
-    function updateBook(id, patch) {
-      const book = getBook(id);
-      if (!book) return;
+    async function updateBook(id, patch) {
+      const payload = {};
       if (typeof patch.name === "string" && patch.name.trim()) {
-        book.name = patch.name.trim().slice(0, 12);
+        payload.name = patch.name.trim().slice(0, 12);
       }
       if (patch.budget !== undefined) {
-        book.budget = Math.max(0, Number(patch.budget) || 0);
+        payload.budget = Math.max(0, Number(patch.budget) || 0);
+      }
+      await booksApi.update(id, payload);
+      const book = getBook(id);
+      if (book) {
+        if (payload.name) book.name = payload.name;
+        if (payload.budget !== undefined) book.budget = payload.budget;
       }
     }
 
@@ -106,8 +154,8 @@ export const useBookStore = defineStore(
      * 直接设置当前账本月预算
      * @param {number} budget
      */
-    function setBudget(budget) {
-      updateBook(activeBook.value.id, { budget });
+    async function setBudget(budget) {
+      await updateBook(activeBook.value.id, { budget });
     }
 
     return {
@@ -115,6 +163,8 @@ export const useBookStore = defineStore(
       activeBookId,
       payMethods,
       activeBook,
+      fetchBooks,
+      fetchPayMethods,
       getBook,
       getPayMeta,
       setActiveBook,
@@ -123,26 +173,6 @@ export const useBookStore = defineStore(
       setBudget,
     };
   },
-  {
-    persist: {
-      key: "book",
-      version: 1,
-      // 静态字典 payMethods 不入库，只持久化真正的业务数据
-      paths: ["books", "activeBookId"],
-      // 迁移示例：v0 版本的预算字段可能叫 monthBudget，这里重命名为 budget
-      migrations: {
-        0: saved => {
-          if (Array.isArray(saved?.books)) {
-            saved.books.forEach(b => {
-              if (b.budget === undefined && b.monthBudget !== undefined) {
-                b.budget = b.monthBudget;
-                delete b.monthBudget;
-              }
-            });
-          }
-          return saved;
-        },
-      },
-    },
-  },
+  // 数据来源为服务端，不启用本地持久化
+  { persist: false },
 );

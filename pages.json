@@ -41,6 +41,13 @@
         "navigationBarTitleText": "账单详情",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "tabBar": {

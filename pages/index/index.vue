@@ -130,14 +130,14 @@
 /**
  * 首页脚本模块
  * 模块说明：
- * - useHomeData()：一次性取得本月统计（bill + book 联动）、今日流水、
- *   今日收支、用户昵称、今日日期与预算设置动作；
- * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行从 store 取数。
+ * - useHomeData()：调 GET /overview/home 聚合首页数据（统计卡 + 今日流水），
+ *   onShow 调 load() 拉取；
+ * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行调接口。
  */
+import { onShow } from "@dcloudio/uni-app";
 import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
 import UpdatePopup from "@/components/update-popup.vue";
 
-// 首页数据全部由 Pinia 派生，模板中直接消费，无需本地状态
 const {
   stats,
   flowList,
@@ -146,11 +146,17 @@ const {
   userName,
   todayDate,
   editBudget,
+  load,
 } = useHomeData();
+
+// 每次进入首页 / 从后台恢复时重新拉取聚合数据
+onShow(() => {
+  load();
+});
 
 /**
  * 点击今日流水单条 → 跳转详情页
- * @param {import('@/store/types').BillViewModel} item 被点击的流水项
+ * @param {object} item 被点击的流水项
  */
 const goDetail = item => {
   goBillDetail(item.id);

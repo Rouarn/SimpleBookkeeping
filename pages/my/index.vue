@@ -103,19 +103,28 @@
 /**
  * 我的页脚本模块
  * 模块说明：
- * - useProfile()：取得用户资料、加入天数、跨模块统计，以及修改昵称 / 更换头像动作；
+ * - useProfile()：取得用户资料、加入天数、跨模块统计（来自 GET /users/me/stats），
+ *   以及修改昵称（PATCH /users/me）/ 更换头像（POST /users/me/avatar）动作；
  * - 菜单与铃铛为静态入口，当前仅做占位反馈。
  */
 import { computed, ref, watch } from "vue";
+import { onShow } from "@dcloudio/uni-app";
 import { useProfile } from "@/composables/useBookkeeping";
-import { DEFAULT_AVATAR } from "@/store";
+import { DEFAULT_AVATAR, useUserStore } from "@/store";
 import { useAppUpdate } from "@/composables/use-app-update";
 import { getCurrentVersion } from "@/utils/app-update/device";
 import UpdatePopup from "@/components/update-popup.vue";
 
-// 用户资料持久化在 user store；记账笔数/天数/账本数由 bill、book store 实时联动
+// 用户资料 / 统计来自 user store（接口缓存）
 const { profile, avatar, joinDays, stats, editName, changeAvatar } =
   useProfile();
+const userStore = useUserStore();
+
+// 进入页面时拉取用户资料与统计（App.vue 已预热，此处刷新统计）
+onShow(() => {
+  userStore.fetchMe().catch(() => {});
+  userStore.fetchStats().catch(() => {});
+});
 
 // 头像加载失败（如历史持久化的临时路径重启后失效）时回退默认头像，保证头像位不留白
 const avatarLoadFailed = ref(false);

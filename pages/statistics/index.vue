@@ -246,22 +246,26 @@
  * 统计页脚本模块
  * 模块说明：
  * - 选中月份 / 收支类型用可写 computed 双向绑定 app store（自动持久化）；
- * - 分类排行、支付方式排行、月汇总由 useStatisticsData 从 bill store 实时聚合；
- * - 近 6 个月趋势、柱状图归一化高度、环比百分比为本页基于月汇总二次派生。
+ * - 概览 / 分类排行 / 支付方式排行由 useStatisticsData 调 statistics 系列接口；
+ * - 近 6 个月趋势由 useTrendData 调 GET /statistics/trend；
+ * - 环比文案直接使用服务端 overview.mom.text / mom.up。
  */
-import { ref, computed } from "vue";
-import { useAppStore, useBillStore } from "@/store";
-import { useStatisticsData } from "@/composables/useBookkeeping";
+import { ref, computed, watch } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { useAppStore } from "@/store";
+import {
+  useStatisticsData,
+  useTrendData,
+} from "@/composables/useBookkeeping";
 
 /**
- * 金额格式化：四舍五入到两位小数并固定两位展示，避免浮点累加误差
- * @param {number|string} n 原始数值
- * @returns {string} 如 '1234.50'
+ * 金额格式化：四舍五入到两位小数并固定两位展示
+ * @param {number|string} n
+ * @returns {string}
  */
 const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 
 const appStore = useAppStore();
-const billStore = useBillStore();
 
 // 月份 / 收支类型：双向绑定 app store（切换后持久化记忆）
 const month = computed({
@@ -273,12 +277,16 @@ const billType = computed({
   set: value => appStore.setStatsType(value),
 });
 
-// 当前高亮查看的趋势柱下标（0-5，5 为选中月；默认即选中当月）
+// 当前高亮查看的趋势柱下标（0-5，5 为最近月）
 const activeTrend = ref(5);
 
-// 分类排行 / 支付方式排行 / 月汇总全部由 bill store 实时聚合，
-// 分类与支付方式的图标配色统一来自 category / book store
-const { categoryStats, payStats, summary } = useStatisticsData(month, billType);
+// 概览 / 分类排行 / 支付方式排行（调 statistics 系列接口）
+const { overview, categoryStats, payStats, load } = useStatisticsData(
+  month,
+  billType,
+);
+// 近 6 个月趋势（调 GET /statistics/trend）
+const { trend, loadTrend } = useTrendData(6);
 
 /** 月份中文展示，如 '2026年9月' */
 const monthText = computed(() => {
@@ -286,101 +294,55 @@ const monthText = computed(() => {
   return `${y}年${Number(m)}月`;
 });
 
-/**
- * 月份 picker 选中回调：更新月份并把趋势高亮重置为当月柱
- * @param {object} e e.detail.value 形如 '2026-09'
- */
+/** 月份 / 类型变化时重新拉取概览与排行，并重置趋势高亮 */
 const onMonthChange = e => {
   month.value = e.detail.value;
   activeTrend.value = 5;
 };
-
-/**
- * 切换支出 / 收入视图
- * @param {import('@/store/types').BillType} type
- */
 const switchType = type => {
   billType.value = type;
 };
 
-// ---------- 概览卡片派生（数据源为 bill store 的月汇总） ----------
-const totalExpense = computed(() => summary.value.expense);
-const totalIncome = computed(() => summary.value.income);
-/** 卡片主金额：跟随当前收支类型取支出或收入 */
-const currentTotal = computed(() =>
-  billType.value === "expense" ? totalExpense.value : totalIncome.value,
+// ---------- 概览卡片派生（数据源为 overview 接口） ----------
+/** 当前类型的总额（卡片主金额） */
+const currentTotal = computed(() => Number(overview.value?.total) || 0);
+/** 对向金额：type=expense 时为当月收入，type=income 时为当月支出 */
+const oppositeTotal = computed(() =>
+  Number(overview.value?.oppositeTotal) || 0,
 );
-/** 当前类型的记账笔数 */
-const currentCount = computed(() =>
-  billType.value === "expense"
-    ? summary.value.expenseCount
-    : summary.value.incomeCount,
+const totalExpense = computed(() =>
+  billType.value === "expense" ? currentTotal.value : oppositeTotal.value,
 );
-const balance = computed(() => summary.value.balance);
-/** 日均支出/收入 = 当前总额 ÷ 当月已过天数（今天至少按 1 天，避免月初除零） */
-const dailyAverage = computed(() => {
-  const elapsed = new Date().getDate() || 1;
-  return currentTotal.value / elapsed;
-});
-
-/**
- * 近 6 个月趋势：以选中月为第 6 项（下标 5），前 5 项逐月回退，
- * 每月从 bill store 取支出 / 收入汇总（无数据自然为 0）
- * @returns {Array<{label: string, expense: number, income: number}>}
- */
-const trend = computed(() => {
-  const [y, m] = month.value.split("-").map(Number);
-  const list = [];
-  for (let i = 5; i >= 1; i--) {
-    // 借助 Date 自动处理跨年：月份传 0 基且允许负数偏移
-    const d = new Date(y, m - 1 - i, 1);
-    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const s = billStore.monthSummary(monthStr);
-    list.push({
-      label: `${d.getMonth() + 1}月`,
-      expense: s.expense,
-      income: s.income,
-    });
-  }
-  // 选中月直接用当前汇总，保证与卡片数字完全一致
-  list.push({
-    label: `${m}月`,
-    expense: Math.round(totalExpense.value * 100) / 100,
-    income: Math.round(totalIncome.value * 100) / 100,
-  });
-  return list;
-});
+const totalIncome = computed(() =>
+  billType.value === "expense" ? oppositeTotal.value : currentTotal.value,
+);
+const currentCount = computed(() => Number(overview.value?.count) || 0);
+const balance = computed(() => Number(overview.value?.balance) || 0);
+/** 日均（服务端已按已过天数计算） */
+const dailyAverage = computed(() =>
+  Number(overview.value?.dailyAverage) || 0,
+);
+/** 环比（服务端计算，直接消费） */
+const mom = computed(() => ({
+  up: !!overview.value?.mom?.up,
+  text: overview.value?.mom?.text || "—",
+}));
 
 /** 6 个月内支出 / 收入的全局最大值，作为柱状图高度归一化的分母 */
 const trendMax = computed(() =>
   trend.value.reduce((max, i) => Math.max(max, i.expense, i.income), 0),
 );
-
-/**
- * 计算单根柱子的高度百分比
- * @param {number} v 该柱金额
- * @returns {number} 0-100 的高度百分比；无数据时给 2% 保底可见，最大值为 100
- */
+/** 单根柱子高度百分比 */
 const barHeight = v =>
   trendMax.value > 0 ? Math.max(Math.round((v / trendMax.value) * 100), 2) : 2;
 
-/**
- * 选中月相对上月的环比（跟随当前收支类型）
- * 上月为 0 时不计算百分比：当月有值显示「新增」，均为 0 显示「—」
- * @returns {{up: boolean, text: string}} up 控制箭头方向，text 为展示文案
- */
-const mom = computed(() => {
-  const key = billType.value;
-  const cur = trend.value[5][key]; // 选中月
-  const prev = trend.value[4][key]; // 上月
-  if (prev === 0) {
-    return { up: cur > 0, text: cur > 0 ? "新增" : "—" };
-  }
-  const pct = ((cur - prev) / prev) * 100;
-  return {
-    up: pct >= 0,
-    text: `${pct >= 0 ? "+" : "-"}${Math.abs(pct).toFixed(1)}%`,
-  };
+// 进入页面 / 月份或类型变化时拉取
+onShow(() => {
+  load();
+  loadTrend();
+});
+watch([month, billType], () => {
+  load();
 });
 </script>
 

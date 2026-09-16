@@ -17,7 +17,7 @@
             "delay" : 0
         },
         "modules" : {
-            "Push" : {}
+            "Camera" : {}
         },
         /* 模块配置 */
         "distribute" : {
@@ -64,11 +64,7 @@
                         "offline" : false,
                         "icons" : {
                             "small" : {
-                                "hdpi" : "unpackage/res/icons/72x72.png",
-                                "ldpi" : "unpackage/res/icons/72x72.png",
-                                "mdpi" : "unpackage/res/icons/72x72.png",
-                                "xhdpi" : "unpackage/res/icons/96x96.png",
-                                "xxhdpi" : "unpackage/res/icons/144x144.png"
+                                "hdpi" : "unpackage/res/icons/72x72.png"
                             }
                         }
                     }
