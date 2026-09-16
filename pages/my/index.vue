@@ -4,8 +4,8 @@
                1. 顶部个人信息区：装饰背景、消息铃铛、头像与昵称（点击可修改昵称 /
                   更换头像）、加入产品天数提示；
                2. 记账统计：记账总笔数、记账总天数、账本数量（跨 bill / book store 实时联动）；
-               3. 功能菜单：邀请好友、记账提醒、意见反馈、关于我们、设置
-                  （当前为占位项，点击仅 toast 提示）。
+               3. 功能菜单：邀请好友、设置（设置页承载记账提醒 / 意见反馈 / 关于 /
+                  检查更新 / 退出登录等应用级配置）。
                用户资料持久化在 user store，统计数字不落地存储。
   @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
@@ -91,11 +91,6 @@
         ></uni-icons>
       </view>
     </view>
-
-    <!-- APP 在线更新弹窗（单例状态，本页手动检查时可直接弹出） -->
-    <!-- #ifdef APP-PLUS -->
-    <update-popup />
-    <!-- #endif -->
   </view>
 </template>
 
@@ -105,15 +100,12 @@
  * 模块说明：
  * - useProfile()：取得用户资料、加入天数、跨模块统计（来自 GET /users/me/stats），
  *   以及修改昵称（PATCH /users/me）/ 更换头像（POST /users/me/avatar）动作；
- * - 菜单与铃铛为静态入口，当前仅做占位反馈。
+ * - 功能菜单仅保留邀请好友占位入口与设置页跳转。
  */
 import { computed, ref, watch } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { useProfile } from "@/composables/useBookkeeping";
 import { DEFAULT_AVATAR, useUserStore } from "@/store";
-import { useAppUpdate } from "@/composables/use-app-update";
-import { getCurrentVersion } from "@/utils/app-update/device";
-import UpdatePopup from "@/components/update-popup.vue";
 
 // 用户资料 / 统计来自 user store（接口缓存）
 const { profile, avatar, joinDays, stats, editName, changeAvatar } =
@@ -139,48 +131,25 @@ const onAvatarError = () => {
   avatarLoadFailed.value = true;
 };
 
-// APP 在线更新：手动检查入口
-const { check: checkAppUpdate } = useAppUpdate();
-
 /**
  * 功能菜单配置（title 文案 + icon 为 uni-icons 类型名，全应用图标语言统一）
+ * 记账提醒 / 意见反馈 / 关于 / 检查更新等应用级配置已收敛至设置页
  */
 const menuList = ref([
   { title: "邀请好友", icon: "staff" },
-  { title: "记账提醒", icon: "notification" },
-  { title: "意见反馈", icon: "email" },
-  { title: "关于我们", icon: "info" },
   { title: "设置", icon: "gear" },
 ]);
 
-// 「检查更新」入口仅 App 端展示，右侧显示当前运行时版本号
-// #ifdef APP-PLUS
-const currentVersionName = getCurrentVersion().versionName;
-menuList.value.push({
-  title: "检查更新",
-  icon: "download",
-  extra: currentVersionName ? `v${currentVersionName}` : "",
-});
-// #endif
-
 /**
- * 菜单项点击：检查更新走在线更新流程，其余当前为占位反馈
+ * 菜单项点击：设置跳转设置页，其余当前为占位反馈
  * @param {{title: string, icon: string}} item 被点击的菜单项
  */
 const onMenuTap = item => {
-  // #ifdef APP-PLUS
-  if (item.title === "检查更新") {
-    onManualCheck();
+  if (item.title === "设置") {
+    uni.navigateTo({ url: "/pages/settings/index" });
     return;
   }
-  // #endif
   uni.showToast({ title: item.title, icon: "none" });
-};
-
-/** 手动检查更新：带 loading，无更新/失败由更新模块给出 toast */
-const onManualCheck = () => {
-  uni.showLoading({ title: "检查中…" });
-  checkAppUpdate({ silent: false }).finally(() => uni.hideLoading());
 };
 
 /** 消息铃铛点击（占位） */

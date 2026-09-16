@@ -158,6 +158,15 @@ export const useBookStore = defineStore(
       await updateBook(activeBook.value.id, { budget });
     }
 
+    /** 重置本地缓存与加载标记（退出登录时调用） */
+    function reset() {
+      books.value = [];
+      activeBookId.value = "";
+      payMethods.value = [];
+      booksLoaded = false;
+      payLoaded = false;
+    }
+
     return {
       books,
       activeBookId,
@@ -171,6 +180,7 @@ export const useBookStore = defineStore(
       addBook,
       updateBook,
       setBudget,
+      reset,
     };
   },
   // 数据来源为服务端，不启用本地持久化

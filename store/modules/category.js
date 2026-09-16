@@ -101,6 +101,14 @@ export const useCategoryStore = defineStore(
       return listByType(type).some(i => i.name === name);
     }
 
+    /** 重置本地缓存与加载标记（退出登录时调用） */
+    function reset() {
+      expenseList.value = [];
+      incomeList.value = [];
+      loaded.expense = false;
+      loaded.income = false;
+    }
+
     return {
       expenseList,
       incomeList,
@@ -111,6 +119,7 @@ export const useCategoryStore = defineStore(
       listByType,
       getMeta,
       isValid,
+      reset,
     };
   },
   // 字典数据来源为服务端，不启用本地持久化
