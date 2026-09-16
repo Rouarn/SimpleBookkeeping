@@ -24,7 +24,8 @@ import {
 } from "@/utils/auth";
 
 /** 服务端基地址 */
-export const BASE_URL = "http://192.168.1.13:9765";
+// export const BASE_URL = "http://192.168.1.13:9765";
+export const BASE_URL = "http://xl.shixian.xyz";
 
 /** 全局 API 前缀 */
 const API_PREFIX = "/api/v1";
