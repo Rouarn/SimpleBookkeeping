@@ -9,7 +9,7 @@
                用户资料持久化在 user store，统计数字不落地存储。
   @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-16
+ * @modify 2026-09-20
 -->
 <template>
   <view class="my">
@@ -171,7 +171,9 @@ const onEditProfile = () => {
 
 <style lang="scss" scoped>
 .my {
-  min-height: 100vh;
+  min-height: calc(
+    100vh - var(--status-bar-height) - var(--window-top) - 160rpx
+  );
   background: #f3f5f2;
   padding-bottom: 160rpx;
 }

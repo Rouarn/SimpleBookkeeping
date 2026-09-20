@@ -28,6 +28,14 @@ export function currentMonth() {
 }
 
 /**
+ * 当前年份
+ * @returns {string} 形如 '2026'
+ */
+export function currentYear() {
+  return String(new Date().getFullYear());
+}
+
+/**
  * 当前日期
  * @returns {string} 形如 '2026-09-14'
  */

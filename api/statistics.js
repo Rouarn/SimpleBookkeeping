@@ -7,8 +7,10 @@
 import { http } from "./http";
 
 /**
- * 月度概览（收支笔数 + 预算进度）
- * @param {{month:string,type?:string,bookId?:string}} params
+ * 概览卡（总额/环比/笔数/日均/结余）
+ * @param {{month?:string,year?:string,type?:string,bookId?:string}} params
+ *        month（YYYY-MM）与 year（YYYY）二选一，均缺省为当前月；
+ *        year 为年维度时响应附 monthlyAverage / elapsedMonths
  * @returns {Promise<object>}
  */
 export function overview(params) {
@@ -17,7 +19,8 @@ export function overview(params) {
 
 /**
  * 分类排行
- * @param {{month:string,type:string,bookId?:string}} params type=expense|income
+ * @param {{month?:string,year?:string,type:string,bookId?:string}} params
+ *        type=expense|income；month/year 二选一
  * @returns {Promise<object[]>}
  */
 export function categories(params) {
@@ -26,7 +29,7 @@ export function categories(params) {
 
 /**
  * 支付方式排行
- * @param {{month:string,bookId?:string}} params
+ * @param {{month?:string,year?:string,bookId?:string}} params month/year 二选一
  * @returns {Promise<object[]>}
  */
 export function payMethods(params) {
@@ -34,8 +37,9 @@ export function payMethods(params) {
 }
 
 /**
- * 月度趋势
- * @param {{months:number,bookId?:string}} params
+ * 收支趋势
+ * @param {{months?:number,year?:string,bookId?:string}} params
+ *        months=近 N 个月（默认 6）；year=YYYY 时返回该年 12 个月
  * @returns {Promise<object[]>}
  */
 export function trend(params) {

@@ -1,28 +1,50 @@
 <!--
   @file 统计页（pages/statistics/index.vue）
-  @description 按月与收支类型展示账单分析：
-               1. 顶部：标题、月份选择（picker 月份模式）与支出/收入切换；
-               2. 概览卡片：当月支出（或收入）总额、较上月环比、对向金额、
-                  记账笔数、日均（按当月已过天数）与结余，卡片配色随类型切换；
-               3. 近 6 个月收支柱状趋势图（点击柱子查看数值，高度按 6 个月最大值归一化）；
+  @description 支持单月与整年两种时间粒度的账单分析：
+               1. 顶部：标题、月/年粒度切换、月份（或年份）picker 与支出/收入切换；
+               2. 概览卡片：当期支出（或收入）总额、较上月/较去年环比、对向金额、
+                  记账笔数、日均（月视图）或月均（年视图）与结余，卡片配色随类型切换；
+               3. 收支趋势柱状图：月视图为近 6 个月，年视图为所选年份 12 个月，
+                  年视图点击柱子显示金额，再次点击（或点「查看该月」）智能切换到该月单月视图；
                4. 分类排行：金额、笔数、占比与进度条；
                5. 支付方式分布（仅支出时展示）。
-               月份与类型选择持久化在 app store，聚合数据全部由 bill store 实时计算。
+               粒度 / 月份 / 年份与类型选择持久化在 app store，聚合数据全部由接口实时计算。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-15
+  @modify 2026-09-20
 -->
 <template>
   <view class="statistics">
-    <!-- 顶部标题 + 月份选择 -->
+    <!-- 顶部标题 + 粒度切换 + 月份/年份选择 -->
     <view class="top-bar">
       <text class="top-title">统计</text>
-      <picker mode="date" fields="month" :value="month" @change="onMonthChange">
-        <view class="month-pill">
-          <text class="month-text">{{ monthText }}</text>
-          <uni-icons type="bottom" size="14" color="#2f6b54"></uni-icons>
+      <view class="top-actions">
+        <view class="scope-toggle">
+          <text
+            class="scope-item"
+            :class="{ on: !isYear }"
+            @click="switchScope('month')"
+            >月</text
+          >
+          <text
+            class="scope-item"
+            :class="{ on: isYear }"
+            @click="switchScope('year')"
+            >年</text
+          >
         </view>
-      </picker>
+        <picker
+          mode="date"
+          :fields="isYear ? 'year' : 'month'"
+          :value="pickerValue"
+          @change="onPeriodChange"
+        >
+          <view class="month-pill">
+            <text class="month-text">{{ periodText }}</text>
+            <uni-icons type="bottom" size="14" color="#2f6b54"></uni-icons>
+          </view>
+        </picker>
+      </view>
     </view>
 
     <!-- 收支切换 -->
@@ -43,7 +65,7 @@
       </view>
     </view>
 
-    <!-- 本月概览卡片 -->
+    <!-- 本期概览卡片 -->
     <view class="overview-card" :class="billType">
       <view class="card-decor">
         <view class="decor-ring r1"></view>
@@ -52,7 +74,7 @@
       </view>
       <view class="ov-top">
         <text class="ov-label">{{
-          billType === "expense" ? "本月支出（元）" : "本月收入（元）"
+          scopeText + (billType === "expense" ? "支出（元）" : "收入（元）")
         }}</text>
         <view class="ov-chip">
           <uni-icons
@@ -60,7 +82,9 @@
             size="12"
             color="#ffffff"
           ></uni-icons>
-          <text class="chip-text">较上月 {{ mom.text }}</text>
+          <text class="chip-text"
+            >较{{ isYear ? "去年" : "上月" }} {{ mom.text }}</text
+          >
         </view>
       </view>
       <view class="ov-amount">{{ fmt(currentTotal) }}</view>
@@ -71,7 +95,7 @@
             fmt(billType === "expense" ? totalIncome : totalExpense)
           }}</text>
           <text class="stat-label">{{
-            billType === "expense" ? "本月收入（元）" : "本月支出（元）"
+            scopeText + (billType === "expense" ? "收入（元）" : "支出（元）")
           }}</text>
         </view>
         <view class="ov-divider"></view>
@@ -81,8 +105,10 @@
         </view>
         <view class="ov-divider"></view>
         <view class="ov-stat">
-          <text class="stat-value">{{ fmt(dailyAverage) }}</text>
-          <text class="stat-label">日均（元）</text>
+          <text class="stat-value">{{ fmt(avgValue) }}</text>
+          <text class="stat-label">{{
+            isYear ? "月均（元）" : "日均（元）"
+          }}</text>
         </view>
       </view>
 
@@ -92,10 +118,10 @@
       </view>
     </view>
 
-    <!-- 近6个月收支趋势 -->
+    <!-- 收支趋势：月视图近6个月 / 年视图全年12个月 -->
     <view class="panel">
       <view class="panel-header">
-        <text class="panel-title">近6个月收支</text>
+        <text class="panel-title">{{ trendTitle }}</text>
         <view class="legend">
           <view class="legend-dot expense-dot"></view>
           <text class="legend-text">支出</text>
@@ -103,18 +129,28 @@
           <text class="legend-text">收入</text>
         </view>
       </view>
+      <text v-if="isYear" class="chart-hint"
+        >点击柱子查看金额，再次点击可切换到该月单月统计</text
+      >
 
       <view class="chart">
         <view
           v-for="(item, index) in trend"
-          :key="index"
+          :key="item.month"
           class="bar-group"
-          @click="activeTrend = index"
+          :class="{ cur: activeTrend === index }"
+          @click="onTrendTap(index)"
         >
           <view class="bar-tip">
             <block v-if="activeTrend === index">
               <text class="tip-expense">支 {{ fmt(item.expense) }}</text>
               <text class="tip-income">收 {{ fmt(item.income) }}</text>
+              <text
+                v-if="isYear"
+                class="tip-link"
+                @click.stop="jumpToMonth(index)"
+                >查看该月 →</text
+              >
             </block>
           </view>
           <view class="bars">
@@ -130,7 +166,7 @@
             ></view>
           </view>
           <text class="bar-month" :class="{ on: activeTrend === index }">{{
-            item.label
+            isYear ? index + 1 : item.label
           }}</text>
         </view>
       </view>
@@ -245,18 +281,16 @@
 /**
  * 统计页脚本模块
  * 模块说明：
- * - 选中月份 / 收支类型用可写 computed 双向绑定 app store（自动持久化）；
- * - 概览 / 分类排行 / 支付方式排行由 useStatisticsData 调 statistics 系列接口；
- * - 近 6 个月趋势由 useTrendData 调 GET /statistics/trend；
- * - 环比文案直接使用服务端 overview.mom.text / mom.up。
+ * - 时间粒度（月/年）、月份、年份、收支类型均用可写 computed 双向绑定 app store（自动持久化）；
+ * - 概览 / 分类排行 / 支付方式排行由 useStatisticsData 按 period（month 或 year 二选一）调接口；
+ * - 趋势图月维度调 GET /statistics/trend?months=6，年维度调 ?year=YYYY 返回全年 12 个月；
+ * - 年视图点击柱子显示金额，再次点击同柱（或点「查看该月」）智能切换到该月单月视图；
+ * - 环比文案直接使用服务端 overview.mom.text / mom.up（月比上月、年比去年）。
  */
 import { ref, computed, watch } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { useAppStore } from "@/store";
-import {
-  useStatisticsData,
-  useTrendData,
-} from "@/composables/useBookkeeping";
+import { useStatisticsData, useTrendData } from "@/composables/useBookkeeping";
 
 /**
  * 金额格式化：四舍五入到两位小数并固定两位展示
@@ -267,48 +301,122 @@ const fmt = n => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 
 const appStore = useAppStore();
 
-// 月份 / 收支类型：双向绑定 app store（切换后持久化记忆）
+// 粒度 / 月份 / 年份 / 收支类型：双向绑定 app store（切换后持久化记忆）
+const scope = computed({
+  get: () => appStore.ui.statsScope,
+  set: value => appStore.setStatsScope(value),
+});
 const month = computed({
   get: () => appStore.ui.statsMonth,
   set: value => appStore.setStatsMonth(value),
+});
+const year = computed({
+  get: () => appStore.ui.statsYear,
+  set: value => appStore.setStatsYear(value),
 });
 const billType = computed({
   get: () => appStore.ui.statsType,
   set: value => appStore.setStatsType(value),
 });
 
-// 当前高亮查看的趋势柱下标（0-5，5 为最近月）
-const activeTrend = ref(5);
+/** 是否年视图 */
+const isYear = computed(() => scope.value === "year");
 
-// 概览 / 分类排行 / 支付方式排行（调 statistics 系列接口）
+// 概览 / 分类排行 / 支付方式排行（period 为 month/year 二选一）
+const period = computed(() =>
+  isYear.value ? { year: year.value } : { month: month.value },
+);
 const { overview, categoryStats, payStats, load } = useStatisticsData(
-  month,
+  period,
   billType,
 );
-// 近 6 个月趋势（调 GET /statistics/trend）
-const { trend, loadTrend } = useTrendData(6);
+// 趋势：月维度近 6 个月；年维度整年 12 个月
+const trendYear = computed(() => (isYear.value ? year.value : null));
+const { trend, loadTrend } = useTrendData(6, trendYear);
 
-/** 月份中文展示，如 '2026年9月' */
-const monthText = computed(() => {
+/**
+ * 趋势柱默认高亮：年视图当前年高亮当前月、历史年高亮 12 月；月视图高亮最近月
+ * @returns {number}
+ */
+function defaultTrend() {
+  if (isYear.value) {
+    const now = new Date();
+    return year.value === String(now.getFullYear()) ? now.getMonth() : 11;
+  }
+  return 5;
+}
+
+// 当前高亮查看的趋势柱下标
+const activeTrend = ref(defaultTrend());
+
+/** 重置趋势高亮为默认值 */
+function resetTrend() {
+  activeTrend.value = defaultTrend();
+}
+
+// ---------- 展示文案 ----------
+/** picker 值：月视图 'YYYY-MM'，年视图 'YYYY' */
+const pickerValue = computed(() => (isYear.value ? year.value : month.value));
+
+/** picker 展示文案：'2026年9月' / '2026年' */
+const periodText = computed(() => {
+  if (isYear.value) return `${year.value}年`;
   const [y, m] = month.value.split("-");
   return `${y}年${Number(m)}月`;
 });
 
-/** 月份 / 类型变化时重新拉取概览与排行，并重置趋势高亮 */
-const onMonthChange = e => {
-  month.value = e.detail.value;
-  activeTrend.value = 5;
-};
-const switchType = type => {
+/** 概览卡「本月 / 本年」前缀 */
+const scopeText = computed(() => (isYear.value ? "本年" : "本月"));
+
+/** 趋势面板标题：月视图 '近6个月收支'，年视图 '2026年收支' */
+const trendTitle = computed(() =>
+  isYear.value ? `${year.value}年收支` : "近6个月收支",
+);
+
+// ---------- 交互 ----------
+/** 切换单月 / 整年视图（同值幂等） */
+function switchScope(value) {
+  if (scope.value === value) return;
+  scope.value = value;
+  resetTrend();
+}
+
+/** picker 选择：年视图返回 'YYYY'，月视图返回 'YYYY-MM' */
+function onPeriodChange(e) {
+  if (isYear.value) year.value = e.detail.value;
+  else month.value = e.detail.value;
+  resetTrend();
+}
+
+function switchType(type) {
   billType.value = type;
-};
+}
+
+/**
+ * 趋势柱点击：首次点击显示金额；年视图下再点同柱直接切换到该月单月视图
+ * @param {number} index
+ */
+function onTrendTap(index) {
+  if (isYear.value && activeTrend.value === index) {
+    jumpToMonth(index);
+    return;
+  }
+  activeTrend.value = index;
+}
+
+/** 年视图 → 单月视图（智能切换）：选中对应月份并切回月视图 */
+function jumpToMonth(index) {
+  month.value = `${year.value}-${String(index + 1).padStart(2, "0")}`;
+  scope.value = "month";
+  activeTrend.value = 5;
+}
 
 // ---------- 概览卡片派生（数据源为 overview 接口） ----------
 /** 当前类型的总额（卡片主金额） */
 const currentTotal = computed(() => Number(overview.value?.total) || 0);
-/** 对向金额：type=expense 时为当月收入，type=income 时为当月支出 */
-const oppositeTotal = computed(() =>
-  Number(overview.value?.oppositeTotal) || 0,
+/** 对向金额：type=expense 时为当期收入，type=income 时为当期支出 */
+const oppositeTotal = computed(
+  () => Number(overview.value?.oppositeTotal) || 0,
 );
 const totalExpense = computed(() =>
   billType.value === "expense" ? currentTotal.value : oppositeTotal.value,
@@ -319,8 +427,14 @@ const totalIncome = computed(() =>
 const currentCount = computed(() => Number(overview.value?.count) || 0);
 const balance = computed(() => Number(overview.value?.balance) || 0);
 /** 日均（服务端已按已过天数计算） */
-const dailyAverage = computed(() =>
-  Number(overview.value?.dailyAverage) || 0,
+const dailyAverage = computed(() => Number(overview.value?.dailyAverage) || 0);
+/** 月均（仅年视图接口返回） */
+const monthlyAverage = computed(
+  () => Number(overview.value?.monthlyAverage) || 0,
+);
+/** 卡片第三个均值：月视图日均 / 年视图月均 */
+const avgValue = computed(() =>
+  isYear.value ? monthlyAverage.value : dailyAverage.value,
 );
 /** 环比（服务端计算，直接消费） */
 const mom = computed(() => ({
@@ -328,7 +442,7 @@ const mom = computed(() => ({
   text: overview.value?.mom?.text || "—",
 }));
 
-/** 6 个月内支出 / 收入的全局最大值，作为柱状图高度归一化的分母 */
+/** 趋势周期内支出 / 收入的全局最大值，作为柱状图高度归一化的分母 */
 const trendMax = computed(() =>
   trend.value.reduce((max, i) => Math.max(max, i.expense, i.income), 0),
 );
@@ -336,13 +450,17 @@ const trendMax = computed(() =>
 const barHeight = v =>
   trendMax.value > 0 ? Math.max(Math.round((v / trendMax.value) * 100), 2) : 2;
 
-// 进入页面 / 月份或类型变化时拉取
+// 进入页面拉取；粒度 / 月份 / 年份 / 类型变化重拉概览与排行
 onShow(() => {
   load();
   loadTrend();
 });
-watch([month, billType], () => {
+watch([period, billType], () => {
   load();
+});
+// 趋势仅在 粒度/年份 变化时重拉（月视图近6个月与选中月份无关）
+watch(trendYear, () => {
+  loadTrend();
 });
 </script>
 
@@ -356,7 +474,7 @@ watch([month, billType], () => {
   box-sizing: border-box;
 }
 
-// 顶部标题 + 月份选择
+// 顶部标题 + 粒度切换 + 月份/年份选择
 .top-bar {
   display: flex;
   align-items: center;
@@ -368,6 +486,34 @@ watch([month, billType], () => {
     font-weight: 700;
     color: #1e2521;
     letter-spacing: 1rpx;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .scope-toggle {
+    display: flex;
+    margin-right: 14rpx;
+    padding: 4rpx;
+    background: #e4eae4;
+    border-radius: 999rpx;
+
+    .scope-item {
+      padding: 8rpx 22rpx;
+      font-size: 23rpx;
+      font-weight: 600;
+      color: #767e78;
+      border-radius: 999rpx;
+      transition: all 0.25s ease;
+
+      &.on {
+        background: #ffffff;
+        color: #2f6b54;
+        box-shadow: 0 4rpx 12rpx rgba(28, 54, 45, 0.1);
+      }
+    }
   }
 
   .month-pill {
@@ -615,6 +761,13 @@ watch([month, billType], () => {
       }
     }
   }
+
+  .chart-hint {
+    display: block;
+    margin-top: 10rpx;
+    font-size: 21rpx;
+    color: #98a099;
+  }
 }
 
 // 柱状趋势图
@@ -624,21 +777,30 @@ watch([month, billType], () => {
   margin-top: 26rpx;
 
   .bar-group {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+
+    // 高亮柱的浮层不被相邻柱遮挡（年视图 12 组更拥挤）
+    &.cur {
+      z-index: 2;
+    }
   }
 
   .bar-tip {
-    height: 60rpx;
+    height: 96rpx;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: flex-end;
 
     .tip-expense,
-    .tip-income {
+    .tip-income,
+    .tip-link {
+      // 年视图 12 组柱子每列仅约 53rpx，禁止 text 内部折行（金额/箭头被挤到下一行）
+      white-space: nowrap;
       font-size: 16rpx;
       line-height: 1.5;
     }
@@ -647,6 +809,11 @@ watch([month, billType], () => {
     }
     .tip-income {
       color: #c04a36;
+    }
+    .tip-link {
+      font-size: 18rpx;
+      font-weight: 700;
+      color: #175142;
     }
   }
 

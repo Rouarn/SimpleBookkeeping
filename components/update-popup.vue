@@ -1,9 +1,9 @@
 <!--
   @file APP 更新弹窗（components/update-popup.vue）
   @description 全局唯一的版本更新弹窗（状态来自 use-app-update 模块级单例），
-               视觉对齐全站设计语言（品牌蓝 #4060f8 + pastel 浅色引导头）：
-               1. 顶部浅色引导头：装饰圆 + 白色图标砖 + 「发现新版本」+
-                  版本号胶囊（强更时同行展示红色标签），非强更且非下载中
+               视觉对齐全站设计语言（深松绿 #175142 + 米纸暖调 + 朱砂点缀）：
+               1. 顶部深松绿引导头：铜钱纹同心环 + 白色图标砖 + 「发现新版本」+
+                  版本号胶囊（强更时同行展示朱砂标签），非强更且非下载中
                   时右上角可关闭；
                2. 内容区：更新说明卡片、包大小、下载进度（百分比 + 已下载
                   字节）、失败提示条；
@@ -14,7 +14,7 @@
                弹窗可在多个 tab 页各挂载一次，共享同一份单例状态。
                注意：本组件为扁平路径（components/update-popup.vue），不满足
                easycom 默认规则，使用页面必须显式 import（首页 / 我的页均已引入）。
-  @date 2026-09-15
+  @date 2026-09-20
 -->
 <template>
   <view v-if="state.visible" class="upd-mask" @touchmove.stop.prevent>
@@ -22,7 +22,7 @@
       class="upd-box"
       :class="{ 'upd-box--force': state.info?.forceUpdate }"
     >
-      <!-- 浅色引导头 -->
+      <!-- 深松绿引导头 -->
       <view class="upd-hero">
         <view class="upd-decor upd-decor-arc"></view>
         <view class="upd-decor upd-decor-circle"></view>
@@ -32,7 +32,7 @@
           class="upd-close"
           @click="dismiss"
         >
-          <uni-icons type="closeempty" size="17" color="#8a8f9c"></uni-icons>
+          <uni-icons type="closeempty" size="17" color="#dfeee6"></uni-icons>
         </view>
 
         <view class="upd-icon"></view>
@@ -151,7 +151,7 @@ function formatSize(bytes) {
   right: 0;
   bottom: 0;
   left: 0;
-  background: rgba(22, 26, 42, 0.5);
+  background: rgba(20, 28, 24, 0.52);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -164,20 +164,20 @@ function formatSize(bytes) {
   width: 620rpx;
   max-height: 88vh;
   background: #ffffff;
-  border-radius: 32rpx;
+  border-radius: 28rpx;
   overflow: hidden;
-  box-shadow: 0 24rpx 72rpx rgba(31, 45, 82, 0.22);
+  box-shadow: 0 24rpx 64rpx rgba(14, 40, 31, 0.24);
   animation: upd-in 0.28s ease-out both;
 }
 
-// 浅色引导头
+// 深松绿引导头
 .upd-hero {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 44rpx 40rpx 34rpx;
-  background: linear-gradient(135deg, #edeefc 0%, #f3f1fb 52%, #f7f0f6 100%);
+  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
   overflow: hidden;
 }
 
@@ -185,22 +185,24 @@ function formatSize(bytes) {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
+  background: transparent;
 }
 
+// 铜钱纹同心环：与首页统计卡同一装饰语言
 .upd-decor-arc {
-  width: 360rpx;
-  height: 360rpx;
-  left: -150rpx;
-  top: -170rpx;
-  background: rgba(255, 255, 255, 0.6);
+  width: 340rpx;
+  height: 340rpx;
+  right: -130rpx;
+  top: -150rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.1);
 }
 
 .upd-decor-circle {
-  width: 280rpx;
-  height: 280rpx;
-  right: -110rpx;
-  top: -120rpx;
-  background: rgba(255, 255, 255, 0.5);
+  width: 230rpx;
+  height: 230rpx;
+  right: -75rpx;
+  top: -96rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.14);
 }
 
 // 关闭按钮
@@ -214,25 +216,25 @@ function formatSize(bytes) {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.14);
 
   &:active {
-    background: rgba(60, 64, 90, 0.1);
+    background: rgba(255, 255, 255, 0.26);
   }
 }
 
-// 更新图标：白色图标砖 + 品牌蓝云下载描边
+// 更新图标：白色图标砖 + 深松绿云下载描边
 .upd-icon {
   position: relative;
   width: 116rpx;
   height: 116rpx;
   border-radius: 30rpx;
   background-color: #ffffff;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M16.5 34H32a8.5 8.5 0 0 0 1.4-16.9A12.4 12.4 0 0 0 9.8 20.8 7.1 7.1 0 0 0 16.5 34z' fill='none' stroke='%234060f8' stroke-width='3.2' stroke-linejoin='round'/><path d='M24 24v11.6M19.2 30.8 24 35.6l4.8-4.8' fill='none' stroke='%234060f8' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><path d='M16.5 34H32a8.5 8.5 0 0 0 1.4-16.9A12.4 12.4 0 0 0 9.8 20.8 7.1 7.1 0 0 0 16.5 34z' fill='none' stroke='%23175142' stroke-width='3.2' stroke-linejoin='round'/><path d='M24 24v11.6M19.2 30.8 24 35.6l4.8-4.8' fill='none' stroke='%23175142' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
   background-repeat: no-repeat;
   background-position: center;
   background-size: 62rpx 62rpx;
-  box-shadow: 0 12rpx 28rpx rgba(64, 96, 248, 0.18);
+  box-shadow: 0 12rpx 28rpx rgba(6, 32, 25, 0.28);
 }
 
 .upd-title {
@@ -240,7 +242,7 @@ function formatSize(bytes) {
   margin-top: 24rpx;
   font-size: 36rpx;
   font-weight: 700;
-  color: #1d1d1f;
+  color: #f1f7f3;
   letter-spacing: 1rpx;
 }
 
@@ -251,23 +253,24 @@ function formatSize(bytes) {
   margin-top: 14rpx;
 }
 
-// 版本胶囊：浅蓝底 + 品牌蓝字
+// 版本胶囊：薄荷叶描边，呼应首页统计卡的「设置」胶囊
 .upd-version {
   padding: 6rpx 22rpx;
   border-radius: 999rpx;
-  background: #e9eefd;
-  color: #4060f8;
+  background: rgba(143, 226, 189, 0.14);
+  border: 1rpx solid rgba(143, 226, 189, 0.4);
+  color: #9fe8cb;
   font-size: 24rpx;
   font-weight: 600;
 }
 
-// 强更标签：与版本号同行
+// 强更标签：米纸底 + 朱砂字，与深松绿成沉稳的红绿对色
 .upd-force-tag {
   margin-left: 12rpx;
   padding: 6rpx 22rpx;
   border-radius: 999rpx;
-  background: #fde8ee;
-  color: #e94e6b;
+  background: #f6e8da;
+  color: #a8543f;
   font-size: 24rpx;
   font-weight: 600;
 }
@@ -279,7 +282,8 @@ function formatSize(bytes) {
 
 // 更新日志
 .upd-log {
-  background: #f6f8fc;
+  background: #f6f8f4;
+  border: 1rpx solid #eef1ec;
   border-radius: 20rpx;
   padding: 22rpx 24rpx 18rpx;
 }
@@ -290,7 +294,7 @@ function formatSize(bytes) {
   margin-bottom: 12rpx;
   font-size: 26rpx;
   font-weight: 600;
-  color: #30313c;
+  color: #3a423d;
 }
 
 .upd-log-bar {
@@ -298,7 +302,7 @@ function formatSize(bytes) {
   height: 26rpx;
   border-radius: 4rpx;
   margin-right: 12rpx;
-  background: #4060f8;
+  background: #175142;
 }
 
 .upd-log-scroll {
@@ -308,7 +312,7 @@ function formatSize(bytes) {
 .upd-log-text {
   display: block;
   font-size: 26rpx;
-  color: #6a7080;
+  color: #6b736c;
   line-height: 1.75;
   white-space: pre-wrap;
 }
@@ -320,7 +324,7 @@ function formatSize(bytes) {
   align-items: center;
   margin-top: 22rpx;
   font-size: 24rpx;
-  color: #8a8f9c;
+  color: #98a099;
 }
 
 .upd-size-dot {
@@ -328,7 +332,7 @@ function formatSize(bytes) {
   height: 8rpx;
   border-radius: 50%;
   margin-right: 12rpx;
-  background: #b9c0d4;
+  background: #b6bfb6;
 }
 
 // 下载进度
@@ -346,26 +350,27 @@ function formatSize(bytes) {
 .upd-progress-label {
   font-size: 26rpx;
   font-weight: 600;
-  color: #30313c;
+  color: #3a423d;
 }
 
 .upd-progress-pct {
   font-size: 30rpx;
   font-weight: 700;
-  color: #4060f8;
+  color: #175142;
+  font-variant-numeric: tabular-nums;
 }
 
 .upd-progress-track {
   height: 14rpx;
   border-radius: 8rpx;
-  background: #edf0f7;
+  background: #edf0ec;
   overflow: hidden;
 }
 
 .upd-progress-fill {
   height: 100%;
   border-radius: 8rpx;
-  background: linear-gradient(90deg, #4a6ef7, #3d6bff);
+  background: linear-gradient(90deg, #4fc794 0%, #93e7c4 100%);
   transition: width 0.2s;
 }
 
@@ -374,7 +379,8 @@ function formatSize(bytes) {
   margin-top: 10rpx;
   text-align: center;
   font-size: 22rpx;
-  color: #9b9cac;
+  color: #98a099;
+  font-variant-numeric: tabular-nums;
 }
 
 .upd-progress-tip {
@@ -382,7 +388,7 @@ function formatSize(bytes) {
   margin-top: 8rpx;
   text-align: center;
   font-size: 22rpx;
-  color: #b3b9c7;
+  color: #abb3ac;
 }
 
 // 失败提示
@@ -392,7 +398,7 @@ function formatSize(bytes) {
   margin-top: 24rpx;
   padding: 18rpx 22rpx;
   border-radius: 16rpx;
-  background: #fdecef;
+  background: #fcebe8;
 }
 
 .upd-error-badge {
@@ -404,7 +410,7 @@ function formatSize(bytes) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e94e6b;
+  background: #d54e3c;
   color: #ffffff;
   font-size: 22rpx;
   font-weight: 700;
@@ -413,7 +419,7 @@ function formatSize(bytes) {
 .upd-error-text {
   flex: 1;
   font-size: 24rpx;
-  color: #d63f5c;
+  color: #c24a39;
   line-height: 1.5;
 }
 
@@ -424,7 +430,7 @@ function formatSize(bytes) {
   justify-content: center;
   margin-top: 24rpx;
   font-size: 24rpx;
-  color: #e94e6b;
+  color: #a8543f;
 }
 
 .upd-force-dot {
@@ -435,13 +441,13 @@ function formatSize(bytes) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fde8ee;
-  color: #e94e6b;
+  background: #f6e8da;
+  color: #a8543f;
   font-size: 20rpx;
   font-weight: 700;
 }
 
-// 按钮区：品牌主按钮独占一行，次操作为文字按钮
+// 按钮区：深松绿主按钮独占一行，次操作为文字按钮
 .upd-actions {
   margin-top: 30rpx;
 }
@@ -453,12 +459,12 @@ function formatSize(bytes) {
   margin: 0;
   padding: 0;
   border-radius: 20rpx;
-  background: #4060f8;
+  background: #175142;
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 700;
   letter-spacing: 2rpx;
-  box-shadow: 0 12rpx 28rpx rgba(64, 96, 248, 0.26);
+  box-shadow: 0 12rpx 28rpx rgba(23, 81, 66, 0.28);
   transition: transform 0.15s ease;
 
   &::after {
@@ -476,7 +482,7 @@ function formatSize(bytes) {
   line-height: 72rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #8a8f9c;
+  color: #98a099;
   transition: opacity 0.15s ease;
 
   &:active {
@@ -485,7 +491,7 @@ function formatSize(bytes) {
 }
 
 .upd-text-btn--danger {
-  color: #e94e6b;
+  color: #c24a39;
 }
 
 // 动画

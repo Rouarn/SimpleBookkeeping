@@ -11,7 +11,7 @@
  */
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { currentMonth } from "@/utils/date";
+import { currentMonth, currentYear } from "@/utils/date";
 
 /**
  * 生成默认 UI 偏好（月份默认取当前系统月，保证首次进入即有合理选中值）
@@ -22,6 +22,8 @@ function createDefaultUI() {
     flowMonth: currentMonth(),
     flowType: "全部类型",
     statsMonth: currentMonth(),
+    statsYear: currentYear(),
+    statsScope: "month",
     statsType: "expense",
     lastBillType: "expense",
     lastPayMethod: "现金",
@@ -53,6 +55,16 @@ export const useAppStore = defineStore(
       ui.value.statsMonth = month;
     }
 
+    /** @param {string} year 'YYYY' */
+    function setStatsYear(year) {
+      ui.value.statsYear = year;
+    }
+
+    /** @param {"month"|"year"} scope 统计页时间粒度 */
+    function setStatsScope(scope) {
+      ui.value.statsScope = scope === "year" ? "year" : "month";
+    }
+
     /** @param {import('@/store/types').BillType} type */
     function setStatsType(type) {
       ui.value.statsType = type === "income" ? "income" : "expense";
@@ -80,6 +92,8 @@ export const useAppStore = defineStore(
       setFlowMonth,
       setFlowType,
       setStatsMonth,
+      setStatsYear,
+      setStatsScope,
       setStatsType,
       rememberBillForm,
       resetUI,

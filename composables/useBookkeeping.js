@@ -240,12 +240,13 @@ export function useFlowingData() {
  * 统计页：分类 / 支付方式排行 + 月度概览
  * ----------------------------------------------------------- */
 /**
- * 统计页数据：调 statistics 系列接口；month/type 改变时由页面 watch 调 load()。
- * @param {import('vue').Ref<string>} monthRef 'YYYY-MM'
+ * 统计页数据：调 statistics 系列接口；period/type 改变时由页面 watch 调 load()。
+ * @param {import('vue').Ref<{month?: string, year?: string}>} periodRef
+ *        时间范围：{ month: 'YYYY-MM' } 单月 或 { year: 'YYYY' } 整年（二选一）
  * @param {import('vue').Ref<import('@/store/types').BillType>} typeRef
  * @returns {object} overview / categoryStats / payStats / load / loading
  */
-export function useStatisticsData(monthRef, typeRef) {
+export function useStatisticsData(periodRef, typeRef) {
   const overview = ref(null);
   const categoryStats = ref([]);
   const payStats = ref([]);
@@ -255,13 +256,16 @@ export function useStatisticsData(monthRef, typeRef) {
     if (loading.value) return;
     loading.value = true;
     try {
-      const month = monthRef.value;
+      const period = periodRef.value || {};
+      const base = period.year
+        ? { year: period.year }
+        : { month: period.month };
       const type = typeRef.value;
       const [ov, cats, pays] = await Promise.all([
-        statisticsApi.overview({ month, type }).catch(() => null),
-        statisticsApi.categories({ month, type }).catch(() => ({ list: [] })),
+        statisticsApi.overview({ ...base, type }).catch(() => null),
+        statisticsApi.categories({ ...base, type }).catch(() => ({ list: [] })),
         type === "expense"
-          ? statisticsApi.payMethods({ month }).catch(() => ({ list: [] }))
+          ? statisticsApi.payMethods({ ...base }).catch(() => ({ list: [] }))
           : Promise.resolve({ list: [] }),
       ]);
       overview.value = ov;
@@ -292,11 +296,12 @@ export function useStatisticsData(monthRef, typeRef) {
 }
 
 /**
- * 近 N 个月收支趋势（GET /statistics/trend）
- * @param {number} [months=6]
+ * 收支趋势（GET /statistics/trend）
+ * @param {number} [months=6] 月维度：近 N 个月
+ * @param {import('vue').Ref<string|null>} [yearRef] 年维度：传 'YYYY' 时拉取该年 12 个月
  * @returns {{trend: import('vue').Ref<object[]>, loadTrend: Function, loading: import('vue').Ref<boolean>}}
  */
-export function useTrendData(months = 6) {
+export function useTrendData(months = 6, yearRef = null) {
   const trend = ref([]);
   const loading = ref(false);
 
@@ -304,7 +309,8 @@ export function useTrendData(months = 6) {
     if (loading.value) return;
     loading.value = true;
     try {
-      const res = await statisticsApi.trend({ months });
+      const year = yearRef?.value;
+      const res = await statisticsApi.trend(year ? { year } : { months });
       trend.value = (res?.list || []).map(i => ({
         month: i.month,
         label: i.label,

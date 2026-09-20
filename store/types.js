@@ -116,7 +116,9 @@
  * @typedef {Object} AppUIState
  * @property {string} flowMonth           流水页选中月份 'YYYY-MM'
  * @property {string} flowType            流水页类型筛选
- * @property {string} statsMonth          统计页选中月份
+ * @property {string} statsMonth          统计页选中月份 'YYYY-MM'
+ * @property {string} statsYear           统计页选中年份 'YYYY'（年视图用）
+ * @property {"month"|"year"} statsScope  统计页时间粒度：单月 / 整年
  * @property {BillType} statsType         统计页收支切换
  * @property {BillType} lastBillType      记账页上次的收支选择
  * @property {string} lastPayMethod       记账页上次的收付款方式
