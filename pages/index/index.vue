@@ -1,10 +1,11 @@
 <!--
   @file 首页（pages/index/index.vue）
-  @description 账本应用首页，展示三大区块：
+  @description 账本应用首页，展示四大区块：
                1. 顶部问候与用户昵称；
                2. 本月统计卡：本月支出（大字）、本月收入、本月预算（可点击设置）、
                   结余与预算执行进度条；
-               3. 今日流水：按时间倒序展示当天账单（图标 / 标题 / 备注 / 带符号金额 /
+               3. 一言便签：问候语下方的短句卡片，点按「换一句」重新拉取；
+               4. 今日流水：按时间倒序展示当天账单（图标 / 标题 / 备注 / 带符号金额 /
                   时间 / 支付方式），点击单条跳转账单详情，空数据时显示引导提示。
                页面不直接操作 store，全部数据与动作来自 useHomeData / goBillDetail。
   @author 夏季 <2937375029@qq.com>
@@ -18,6 +19,30 @@
       <text class="greeting-text">Hi, {{ userName }}</text>
       <view class="more-btn">
         <uni-icons type="more-filled" size="26" color="#3c4a42"></uni-icons>
+      </view>
+    </view>
+
+    <!-- 一言便签 -->
+    <view
+      class="quote-card"
+      hover-class="quote-hover"
+      :hover-stay-time="60"
+      @click="refreshQuote"
+    >
+      <view class="quote-seal">言</view>
+      <view class="quote-body">
+        <text class="quote-text">{{
+          quote ? quote.text : "轻触卡片，遇见一言"
+        }}</text>
+        <view class="quote-foot">
+          <text class="quote-from">{{ quoteSource }}</text>
+          <view class="quote-refresh">
+            <view class="refresh-icon" :class="{ spinning: quoteLoading }">
+              <uni-icons type="refresh" size="13" color="#a3947b" />
+            </view>
+            <text class="refresh-text">换一句</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -134,8 +159,10 @@
  *   onShow 调 load() 拉取；
  * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行调接口。
  */
+import { computed } from "vue";
 import { onShow } from "@dcloudio/uni-app";
 import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
+import { useHitokoto } from "@/composables/useHitokoto";
 import UpdatePopup from "@/components/update-popup.vue";
 
 const {
@@ -148,6 +175,19 @@ const {
   editBudget,
   load,
 } = useHomeData();
+
+// 一言便签：冷启动自动拉取一次，点按卡片手动换一句
+const { quote, loading: quoteLoading, refresh: refreshQuote } = useHitokoto();
+
+// 出处拼接：作者《出处》，缺一则只展示存在的部分
+const quoteSource = computed(() => {
+  const q = quote.value;
+  if (!q) return "";
+  if (q.who && q.from) return `—— ${q.who}《${q.from}》`;
+  if (q.from) return `—— 《${q.from}》`;
+  if (q.who) return `—— ${q.who}`;
+  return "";
+});
 
 // 每次进入首页 / 从后台恢复时重新拉取聚合数据
 onShow(() => {
@@ -197,10 +237,94 @@ const goDetail = item => {
   }
 }
 
+// 一言便签
+.quote-card {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 24rpx;
+  padding: 26rpx 28rpx 20rpx;
+  border-radius: 20rpx;
+  background: #f8f4ea;
+  border: 1rpx solid #ece4d3;
+  box-shadow: 0 6rpx 20rpx rgba(94, 74, 40, 0.05);
+
+  &.quote-hover {
+    background: #f4eede;
+  }
+
+  .quote-seal {
+    width: 48rpx;
+    height: 48rpx;
+    margin: 4rpx 20rpx 0 0;
+    border-radius: 10rpx;
+    background: #a8543f;
+    color: #f7f0e4;
+    font-size: 28rpx;
+    line-height: 48rpx;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .quote-body {
+    flex: 1;
+    min-width: 0;
+
+    .quote-text {
+      font-size: 27rpx;
+      line-height: 1.75;
+      color: #4a443c;
+      letter-spacing: 0.5rpx;
+    }
+
+    .quote-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12rpx;
+
+      .quote-from {
+        font-size: 22rpx;
+        color: #a3947b;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .quote-refresh {
+        display: flex;
+        align-items: center;
+        margin-left: 20rpx;
+        flex-shrink: 0;
+
+        .refresh-text {
+          margin-left: 6rpx;
+          font-size: 22rpx;
+          color: #a3947b;
+        }
+
+        .refresh-icon.spinning {
+          animation: quote-spin 0.8s linear infinite;
+        }
+      }
+    }
+  }
+}
+
+@keyframes quote-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 // 统计卡片
 .stats-card {
   position: relative;
-  margin: 6rpx 24rpx 0;
+  margin: 22rpx 24rpx 0;
   padding: 36rpx 32rpx 30rpx;
   border-radius: 28rpx;
   overflow: hidden;

@@ -117,5 +117,9 @@
     },
     "vueVersion" : "3",
     "locale" : "auto",
-    "fallbackLocale" : "zh-Hans"
+    "fallbackLocale" : "zh-Hans",
+    "uniStatistics" : {
+        "enable" : false,
+        "debug" : false
+    }
 }
