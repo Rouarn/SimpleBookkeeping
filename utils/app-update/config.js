@@ -15,7 +15,7 @@ const isDev = !!import.meta.env?.DEV;
 export const UPDATE_CONFIG = {
   // 真机调试用电脑局域网 IP，不能用 localhost；模拟器用 10.0.2.2
   baseUrl: isDev
-    ? "http://192.168.1.13:9867/static"
+    ? "http://192.168.31.115:9867/static"
     : "https://static.shixian.xyz/static",
   // 必须与后台「APP 版本管理」里创建的应用标识一致
   appKey: "simple-bookkeeping",
