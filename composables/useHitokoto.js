@@ -13,10 +13,10 @@
  */
 import { ref } from "vue";
 import { getStorageJSON, setStorageJSON } from "@/utils/storage";
+import { STATIC_BASE } from "@/config/env";
 
 /** 一言接口地址（Hitokoto 兼容协议，JSON 直出） */
-const HITOKOTO_URL =
-  "https://static.shixian.xyz/static/hitokoto?encode=json&min_length=4&max_length=30";
+const HITOKOTO_URL = `${STATIC_BASE}/hitokoto?encode=json&min_length=4&max_length=30`;
 
 /** 最近一句的本地缓存键 */
 const CACHE_KEY = "hitokoto_last";

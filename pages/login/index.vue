@@ -95,6 +95,21 @@
         />
       </view>
 
+      <!-- 协议勾选（仅注册强制；点击文案跳协议页） -->
+      <view class="agree-row" v-if="mode === 'register'">
+        <view
+          class="agree-box"
+          :class="{ checked: form.agree }"
+          @click="toggleAgree"
+        >
+          <text v-if="form.agree" class="agree-tick">✓</text>
+        </view>
+        <text class="agree-text" @click="toggleAgree">我已阅读并同意</text>
+        <text class="agree-link" @click.stop="openAgreement"
+          >《用户协议与隐私政策》</text
+        >
+      </view>
+
       <button class="submit" :loading="loading" @click="onSubmit">
         {{ mode === "login" ? "登录" : "注册并登录" }}
       </button>
@@ -127,7 +142,22 @@ const form = ref({
   nickname: "",
   password: "",
   confirm: "",
+  agree: false, // 注册模式：协议勾选
 });
+
+/**
+ * 切换协议勾选
+ */
+function toggleAgree() {
+  form.value.agree = !form.value.agree;
+}
+
+/**
+ * 打开用户协议与隐私政策页
+ */
+function openAgreement() {
+  uni.navigateTo({ url: "/pages/agreement/index" });
+}
 
 /**
  * 切换登录 / 注册模式，清空敏感字段但保留账号便于切换
@@ -156,6 +186,9 @@ function validate() {
     }
     if (f.nickname && f.nickname.length > 12) {
       return "昵称最多 12 字";
+    }
+    if (!f.agree) {
+      return "请先阅读并同意用户协议与隐私政策";
     }
   }
   return "";
@@ -378,6 +411,48 @@ async function onSubmit() {
     &:focus {
       border-color: #4caf87;
     }
+  }
+}
+
+// 协议勾选行
+.agree-row {
+  display: flex;
+  align-items: center;
+  margin: -4rpx 4rpx 8rpx;
+
+  .agree-box {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 8rpx;
+    border: 2rpx solid #c3ccc4;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12rpx;
+    transition: all 0.15s;
+
+    &.checked {
+      background: #1c6450;
+      border-color: #1c6450;
+    }
+  }
+
+  .agree-tick {
+    font-size: 22rpx;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .agree-text {
+    font-size: 24rpx;
+    color: #6c736b;
+  }
+
+  .agree-link {
+    font-size: 24rpx;
+    color: #1c6450;
+    font-weight: 600;
   }
 }
 

@@ -1,13 +1,11 @@
 /**
  * @file 文件上传 API：multipart 图片上传
+ * @description 统一走 api/http.js 的 upload()：鉴权闸门 + 401 单飞重试。
  * @see docs/server/04b-api-bills.md（uploads/image）
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { BASE_URL, normalizeFileUrl } from "./http";
-import { getAccessToken } from "@/utils/auth";
-
-const API_PREFIX = "/api/v1";
+import { upload, normalizeFileUrl } from "./http";
 
 /**
  * 上传图片（multipart，scene=bill|avatar）
@@ -16,36 +14,15 @@ const API_PREFIX = "/api/v1";
  * @returns {Promise<{key:string,url:string,expiresAt:string,width?:number,height?:number,size?:number}>}
  */
 export function uploadImage(filePath, scene = "bill") {
-  return new Promise((resolve, reject) => {
-    uni.uploadFile({
-      url: `${BASE_URL}${API_PREFIX}/uploads/image`,
-      filePath,
-      name: "file",
-      formData: { scene },
-      header: {
-        Authorization: `Bearer ${getAccessToken()}`,
-      },
-      success: res => {
-        try {
-          const body =
-            typeof res.data === "string"
-              ? JSON.parse(res.data || "{}")
-              : res.data || {};
-          if (body.code === 0 && body.data) {
-            const data = body.data;
-            // 归一化签名 URL，确保使用客户端可达的 BASE_URL
-            if (data.url) data.url = normalizeFileUrl(data.url);
-            resolve(data);
-          } else {
-            reject(body);
-          }
-        } catch (e) {
-          reject({ code: -1, message: "上传响应解析失败" });
-        }
-      },
-      fail: err =>
-        reject({ code: -1, message: "网络异常", raw: err }),
-    });
+  return upload({
+    url: "/uploads/image",
+    filePath,
+    name: "file",
+    formData: { scene },
+  }).then(data => {
+    // 归一化签名 URL，确保使用客户端可达的 BASE_URL
+    if (data && data.url) data.url = normalizeFileUrl(data.url);
+    return data;
   });
 }
 

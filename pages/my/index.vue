@@ -172,7 +172,7 @@ const onEditProfile = () => {
 <style lang="scss" scoped>
 .my {
   min-height: calc(
-    100vh - var(--status-bar-height) - var(--window-top) - 160rpx
+    100vh - var(--status-bar-height) - var(--window-top) - 123rpx
   );
   background: #f3f5f2;
   padding-bottom: 160rpx;

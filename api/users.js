@@ -4,10 +4,7 @@
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { http, BASE_URL, normalizeFileUrl } from "./http";
-import { getAccessToken } from "@/utils/auth";
-
-const API_PREFIX = "/api/v1";
+import { http, upload, normalizeFileUrl } from "./http";
 
 /**
  * 获取当前用户资料
@@ -28,39 +25,20 @@ export function updateMe(payload) {
 
 /**
  * 上传头像（multipart，服务端直传并返回 url）
+ * 统一走 http.upload()：鉴权闸门 + 401 单飞重试
  * @param {string} filePath 临时文件路径
  * @returns {Promise<{avatar:string}>}
  */
 export function uploadAvatar(filePath) {
-  return new Promise((resolve, reject) => {
-    uni.uploadFile({
-      url: `${BASE_URL}${API_PREFIX}/users/me/avatar`,
-      filePath,
-      name: "file",
-      header: {
-        Authorization: `Bearer ${getAccessToken()}`,
-      },
-      success: res => {
-        try {
-          const body =
-            typeof res.data === "string"
-              ? JSON.parse(res.data || "{}")
-              : res.data || {};
-          if (body.code === 0 && body.data) {
-            const data = body.data;
-            // 归一化签名 URL，确保使用客户端可达的 BASE_URL
-            if (data.avatar) data.avatar = normalizeFileUrl(data.avatar);
-            if (data.url) data.url = normalizeFileUrl(data.url);
-            resolve(data);
-          } else {
-            reject(body);
-          }
-        } catch (e) {
-          reject({ code: -1, message: "头像上传响应解析失败" });
-        }
-      },
-      fail: err => reject({ code: -1, message: "网络异常", raw: err }),
-    });
+  return upload({
+    url: "/users/me/avatar",
+    filePath,
+    name: "file",
+  }).then(data => {
+    // 归一化签名 URL，确保使用客户端可达的 BASE_URL
+    if (data && data.avatar) data.avatar = normalizeFileUrl(data.avatar);
+    if (data && data.url) data.url = normalizeFileUrl(data.url);
+    return data;
   });
 }
 

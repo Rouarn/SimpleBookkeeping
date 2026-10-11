@@ -60,26 +60,47 @@ async function fetchUpdateInfo() {
 
 /**
  * 下载 APK（单次）：uni.downloadFile 自带进度回调
+ * 安全约束：downloadUrl 强制改写为 HTTPS（服务端误配 http 时兜底）；
+ * 下载完成后由调用方按 packageSize 校验完整性。
  * @returns {Promise<string>} 下载完成的临时文件路径
  */
 function downloadOnce() {
   return new Promise((resolve, reject) => {
+    // 强制 HTTPS：防中间人降级替换安装包（服务端若下发 http 一律升级）
+    const url = String(state.info.downloadUrl || "").replace(
+      /^http:\/\//i,
+      "https://",
+    );
     downloadTask = uni.downloadFile({
-      url: state.info.downloadUrl,
-      success: (res) => {
+      url,
+      success: res => {
         if (res.statusCode === 200) resolve(res.tempFilePath);
         else if (res.statusCode === 404) reject(new Error("安装包已被下架"));
         else reject(new Error(`下载失败（${res.statusCode}）`));
       },
-      fail: (err) => reject(new Error(err.errMsg || "下载失败")),
+      fail: err => reject(new Error(err.errMsg || "下载失败")),
     });
-    downloadTask.onProgressUpdate((p) => {
+    downloadTask.onProgressUpdate(p => {
       state.progress = p.progress;
       state.downloadedBytes = p.totalBytesWritten || 0;
       state.totalBytes =
         p.totalBytesExpectedToWrite || state.info.packageSize || 0;
     });
   });
+}
+
+/**
+ * 完整性校验（P1-08 降级方案：更新服务契约暂无文件 hash 字段，
+ * 以服务端下发的 packageSize 与实际 Content-Length 比对，偏差 >1% 视为
+ * 包损坏或被替换）。后续更新服务增加 fileHash 后应升级为强校验。
+ * @returns {boolean} true 表示校验通过
+ */
+function verifyPackage() {
+  const expected = Number(state.info.packageSize);
+  const actual = Number(state.totalBytes);
+  if (!(expected > 0)) return true; // 服务端未下发 size，无法校验，放行
+  if (!(actual > 0)) return false; // 拿不到实际大小，视为异常
+  return Math.abs(actual - expected) / expected <= 0.01;
 }
 
 /** 开始下载：失败自动重试（404 下架属业务失败，不重试），成功后调起安装 */
@@ -97,6 +118,10 @@ async function startDownload() {
   for (let attempt = 0; attempt <= UPDATE_CONFIG.maxRetry; attempt++) {
     try {
       const filePath = await downloadOnce();
+      // 包大小校验失败属内容异常，重试无意义，直接终止
+      if (!verifyPackage()) {
+        throw new Error("安装包校验失败，已终止安装");
+      }
       reportEvent("download_success", {
         toVersionCode: state.info.versionCode,
         costMs: Date.now() - t0,
@@ -105,8 +130,8 @@ async function startDownload() {
       return;
     } catch (e) {
       lastErr = e;
-      // 404 是业务性失败（已下架），不重试
-      if (e.message.includes("下架")) break;
+      // 404 下架 / 校验失败属业务性失败，不重试
+      if (e.message.includes("下架") || e.message.includes("校验")) break;
     }
   }
 
@@ -132,10 +157,9 @@ function installApk(filePath) {
       // 仅代表成功调起系统安装器，APK 场景不要调 plus.runtime.restart()
       state.downloading = false;
     },
-    (err) => {
+    err => {
       state.downloading = false;
-      state.failedMsg =
-        "调起安装失败，请在系统设置中允许安装未知应用后重试";
+      state.failedMsg = "调起安装失败，请在系统设置中允许安装未知应用后重试";
       reportEvent("install_fail", {
         toVersionCode: state.info.versionCode,
         failCode: String(err.message || err.code || "install_error").slice(

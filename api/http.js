@@ -9,7 +9,9 @@
  *                 刷新结果三态：ok 成功；invalid（无 rt / 40100 / 40102）清登录态
  *                 reLaunch 登录页；unavailable（断网 / 5xx / 429）保留 30 天
  *                 refresh token，不误清登录态，由调用方按网络错误提示并重试；
- *              5) 错误码统一 toast：42900/42901「操作过于频繁」、5xx「服务繁忙」、网络异常。
+ *              5) 错误码统一 toast：42900/42901「操作过于频繁」、5xx「服务繁忙」、网络异常；
+ *              6) multipart 上传统一走 upload()：与 request 同一鉴权闸门与
+ *                 401 单飞重试语义。
  *              注意：服务端 refresh token「轮换 + 重放即连坐吊销」，故同进程内
  *              必须严格单飞（refreshing 锁 + 启动引导 Promise），避免重复使用旧 rt。
  *              与 utils/app-update/* 内的 http 模块完全独立，互不耦合。
@@ -22,10 +24,10 @@ import {
   setTokens,
   ensureLoggedIn,
 } from "@/utils/auth";
+import { API_BASE } from "@/config/env";
 
-/** 服务端基地址 */
-export const BASE_URL = "http://192.168.31.115:9765";
-// export const BASE_URL = "http://xl.shixian.xyz";
+/** 服务端基地址（统一来自 config/env.js，生产强制 HTTPS） */
+export const BASE_URL = API_BASE;
 
 /** 全局 API 前缀 */
 const API_PREFIX = "/api/v1";
@@ -212,11 +214,21 @@ function requestOnce(opts) {
       header,
       timeout: opts.timeout || 15000,
       success: res => {
-        // 非 2xx / 非 JSON：直接走错误分支
+        // 非 2xx：优先解析信封 body.code（401 判定依赖 40100/40101，
+        // 仅凭 statusCode 会把 40101 过期误判成普通失败，静默刷新失效）
         if (res.statusCode < 200 || res.statusCode >= 300) {
+          let body = res.data;
+          if (typeof body === "string") {
+            try {
+              body = JSON.parse(body || "{}");
+            } catch (e) {
+              body = {};
+            }
+          }
+          body = body && typeof body === "object" ? body : {};
           reject({
-            code: res.statusCode,
-            message: `请求失败(${res.statusCode})`,
+            code: typeof body.code === "number" ? body.code : res.statusCode,
+            message: body.message || `请求失败(${res.statusCode})`,
             raw: res,
           });
           return;
@@ -324,6 +336,92 @@ export async function request(opts) {
       // unavailable：保留登录态，按普通错误提示，稍后可重试
       handleBusinessError(err);
       throw err;
+    }
+    handleBusinessError(err);
+    throw err;
+  }
+}
+
+/**
+ * 统一 multipart 上传封装（uni.uploadFile）
+ * 与 request() 同一套鉴权语义：
+ * 1) 冷启动闸门：上传前必须持有 access token（ensureAccessToken 单飞）；
+ * 2) 运行中 access 失效（40100）或过期（40101）：有 rt 则刷新后重试一次；
+ * 3) invalid：清登录态跳登录页；unavailable：按网络错误提示；
+ * 4) 统一解析 {code,message,data} 信封（uploadFile 的 res.data 是字符串）。
+ * @param {object} opts
+ * @param {string} opts.url 接口路径（如 "/uploads/image"）
+ * @param {string} opts.filePath 本地文件路径（uni.chooseImage 返回值）
+ * @param {string} [opts.name="file"] 表单文件字段名
+ * @param {object} [opts.formData] 附加表单字段
+ * @param {number} [opts.timeout=60000]
+ * @returns {Promise<any>} 解包后的 data
+ */
+export async function upload(opts) {
+  // —— 冷启动 / 鉴权引导闸门（与 request 一致）——
+  const status = await ensureAccessToken();
+  if (status === "invalid") {
+    ensureLoggedIn(true);
+    throw { code: 40100, message: "未登录或登录已失效" };
+  }
+  if (status === "unavailable") {
+    const err = { code: -1, message: "网络异常" };
+    handleBusinessError(err);
+    throw err;
+  }
+
+  const doUpload = () =>
+    new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: buildUrl(opts.url),
+        filePath: opts.filePath,
+        name: opts.name || "file",
+        formData: opts.formData,
+        header: { Authorization: `Bearer ${getAccessToken()}` },
+        timeout: opts.timeout || 60000,
+        success: res => {
+          let body = res.data;
+          if (typeof body === "string") {
+            try {
+              body = JSON.parse(body || "{}");
+            } catch (e) {
+              body = {};
+            }
+          }
+          body = body && typeof body === "object" ? body : {};
+          if (
+            res.statusCode >= 200 &&
+            res.statusCode < 300 &&
+            body.code === 0
+          ) {
+            resolve(body.data === undefined ? null : body.data);
+            return;
+          }
+          reject({
+            code: typeof body.code === "number" ? body.code : res.statusCode,
+            message: body.message || `上传失败(${res.statusCode})`,
+            raw: res,
+          });
+        },
+        fail: err => reject({ code: -1, message: "网络异常", raw: err }),
+      });
+    });
+
+  try {
+    return await doUpload();
+  } catch (err) {
+    // access 运行中失效/过期：有 rt 才刷新重试一次（与 request 语义一致）
+    if (
+      err &&
+      (err.code === 40100 || err.code === 40101) &&
+      getRefreshToken()
+    ) {
+      const st = await doRefresh();
+      if (st === "ok") return doUpload();
+      if (st === "invalid") {
+        ensureLoggedIn(true);
+        throw err;
+      }
     }
     handleBusinessError(err);
     throw err;

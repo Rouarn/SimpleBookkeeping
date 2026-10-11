@@ -24,33 +24,17 @@
             /* 应用发布信息 */
             "android" : {
                 /* android打包配置 */
+                /* 权限最小化：仅保留 更新安装/网络状态/拍照/相册读取 四类，
+                   避免 READ_PHONE_STATE、MANAGE_EXTERNAL_STORAGE 等敏感权限
+                   触发应用市场审核与用户信任问题 */
                 "permissions" : [
                     "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
-                    "<uses-permission android:name=\"android.permission.CHANGE_NETWORK_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.MOUNT_UNMOUNT_FILESYSTEMS\"/>",
-                    "<uses-permission android:name=\"android.permission.VIBRATE\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_LOGS\"/>",
-                    "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.CAMERA\"/>",
-                    "<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_PHONE_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
-                    "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera\"/>",
-                    "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>",
-                    "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>",
-                    "<uses-permission android:name=\"android.permission.MANAGE_EXTERNAL_STORAGE\"/>",
                     "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_MEDIA_DOCUMENTS\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_MEDIA_AUDIO\"/>",
-                    "<uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\"/>",
-                    "<uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\"/>",
-                    "<uses-permission android:name=\"android.permission.USE_EXACT_ALARM\"/>",
-                    "<uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\"/>"
+                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>"
                 ]
             },
             "ios" : {
