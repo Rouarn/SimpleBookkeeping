@@ -44,6 +44,7 @@ export function summary(params) {
 
 /**
  * 账单详情（含扩展字段）
+ * photos 为 {key,url} 对象数组：key 供编辑回填保存时原样传回，url 为签名 URL 供展示
  * @param {string} id
  * @returns {Promise<object>}
  */
@@ -54,6 +55,8 @@ export function getOne(id) {
 /**
  * 新增账单
  * @param {object} payload {type,amount,categoryId,payMethodId,date,time,remark,photos,bookId}
+ *   amount 为纯数字字符串（最多 2 位小数，上限 99999999.99）；time 为 'HH:mm'；
+ *   photos 为已上传文件的 key 数组
  * @returns {Promise<object>}
  */
 export function create(payload) {
@@ -61,9 +64,9 @@ export function create(payload) {
 }
 
 /**
- * 更新账单
+ * 更新账单（局部更新，photos 传参时全量替换）
  * @param {string} id
- * @param {object} payload 局部字段
+ * @param {object} payload 可选字段同 create（amount/time/photos 口径一致）
  * @returns {Promise<object>}
  */
 export function update(id, payload) {

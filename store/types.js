@@ -121,8 +121,8 @@
  * @property {"month"|"year"} statsScope  统计页时间粒度：单月 / 整年
  * @property {BillType} statsType         统计页收支切换
  * @property {BillType} lastBillType      记账页上次的收支选择
- * @property {string} lastPayMethod       记账页上次的收付款方式
- * @property {{expense: string, income: string}} lastCategory 各方向上次分类
+ * @property {string} lastPayMethod       记账页上次的收付款方式 id
+ * @property {{expense: string, income: string}} lastCategory 各方向上次分类 id
  */
 
 /**

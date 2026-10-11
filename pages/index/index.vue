@@ -17,7 +17,7 @@
     <!-- 顶部问候 -->
     <view class="greeting">
       <text class="greeting-text">Hi, {{ userName }}</text>
-      <view class="more-btn">
+      <view class="more-btn" @click="goSettings">
         <uni-icons type="more-filled" size="26" color="#3c4a42"></uni-icons>
       </view>
     </view>
@@ -146,8 +146,10 @@
       </view>
     </view>
 
-    <!-- APP 在线更新弹窗（单例状态，仅 App 端检查到更新时显示） -->
+    <!-- APP 在线更新弹窗（全局唯一挂载点，仅 App 端编译，非 App 端不渲染） -->
+    <!-- #ifdef APP-PLUS -->
     <update-popup />
+    <!-- #endif -->
   </view>
 </template>
 
@@ -163,7 +165,10 @@ import { computed } from "vue";
 import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
 import { useHitokoto } from "@/composables/useHitokoto";
+// 更新弹窗仅 App 端挂载（状态来自 use-app-update 模块级单例）
+// #ifdef APP-PLUS
 import UpdatePopup from "@/components/update-popup.vue";
+// #endif
 
 const {
   stats,
@@ -206,6 +211,11 @@ onPullDownRefresh(async () => {
  */
 const goDetail = item => {
   goBillDetail(item.id);
+};
+
+/** 右上角更多入口：跳转设置页（应用级配置统一在设置页承载） */
+const goSettings = () => {
+  uni.navigateTo({ url: "/pages/settings/index" });
 };
 </script>
 

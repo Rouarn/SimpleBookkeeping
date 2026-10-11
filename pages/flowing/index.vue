@@ -1,7 +1,8 @@
 <!--
   @file 流水页（pages/flowing/index.vue）
   @description 按「月份 + 收支类型」筛选账单并按天分组展示：
-               1. 顶部导航：类型选择（全部类型 / 支出 / 收入，ActionSheet）与搜索入口；
+               1. 顶部导航：类型选择（全部类型 / 支出 / 收入，ActionSheet）与搜索入口
+                  （点击展开搜索框，输入关键字 300ms 防抖后从第一页重查，清空恢复全量）；
                2. 日期选择：uni-app 标准 picker（mode=date, fields=month）；
                3. 本月总支出 / 总收入双卡（/bills/summary 完整口径）；
                4. 按天分组的流水列表，每组显示日标签（今天/昨天/周X）、日期与
@@ -23,6 +24,30 @@
       </view>
       <view class="search-btn" @click="handleSearch">
         <uni-icons type="search" size="28" color="#3c4a42"></uni-icons>
+      </view>
+    </view>
+
+    <!-- 搜索框：点右上角搜索图标展开，输入关键字防抖触发检索 -->
+    <view v-if="searchVisible" class="search-bar">
+      <uni-icons type="search" size="22" color="#98a099"></uni-icons>
+      <input
+        class="search-input"
+        :value="searchText"
+        placeholder="搜索备注 / 分类"
+        placeholder-style="color: #b3b9c7"
+        confirm-type="search"
+        focus
+        @input="onSearchInput"
+        @confirm="flushSearch"
+      />
+      <view
+        v-if="searchText"
+        class="search-clear"
+        hover-class="clear-hover"
+        :hover-stay-time="60"
+        @click="clearSearch"
+      >
+        <uni-icons type="clear" size="18" color="#c2c9c3"></uni-icons>
       </view>
     </view>
 
@@ -72,8 +97,12 @@
     <view class="flow-list-wrap">
       <view v-if="groups.length === 0" class="empty-tip">
         <view class="empty-coin">¥</view>
-        <text class="empty-text">本月暂无流水</text>
-        <text class="empty-sub">记一笔，开始追踪你的收支</text>
+        <text class="empty-text">{{
+          keyword ? "未找到相关账单" : "本月暂无流水"
+        }}</text>
+        <text class="empty-sub">{{
+          keyword ? "换个关键词试试" : "记一笔，开始追踪你的收支"
+        }}</text>
       </view>
       <view
         v-for="group in groups"
@@ -155,11 +184,17 @@
  * - useFlowingData()：currentMonth / currentType 双向绑定 app store（持久化），
  *   groups / monthCard 为接口拉取的 ref；列表按月分页加载（每页 50 条），
  *   load() 拉取第一页并重置分页，loadMore() 触底加载下一页并按日合并进现有分组，
- *   finished 标记已加载全部；
- * - 本页负责：类型 ActionSheet、月份 picker、搜索占位、触底分页与下拉刷新入口。
+ *   finished 标记已加载全部；keyword 为搜索关键字（透传 billsApi.list）；
+ * - 本页负责：类型 ActionSheet、月份 picker、搜索（展开输入框 + 300ms 防抖触发
+ *   load() 从第一页重查，清空恢复全量）、触底分页与下拉刷新入口。
  */
-import { watch } from "vue";
-import { onShow, onReachBottom, onPullDownRefresh } from "@dcloudio/uni-app";
+import { ref, watch } from "vue";
+import {
+  onShow,
+  onUnload,
+  onReachBottom,
+  onPullDownRefresh,
+} from "@dcloudio/uni-app";
 import { useFlowingData, goBillDetail } from "@/composables/useBookkeeping";
 
 // 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
@@ -169,6 +204,7 @@ const typeOptions = ["全部类型", "支出", "收入"];
 const {
   currentMonth,
   currentType,
+  keyword,
   groups,
   monthCard,
   load,
@@ -176,6 +212,55 @@ const {
   loadingMore,
   finished,
 } = useFlowingData();
+
+// ---------- 搜索 ----------
+// 搜索框展开态；searchText 为输入框内容，防抖 300ms 后同步到 keyword 触发重查
+const SEARCH_DEBOUNCE = 300;
+const searchVisible = ref(false);
+const searchText = ref("");
+let searchTimer = null;
+
+/** 同步关键字到 composable 并从第一页重查（keyword 相同则跳过） */
+function search(kw) {
+  if (kw === keyword.value) return;
+  keyword.value = kw;
+  load().catch(() => {});
+}
+
+/** 输入防抖：300ms 内连续输入只取最后一次 */
+function onSearchInput(e) {
+  searchText.value = e.detail.value;
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    search(searchText.value.trim());
+  }, SEARCH_DEBOUNCE);
+}
+
+/** 键盘确认：跳过防抖立即检索 */
+function flushSearch() {
+  clearTimeout(searchTimer);
+  search(searchText.value.trim());
+}
+
+/** 清空关键词并恢复全量列表 */
+function clearSearch() {
+  clearTimeout(searchTimer);
+  searchText.value = "";
+  search("");
+}
+
+/** 点击顶部搜索图标：展开 / 收起搜索框；收起时若有关键词则恢复全量 */
+const handleSearch = () => {
+  searchVisible.value = !searchVisible.value;
+  if (!searchVisible.value) {
+    clearSearch();
+  }
+};
+
+// 页面卸载清理防抖定时器
+onUnload(() => {
+  clearTimeout(searchTimer);
+});
 
 // 进入页面 / 从后台恢复时拉取；月份或类型变化时重置到第一页重新拉取
 onShow(() => {
@@ -204,11 +289,6 @@ const handleTypeClick = () => {
       currentType.value = typeOptions[res.tapIndex];
     },
   });
-};
-
-/** 搜索按钮（功能占位，后续接入账单检索） */
-const handleSearch = () => {
-  uni.showToast({ title: "搜索", icon: "none" });
 };
 
 /**
@@ -266,6 +346,37 @@ const goDetail = item => {
     align-items: center;
     justify-content: center;
     box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.08);
+  }
+}
+
+// 搜索框（与日期 pill 同视觉语言：白底胶囊 + 轻阴影）
+.search-bar {
+  display: flex;
+  align-items: center;
+  margin: 0 28rpx 20rpx;
+  padding: 0 26rpx;
+  height: 76rpx;
+  background: #fff;
+  border-radius: 999rpx;
+  box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
+
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    margin-left: 16rpx;
+    font-size: 27rpx;
+    color: #1e2521;
+  }
+
+  .search-clear {
+    display: flex;
+    padding: 12rpx;
+    margin-right: -12rpx;
+
+    &.clear-hover {
+      opacity: 0.6;
+    }
   }
 }
 

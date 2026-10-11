@@ -26,10 +26,11 @@ function createDefaultUI() {
     statsScope: "month",
     statsType: "expense",
     lastBillType: "expense",
-    lastPayMethod: "现金",
+    // 记忆按 id 存储：分类/支付方式改名后仍能匹配，失效时由记账页回退默认项
+    lastPayMethod: "",
     lastCategory: {
-      expense: "其他",
-      income: "其他",
+      expense: "",
+      income: "",
     },
   };
 }
@@ -71,15 +72,15 @@ export const useAppStore = defineStore(
     }
 
     /**
-     * 记账页保存时记忆上次选择
-     * @param {{type: import('@/store/types').BillType, category: string, payMethod: string}} form
+     * 记账页保存时记忆上次选择（分类 / 支付方式存 id，按 id 匹配字典更可靠）
+     * @param {{type: import('@/store/types').BillType, categoryId: string, payMethodId: string}} form
      */
-    function rememberBillForm({ type, category, payMethod }) {
+    function rememberBillForm({ type, categoryId, payMethodId }) {
       if (type === "expense" || type === "income") {
         ui.value.lastBillType = type;
-        ui.value.lastCategory[type] = category;
+        ui.value.lastCategory[type] = categoryId;
       }
-      if (payMethod) ui.value.lastPayMethod = payMethod;
+      if (payMethodId) ui.value.lastPayMethod = payMethodId;
     }
 
     /** 重置全部 UI 偏好 */

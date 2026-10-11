@@ -1,11 +1,10 @@
 <!--
   @file 设置页（pages/settings/index.vue）
   @description 应用设置中心：
-               1. 通用：记账提醒、意见反馈（当前为占位反馈）；
-               2. 关于：关于我们；App 端额外提供「检查更新」入口（右侧展示
-                  当前运行时版本号，点击走在线更新流程，弹窗为全局单例
-                  update-popup，与本页共同挂载后可直接弹出）；
-               3. 退出登录：二次确认后吊销服务端 token（失败不阻断），
+               1. 关于：App 端提供「检查更新」入口（右侧展示当前运行时版本号，
+                  点击走在线更新流程；更新弹窗全局仅首页挂载一份，本页检查到
+                  新版本时返回上一页由首页弹出）；
+               2. 退出登录：二次确认后吊销服务端 token（失败不阻断），
                   清空本地存储全部键（bk: 持久化数据、refresh token、
                   更新模块标记等），并重置内存中的接口缓存 store，
                   最后 reLaunch 回登录页。
@@ -29,39 +28,8 @@
     </view>
 
     <view class="content">
-      <!-- 通用 -->
-      <view class="group">
-        <text class="group-label">通用</text>
-        <view class="card">
-          <view
-            v-for="item in commonMenu"
-            :key="item.title"
-            class="menu-item"
-            hover-class="row-hover"
-            :hover-stay-time="60"
-            @click="onMenuTap(item)"
-          >
-            <view class="menu-icon">
-              <uni-icons
-                :type="item.icon"
-                size="23"
-                color="#2f6b54"
-              ></uni-icons>
-            </view>
-            <text class="menu-title">{{ item.title }}</text>
-            <text v-if="item.extra" class="menu-extra">{{ item.extra }}</text>
-            <uni-icons
-              class="menu-arrow"
-              type="right"
-              size="14"
-              color="#c2c9c3"
-            ></uni-icons>
-          </view>
-        </view>
-      </view>
-
-      <!-- 关于 -->
-      <view class="group">
+      <!-- 关于（非 App 端菜单为空时不渲染该分组） -->
+      <view v-if="aboutMenu.length" class="group">
         <text class="group-label">关于</text>
         <view class="card">
           <view
@@ -98,18 +66,13 @@
 
       <text class="slogan">小绿记账 · 记一笔，知一月</text>
     </view>
-
-    <!-- APP 在线更新弹窗（全局单例状态，本页手动检查时可直接弹出） -->
-    <!-- #ifdef APP-PLUS -->
-    <update-popup />
-    <!-- #endif -->
   </view>
 </template>
 
 <script setup>
 /**
  * 设置页脚本
- * - 通用 / 关于两组菜单（「检查更新」仅 App 端注入）；
+ * - 「关于」菜单（「检查更新」仅 App 端注入，其余死入口已清理，只保留真实项）；
  * - 退出登录：服务端吊销 token → 清空本地存储 → 重置内存缓存 → 回登录页。
  */
 import { ref } from "vue";
@@ -122,10 +85,10 @@ import {
 } from "@/store";
 import { useAppUpdate } from "@/composables/use-app-update";
 import { getCurrentVersion } from "@/utils/app-update/device";
-import UpdatePopup from "@/components/update-popup.vue";
 
-// APP 在线更新：手动检查入口
-const { check: checkAppUpdate } = useAppUpdate();
+// APP 在线更新：手动检查入口（state 为模块级单例，弹窗仅挂载在首页，
+// 本页发现新版本时返回上一页由首页弹出）
+const { state: updateState, check: checkAppUpdate } = useAppUpdate();
 
 // 退出登录需重置的接口缓存 store（避免换号登录后闪现上一位用户的数据）
 const userStore = useUserStore();
@@ -133,14 +96,8 @@ const appStore = useAppStore();
 const bookStore = useBookStore();
 const categoryStore = useCategoryStore();
 
-/** 通用菜单（title 文案 + icon 为 uni-icons 类型名，全应用图标语言统一） */
-const commonMenu = ref([
-  { title: "记账提醒", icon: "notification" },
-  { title: "意见反馈", icon: "email" },
-]);
-
-/** 关于菜单 */
-const aboutMenu = ref([{ title: "关于我们", icon: "info" }]);
+/** 关于菜单（App 端在下方条件编译内注入「检查更新」；非 App 端为空不渲染分组） */
+const aboutMenu = ref([]);
 
 // 「检查更新」入口仅 App 端展示，右侧显示当前运行时版本号
 // #ifdef APP-PLUS
@@ -153,23 +110,33 @@ aboutMenu.value.push({
 // #endif
 
 /**
- * 菜单项点击：检查更新走在线更新流程，其余当前为占位反馈
+ * 菜单项点击：仅处理「检查更新」（走在线更新流程），
+ * 其余占位反馈的死入口已随菜单项一并清理
  * @param {{title: string, icon: string, extra?: string}} item 被点击的菜单项
  */
 const onMenuTap = item => {
   // #ifdef APP-PLUS
   if (item.title === "检查更新") {
     onManualCheck();
-    return;
   }
   // #endif
-  uni.showToast({ title: item.title, icon: "none" });
 };
 
-/** 手动检查更新：带 loading，无更新/失败由更新模块给出 toast */
-const onManualCheck = () => {
+/**
+ * 手动检查更新：带 loading，无更新/失败由更新模块给出 toast；
+ * 检查到新版本（弹窗状态已置 visible）时返回上一页，由首页挂载的
+ * 全局唯一弹窗承接展示，本页不再重复挂载
+ */
+const onManualCheck = async () => {
   uni.showLoading({ title: "检查中…" });
-  checkAppUpdate({ silent: false }).finally(() => uni.hideLoading());
+  try {
+    await checkAppUpdate({ silent: false });
+  } finally {
+    uni.hideLoading();
+  }
+  if (updateState.visible && getCurrentPages().length > 1) {
+    uni.navigateBack();
+  }
 };
 
 /** 返回上一页（页面栈只有当前页时兜底回首页） */

@@ -56,7 +56,7 @@
           v-model="form.phone"
           placeholder="请输入手机号"
           maxlength="11"
-          :adjust-position="false"
+          cursor-spacing="20"
         />
       </view>
 
@@ -67,7 +67,7 @@
           v-model="form.nickname"
           placeholder="请输入昵称（可留空）"
           maxlength="12"
-          :adjust-position="false"
+          cursor-spacing="20"
         />
       </view>
 
@@ -79,7 +79,7 @@
           password
           placeholder="请输入密码"
           maxlength="32"
-          :adjust-position="false"
+          cursor-spacing="20"
         />
       </view>
 
@@ -91,7 +91,7 @@
           password
           placeholder="请再次输入密码"
           maxlength="32"
-          :adjust-position="false"
+          cursor-spacing="20"
         />
       </view>
 
@@ -202,6 +202,9 @@ async function onSubmit() {
     return;
   }
   loading.value = true;
+  // 成功后不再解锁：reLaunch 前 400ms 窗口内保持提交锁，按钮不可再点
+  //（页面随跳转销毁，失败路径仍正常解锁供重试）
+  let jumping = false;
   try {
     const f = form.value;
     if (mode.value === "login") {
@@ -212,6 +215,7 @@ async function onSubmit() {
       if (f.nickname) payload.nickname = f.nickname.slice(0, 12);
       await authApi.register(payload);
     }
+    jumping = true;
     uni.showToast({
       title: mode.value === "login" ? "登录成功" : "注册成功",
       icon: "success",
@@ -222,7 +226,7 @@ async function onSubmit() {
   } catch (e) {
     // http.js 已统一 toast
   } finally {
-    loading.value = false;
+    if (!jumping) loading.value = false;
   }
 }
 </script>

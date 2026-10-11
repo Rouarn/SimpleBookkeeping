@@ -71,10 +71,17 @@ function toBillVM(b) {
     date: b.date,
     time: b.time,
     payMethod: b.payMethod,
+    payMethodId: b.payMethodId,
     type: b.type,
     category: b.category,
+    categoryId: b.categoryId,
     remark: b.remark,
-    photos: (b.photos || []).map(normalizeFileUrl),
+    // 兼容两种口径：列表接口 photos 为签名 URL 字符串数组；详情为 {key,url} 对象数组
+    photos: (b.photos || []).map(p =>
+      typeof p === "string"
+        ? { key: "", url: normalizeFileUrl(p) }
+        : { key: p?.key || "", url: normalizeFileUrl(p?.url) },
+    ),
   };
 }
 
@@ -214,8 +221,9 @@ const FLOW_PAGE_SIZE = 50;
  * groups 为按天分组流水（分页加载、新页按日合并），monthCard 为当月收支汇总
  * （来自 /bills/summary，不随分页截断，始终是该月完整口径）。
  * load() 拉取第一页并重置分页；loadMore() 触底加载下一页；均带序号防竞态。
- * @returns {object} currentMonth / currentType（可写 Ref）/ groups / monthCard /
- *                   load / loadMore / loading / loadingMore / finished
+ * keyword 为搜索关键字（非空时透传 billsApi.list 的 keyword 参数），变化后由页面防抖调 load()。
+ * @returns {object} currentMonth / currentType（可写 Ref）/ keyword / groups /
+ *                   monthCard / load / loadMore / loading / loadingMore / finished
  */
 export function useFlowingData() {
   const appStore = useAppStore();
@@ -236,6 +244,8 @@ export function useFlowingData() {
   const page = ref(1);
   const loadingMore = ref(false);
   const finished = ref(false);
+  /** 搜索关键字（空串表示未搜索）；写入后由页面防抖调用 load() 从第一页重查 */
+  const keyword = ref("");
 
   /** 类型文案 → 服务端 type 参数 */
   const TYPE_MAP = {
@@ -286,7 +296,7 @@ export function useFlowingData() {
     }
   }
 
-  /** 拉取第一页并重置分页（切月 / 切类型 / 下拉刷新 / onShow 走这里） */
+  /** 拉取第一页并重置分页（切月 / 切类型 / 关键词变化 / 下拉刷新 / onShow 走这里） */
   async function load() {
     // 允许新请求直接发出（不再因 loading 中而丢弃），旧响应靠序号比对作废
     const reqId = ++reqSeq;
@@ -297,8 +307,16 @@ export function useFlowingData() {
     try {
       const type = TYPE_MAP[appStore.ui.flowType] || "ALL";
       const month = appStore.ui.flowMonth;
+      const kw = keyword.value.trim();
       const [res, s] = await Promise.all([
-        billsApi.list({ month, type, page: 1, pageSize: FLOW_PAGE_SIZE }),
+        // 关键字非空才透传 keyword，避免无意义的空参
+        billsApi.list({
+          month,
+          type,
+          page: 1,
+          pageSize: FLOW_PAGE_SIZE,
+          ...(kw ? { keyword: kw } : {}),
+        }),
         billsApi.summary({ month }),
       ]);
       if (reqId !== reqSeq) return; // 已有更新的请求，丢弃本次旧响应
@@ -323,9 +341,16 @@ export function useFlowingData() {
     try {
       const type = TYPE_MAP[appStore.ui.flowType] || "ALL";
       const month = appStore.ui.flowMonth;
+      const kw = keyword.value.trim();
       const next = page.value + 1;
       const res = await billsApi
-        .list({ month, type, page: next, pageSize: FLOW_PAGE_SIZE })
+        .list({
+          month,
+          type,
+          page: next,
+          pageSize: FLOW_PAGE_SIZE,
+          ...(kw ? { keyword: kw } : {}),
+        })
         .catch(() => null);
       if (reqId !== reqSeq) return; // 已被更新的请求作废
       if (!res) return; // 拉取失败：不推进页码，等待下次触底重试
@@ -341,6 +366,7 @@ export function useFlowingData() {
   return {
     currentMonth,
     currentType,
+    keyword,
     groups,
     monthCard,
     load,
@@ -459,20 +485,20 @@ export function useTrendData(months = 6, yearRef = null) {
  * 记账页：默认表单（记忆）+ 编辑回填 + 保存（POST/PATCH /bills）
  * ----------------------------------------------------------- */
 /**
- * 记账页表单逻辑：remembered 来自 app store 的本地记忆；loadBillForEdit(id) 调
- * GET /bills/:id 回填；saveBill 调 POST/PATCH /bills，photos 为已上传的 key 数组。
+ * 记账页表单逻辑：remembered 为上次记账记忆（分类 / 支付方式存 id，失效时由
+ * 记账页回退默认项）；loadBillForEdit(id) 调 GET /bills/:id 回填；saveBill 调
+ * POST/PATCH /bills，photos 为已上传的 key 数组。
  * @returns {object} remembered / saveBill / loadBillForEdit / uploadPhoto
  */
 export function useBillForm() {
   const appStore = useAppStore();
   const billStore = useBillStore();
-  const bookStore = useBookStore();
-  const categoryStore = useCategoryStore();
 
+  // 上次记账记忆：按 id 存储（分类 id 随收支方向分开记忆）
   const remembered = computed(() => ({
     type: appStore.ui.lastBillType,
-    payMethod: appStore.ui.lastPayMethod,
-    category: appStore.ui.lastCategory[appStore.ui.lastBillType] || "其他",
+    categoryId: appStore.ui.lastCategory[appStore.ui.lastBillType] || "",
+    payMethodId: appStore.ui.lastPayMethod || "",
   }));
 
   /**
@@ -519,11 +545,11 @@ export function useBillForm() {
       const bill = editId
         ? await billStore.updateBill(editId, payload)
         : await billStore.addBill(payload);
-      // 记忆上次选择（以 name 存储，便于下次渲染）
+      // 记忆上次选择（存 id，按 id 匹配字典，分类 / 支付方式被改名后仍可命中）
       appStore.rememberBillForm({
         type: input.type,
-        category: input.category,
-        payMethod: input.payMethod,
+        categoryId: input.categoryId,
+        payMethodId: input.payMethodId,
       });
       return { ok: true, bill };
     } catch (e) {
@@ -534,34 +560,11 @@ export function useBillForm() {
     }
   }
 
-  /**
-   * 按 name 反查分类 id
-   * @param {string} type
-   * @param {string} name
-   */
-  function getCategoryIdByName(type, name) {
-    const list = categoryStore.listByType(type);
-    // categoryStore 的 list 项无 id（仅 name/icon/color/bg），需从服务端字典扩展
-    // 这里通过 bookStore / categoryStore 的运行时缓存取，但 name 是唯一键，
-    // 实际记账页应直接传 id。若 listByType 未含 id，则记账页需用 list 索引 + 接口结果。
-    return list.find(i => i.name === name)?.id || "";
-  }
-
-  /**
-   * 按 name 反查支付方式 id
-   * @param {string} name
-   */
-  function getPayMethodIdByName(name) {
-    return bookStore.payMethods.find(p => p.name === name)?.id || "";
-  }
-
   return {
     remembered,
     saveBill,
     loadBillForEdit,
     uploadPhoto,
-    getCategoryIdByName,
-    getPayMethodIdByName,
   };
 }
 
@@ -569,9 +572,13 @@ export function useBillForm() {
  * 详情页：GET /bills/:id + DELETE
  * ----------------------------------------------------------- */
 /**
- * 详情页数据：loadFromChannel 从上一页 eventChannel 取 id 后异步拉详情；
+ * 详情页数据：loadFromChannel 优先取页面 query 中的 id（分享落地 / H5 刷新 /
+ * 深链直达场景），缺省再从上一页 eventChannel 兜底，之后异步拉详情；
  * 订阅账单变更事件实现编辑返回后自动刷新；removeCurrent 调 DELETE。
- * @returns {object} detail / currentId / loadFromChannel / removeCurrent / reload
+ * 状态三态：detail 有值 → 正常渲染；detailLoading → 加载中；
+ * detailError → 加载失败或账单不存在（页面据此展示「重试 / 返回」）。
+ * @returns {object} detail / currentId / detailLoading / detailError /
+ *                   loadFromChannel / removeCurrent / reload
  */
 export function useBillDetail() {
   const billStore = useBillStore();
@@ -581,38 +588,65 @@ export function useBillDetail() {
    */
   const detail = ref(null);
   const currentId = ref("");
+  /** 详情是否加载中（首屏与重拉共用） */
+  const detailLoading = ref(true);
+  /** 详情加载失败 / 账单不存在的终态（与「加载中」互斥） */
+  const detailError = ref(false);
 
-  /** 按 id 重新拉取详情 */
+  /** 按 id 重新拉取详情（失败置 detailError，由页面展示重试 / 返回） */
   async function reload(id) {
     if (!id) return;
+    detailLoading.value = true;
     try {
       const d = await billsApi.getOne(id);
       currentId.value = id;
-      detail.value = d ? toBillVM(d) : null;
       if (d) {
-        // 补充详情扩展字段
         detail.value = {
           ...toBillVM(d),
+          // 补充详情扩展字段
           bookId: d.bookId,
           bookName: d.bookName,
           recorder: d.recorder,
           recordTime: d.recordTime,
           monthExpense: fmtMoney(Number(d.monthExpense) || 0),
         };
+        detailError.value = false;
+      } else {
+        // 服务端返回空：视为账单不存在
+        detail.value = null;
+        detailError.value = true;
       }
     } catch {
+      // 拉取失败（含账单已不存在）：进入错误态，不再与「加载中」混用文案
       detail.value = null;
+      detailError.value = true;
+    } finally {
+      detailLoading.value = false;
     }
   }
 
-  /** 在页面 onLoad 中调用，从上一页 eventChannel 读取 { id } 后异步拉详情 */
-  function loadFromChannel() {
+  /**
+   * 在页面 onLoad 中调用：优先取 query 的 id，无 query id 时兜底从
+   * 上一页 eventChannel 读取 { id }（eventChannel 保留作大对象传参优化）
+   * @param {object} [options] onLoad 入参（query）
+   */
+  function loadFromChannel(options) {
+    if (options?.id) {
+      reload(options.id);
+      return;
+    }
     const pages = getCurrentPages();
     const page = pages[pages.length - 1];
     const eventChannel = page?.getOpenerEventChannel?.();
-    eventChannel?.on("billData", data => {
-      if (data?.id) reload(data.id);
-    });
+    if (eventChannel) {
+      eventChannel.on("billData", data => {
+        if (data?.id) reload(data.id);
+      });
+    } else {
+      // 深链无 id 且无 eventChannel：直接进入错误态，避免永久 loading
+      detailError.value = true;
+      detailLoading.value = false;
+    }
   }
 
   // 账单变更联动：编辑后返回自动刷新；当前账单被删除时仅清空本地态，
@@ -628,14 +662,25 @@ export function useBillDetail() {
     if (id && id === currentId.value) reload(id);
   });
 
-  /** 删除当前账单（调 DELETE /bills/:id） */
+  /**
+   * 删除当前账单（调 DELETE /bills/:id）
+   * 失败时抛错且不清空本地态，由页面决定停留或跳转（http 层已统一 toast）
+   */
   async function removeCurrent() {
     if (!currentId.value) return false;
     await billStore.removeBill(currentId.value);
     return true;
   }
 
-  return { detail, currentId, loadFromChannel, removeCurrent, reload };
+  return {
+    detail,
+    currentId,
+    detailLoading,
+    detailError,
+    loadFromChannel,
+    removeCurrent,
+    reload,
+  };
 }
 
 /* -------------------------------------------------------------
@@ -736,12 +781,19 @@ export function onBillChange(handler) {
 }
 
 /**
- * 跳转账单详情（只传 id，详情页自行调接口）
+ * 「再记一笔」预填数据的 storage 中转 key：详情页写入（金额/类型/分类/支付方式/备注），
+ * 记账页 onLoad 读取后立即清除，用 storage 中转避免 eventChannel 的时序问题。
+ */
+export const BILL_PREFILL_KEY = "bk:bill_prefill";
+
+/**
+ * 跳转账单详情：query 统一携带 id（支持分享落地 / H5 刷新 / 深链直达），
+ * 同时保留 eventChannel 传参兜底（详情页有 query id 时不依赖 eventChannel）
  * @param {string} id
  */
 export function goBillDetail(id) {
   uni.navigateTo({
-    url: "/pages/detail/index",
+    url: `/pages/detail/index?id=${id}`,
     success: res => {
       res.eventChannel.emit("billData", { id });
     },

@@ -10,7 +10,7 @@
                新增时表单默认值取上次记账记忆；编辑时按 id 回填原账单。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-15
+  @modify 2026-10-11
 -->
 <template>
   <view class="add-page">
@@ -44,22 +44,43 @@
             >收入</text
           >
         </view>
-        <picker mode="date" :value="date" @change="onDateChange">
-          <view class="date-pill">
-            <text>{{ dateText }}</text>
-            <uni-icons type="arrow-down" size="13" color="#ffffff"></uni-icons>
-          </view>
-        </picker>
+        <view class="pill-group">
+          <picker mode="date" :value="date" @change="onDateChange">
+            <view class="date-pill">
+              <text>{{ dateText }}</text>
+              <uni-icons
+                type="arrow-down"
+                size="13"
+                color="#ffffff"
+              ></uni-icons>
+            </view>
+          </picker>
+          <!-- 时间选择：与日期联动，默认当前时刻；编辑时回填已选时间 -->
+          <picker mode="time" :value="time" @change="onTimeChange">
+            <view class="date-pill time-pill">
+              <text>{{ time }}</text>
+              <uni-icons
+                type="arrow-down"
+                size="13"
+                color="#ffffff"
+              ></uni-icons>
+            </view>
+          </picker>
+        </view>
       </view>
 
-      <!-- 金额 -->
+      <!-- 金额：仅数字与一位小数点、最多 2 位小数、上限 99999999.99；
+           失焦千分位展示、聚焦去格式便于编辑 -->
       <view class="amount-row">
         <input
-          v-model="amount"
+          :value="amountDisplay"
           class="amount-input"
           type="digit"
           placeholder="0.0"
           placeholder-style="color: rgba(255,255,255,0.55)"
+          @input="onAmountInput"
+          @focus="onAmountFocus"
+          @blur="onAmountBlur"
         />
       </view>
 
@@ -68,9 +89,9 @@
         <view class="category-list">
           <view
             v-for="item in categoryList"
-            :key="item.name"
+            :key="item.id"
             class="category-item"
-            @click="activeCategory = item.name"
+            @click="selectCategory(item)"
           >
             <view
               class="category-icon"
@@ -104,12 +125,12 @@
             <view class="pay-list">
               <view
                 v-for="pay in payMethods"
-                :key="pay"
+                :key="pay.id"
                 class="pay-pill"
-                :class="{ on: payMethod === pay }"
-                @click="payMethod = pay"
+                :class="{ on: payMethodId === pay.id }"
+                @click="selectPayMethod(pay)"
               >
-                {{ pay }}
+                {{ pay.name }}
               </view>
             </view>
           </view>
@@ -123,12 +144,21 @@
                 :key="photo.key || index"
                 class="photo-item"
               >
+                <!-- 加载失败（如签名过期）的凭证图以灰底占位兜底，可删除后重传 -->
+                <view
+                  v-if="photoLoadFailed[photo.url]"
+                  class="photo-img photo-fallback"
+                >
+                  <text class="photo-fallback-text">加载失败</text>
+                </view>
                 <image
+                  v-else
                   class="photo-img"
                   :src="photo.url"
                   mode="aspectFill"
                   lazy-load
                   @click="previewPhoto(index)"
+                  @error="onPhotoError(photo.url)"
                 />
                 <view class="photo-del" @click="removePhoto(index)">
                   <uni-icons
@@ -174,29 +204,32 @@
 /**
  * 记账页脚本模块
  * 模块说明：
- * - 表单状态（收支类型 / 分类 / 金额 / 支付方式 / 日期 / 备注 / 照片）均为本地 ref；
- * - 分类与支付方式字典来自 category / book store（接口缓存），图标素材（SVG path）仅本页维护；
- * - useBillForm 提供「上次选择记忆」、编辑回填（GET /bills/:id）、统一保存动作（POST/PATCH /bills）；
- * - 图片通过 POST /uploads/image 上传到服务端，保存时传 key 数组。
+ * - 表单状态（收支类型 / 分类 / 金额 / 支付方式 / 日期时间 / 备注 / 照片）均为本地 ref；
+ * - 分类与支付方式字典来自 category / book store（接口缓存），选中态同时维护
+ *   名称（渲染）与 id（提交）；时间默认当前时刻（mode=time picker），编辑时回填；
+ * - 金额输入仅允许数字与一位小数点、最多 2 位小数、上限 99999999.99（与 BE 口径
+ *   一致），失焦千分位展示、聚焦去格式，提交前规范化为纯数字字符串；
+ * - useBillForm 提供「上次选择记忆」（存 id，失效自动回退第一项）、编辑回填
+ *   （GET /bills/:id）、统一保存动作（POST/PATCH /bills）；
+ * - 「再记一笔」预填经 storage 中转（BILL_PREFILL_KEY，详情页写入、本页读取即清）；
+ * - 图片通过 POST /uploads/image 上传到服务端，保存时传 key 数组（编辑回填直接
+ *   使用详情返回的 {key,url} 中的 key，不再从 URL 反解）。
  */
 import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import { useBookStore, useCategoryStore } from "@/store";
-import { useBillForm, compressPhoto } from "@/composables/useBookkeeping";
-import { todayStr } from "@/utils/date";
+import {
+  useBillForm,
+  compressPhoto,
+  BILL_PREFILL_KEY,
+} from "@/composables/useBookkeeping";
+import { todayStr, nowTime } from "@/utils/date";
 import { normalizeFileUrl } from "@/api";
 
 const categoryStore = useCategoryStore();
 const bookStore = useBookStore();
 // 表单记忆 + 保存动作（调服务端 POST/PATCH /bills）
-const {
-  remembered,
-  saveBill,
-  loadBillForEdit,
-  uploadPhoto,
-  getCategoryIdByName,
-  getPayMethodIdByName,
-} = useBillForm();
+const { remembered, saveBill, loadBillForEdit, uploadPhoto } = useBillForm();
 
 // 编辑模式：详情页携带账单 id 跳转进来，先回填再改存
 const editId = ref("");
@@ -251,18 +284,18 @@ const ICON_PATHS = {
 };
 
 /**
- * 组装单个分类的展示素材：未选中白色图标 + 选中后彩色图标
- * @param {string} name 分类名（需能在 ICON_PATHS 中命中，否则回退「其他」图标）
- * @param {string} color 分类主题色（选中态描边色）
- * @returns {{name: string, color: string, icon: string, activeIcon: string}}
+ * 组装单个分类的展示素材：未选中白色图标 + 选中后彩色图标（携带 id 供提交用）
+ * @param {{id:string,name:string,color:string}} meta 分类字典项
+ * @returns {{id:string,name:string,color:string,icon:string,activeIcon:string}}
  */
-const makeCategory = (name, color) => {
-  const inner = ICON_PATHS[name] || ICON_PATHS["其他"];
+const makeCategory = meta => {
+  const inner = ICON_PATHS[meta.name] || ICON_PATHS["其他"];
   return {
-    name,
-    color,
+    id: meta.id,
+    name: meta.name,
+    color: meta.color,
     icon: icon(inner),
-    activeIcon: icon(inner, color),
+    activeIcon: icon(inner, meta.color),
   };
 };
 
@@ -274,22 +307,115 @@ const makeCategory = (name, color) => {
 const defaultCategory = type =>
   categoryStore.listByType(type)[0]?.name || "其他";
 
-// ---------- 表单状态：初始值取自上次记账记忆（分类始终默认第一个） ----------
+// ---------- 表单状态：初始值在字典就绪后由 onLoad 应用记忆 / 预填 / 编辑回填 ----------
 const billType = ref(remembered.value.type); // 收支方向 expense / income
-const activeCategory = ref(defaultCategory(billType.value)); // 当前选中分类名
-const amount = ref(""); // 金额输入（字符串，保存时统一转 Number）
+const activeCategory = ref(defaultCategory(billType.value)); // 当前选中分类名（渲染用）
+const activeCategoryId = ref(""); // 当前选中分类 id（提交用）
+const amount = ref(""); // 金额纯数字字符串（无千分位，保存时直接提交）
+const amountDisplay = ref(""); // 金额输入框展示值（失焦后带千分位）
 const remark = ref(""); // 备注
-const payMethod = ref(remembered.value.payMethod); // 收/付款方式（名称）
+const payMethod = ref(""); // 收/付款方式名（渲染用）
+const payMethodId = ref(""); // 收/付款方式 id（提交用）
 const photos = ref([]); // 凭证图片 [{key,url}]，最多 3 张
 
-// 收付款方式以 book store 字典为准（name 列表，用于渲染选项）
-const payMethods = computed(() => bookStore.payMethods.map(p => p.name));
+// 凭证图加载失败标记（url → true）：编辑回填的签名 URL 过期后图片无法展示，
+// 失败图以灰底占位兜底（可删除后重传）。现无单图换签接口，不做自动重签；
+// 如后续服务端提供换签能力，可在此触发重新签名并重试加载
+const photoLoadFailed = ref({});
+
+/** 凭证图加载失败：按 url 记录失败态，切换占位展示 */
+const onPhotoError = url => {
+  photoLoadFailed.value[url] = true;
+};
+
+// 收付款方式选项（book store 字典项 {id,name,...}，直接以 id 匹配选中态）
+const payMethods = computed(() => bookStore.payMethods);
 
 const categoryList = computed(() =>
-  categoryStore
-    .listByType(billType.value)
-    .map(meta => makeCategory(meta.name, meta.color)),
+  categoryStore.listByType(billType.value).map(makeCategory),
 );
+
+// 记账时间（HH:mm）：默认当前时刻，编辑时回填已选时间
+const time = ref(nowTime());
+// 用户是否手动改过时间：未改过时把日期切回「今天」则时间跟随当前时刻
+let timeTouched = false;
+
+/**
+ * 金额上限（与 BE 口径一致：最多 2 位小数 + 99,999,999.99 上限）
+ */
+const AMOUNT_MAX = "99999999.99";
+const AMOUNT_MAX_NUM = Number(AMOUNT_MAX);
+
+/**
+ * 规范化金额输入：仅保留数字与一个分隔点、最多 2 位小数、去无效前导零；
+ * 超出上限时截断到上限并提示。提交口径与 BE 一致（纯数字字符串）。
+ * @param {string} raw 输入框原始值
+ * @returns {string} 规范化后的纯数字字符串
+ */
+function sanitizeAmount(raw) {
+  let s = String(raw ?? "").replace(/[^\d.]/g, "");
+  const dot = s.indexOf(".");
+  if (dot !== -1) {
+    // 只保留第一个小数点
+    s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, "");
+    s = s.slice(0, dot + 3); // 最多 2 位小数
+  }
+  s = s.replace(/^0+(?=\d)/, ""); // 去多余前导零（保留单个 0）
+  if (Number(s) > AMOUNT_MAX_NUM) {
+    uni.showToast({ title: "金额最大 99,999,999.99", icon: "none" });
+    return AMOUNT_MAX;
+  }
+  return s;
+}
+
+/**
+ * 千分位格式化（仅展示用）：整数部分每 3 位插逗号，小数原样保留
+ * @param {string} s 纯数字字符串
+ * @returns {string}
+ */
+function formatAmountDisplay(s) {
+  if (!s) return "";
+  const [int, dec] = s.split(".");
+  const intFmt = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec === undefined ? intFmt : `${intFmt}.${dec}`;
+}
+
+/** 金额输入：过滤非法字符 / 限制小数位与上限，同步纯数值与展示值 */
+function onAmountInput(e) {
+  const s = sanitizeAmount(e.detail.value);
+  amount.value = s;
+  amountDisplay.value = s;
+}
+
+/** 金额聚焦：去千分位，便于编辑 */
+function onAmountFocus() {
+  amountDisplay.value = amount.value;
+}
+
+/** 金额失焦：千分位格式化展示 */
+function onAmountBlur() {
+  amountDisplay.value = formatAmountDisplay(amount.value);
+}
+
+/**
+ * 选中分类：同步名称（渲染）与 id（提交）
+ * @param {{id?:string,name?:string}} [meta] 分类项（字典为空时忽略）
+ */
+function selectCategory(meta) {
+  if (!meta?.name) return;
+  activeCategoryId.value = meta.id || "";
+  activeCategory.value = meta.name;
+}
+
+/**
+ * 选中收/付款方式：同步名称（渲染）与 id（提交）
+ * @param {{id?:string,name?:string}} [pay] 支付方式项
+ */
+function selectPayMethod(pay) {
+  if (!pay?.name) return;
+  payMethodId.value = pay.id || "";
+  payMethod.value = pay.name;
+}
 
 // 区块标题随收支方向变化（支出→支付方式，收入→收款方式）
 const paySectionTitle = computed(() =>
@@ -304,49 +430,113 @@ const dateText = computed(() => {
 });
 
 /**
- * 从服务端签名 URL 解析出图片 key（用于编辑模式回填后保存时传 key）
- * URL 形如 .../api/v1/files/bills/xxx.jpg?e=&sign= ，key 为 bills/xxx.jpg
- * @param {string} url
- * @returns {string}
+ * 归一化凭证条目：详情接口返回 {key,url}；兼容历史签名 URL 字符串结构
+ * @param {{key?:string,url?:string}|string} p 单条凭证
+ * @returns {{key:string,url:string}}
  */
-function parseKeyFromUrl(url) {
-  if (!url) return "";
-  const idx = url.indexOf("/files/");
-  if (idx === -1) return "";
-  const tail = url.slice(idx + 7);
-  const qIdx = tail.indexOf("?");
-  return qIdx === -1 ? tail : tail.slice(0, qIdx);
+function toPhotoEntry(p) {
+  if (typeof p === "string") return { key: "", url: normalizeFileUrl(p) };
+  return { key: p?.key || "", url: normalizeFileUrl(p?.url) };
+}
+
+/**
+ * 应用上次记账记忆（按 id 匹配字典）：记忆项已被删除 / 变更时自动回退
+ * 该类型第一项并提示，不再阻断保存；首次使用（无记忆）静默取第一项
+ */
+function applyRemembered() {
+  const cats = categoryStore.listByType(billType.value);
+  const pays = bookStore.payMethods;
+  const rememberedCat = cats.find(c => c.id === remembered.value.categoryId);
+  const rememberedPay = pays.find(p => p.id === remembered.value.payMethodId);
+  // 仅当「记过但已失效」时提示；首用无记忆不提示
+  const catStale = !!remembered.value.categoryId && !rememberedCat;
+  const payStale = !!remembered.value.payMethodId && !rememberedPay;
+  selectCategory(rememberedCat || cats[0]);
+  selectPayMethod(rememberedPay || pays[0]);
+  if (catStale || payStale) {
+    uni.showToast({ title: "原记忆项已失效，已重置", icon: "none" });
+  }
+}
+
+/**
+ * 应用「再记一笔」预填（详情页经 storage 中转）：复制当前单据的
+ * 收支类型 / 金额 / 分类 / 支付方式 / 备注，日期时间重置为当前时刻
+ * @param {{type?:string,amount?:string,categoryId?:string,payMethodId?:string,remark?:string}} data
+ */
+function applyPrefill(data) {
+  if (!data) return;
+  if (data.type === "expense" || data.type === "income") {
+    billType.value = data.type;
+  }
+  // 原分类 / 支付方式已失效时回退该类型第一项（与记忆失效同口径）
+  const cats = categoryStore.listByType(billType.value);
+  selectCategory(cats.find(c => c.id === data.categoryId) || cats[0]);
+  const pays = bookStore.payMethods;
+  selectPayMethod(pays.find(p => p.id === data.payMethodId) || pays[0]);
+  amount.value = sanitizeAmount(data.amount);
+  amountDisplay.value = formatAmountDisplay(amount.value);
+  remark.value = data.remark || "";
+  date.value = todayStr();
+  time.value = nowTime();
+  timeTouched = true;
+}
+
+/**
+ * 编辑模式：调 GET /bills/:id 拉取详情并逐项回填；
+ * 凭证直接使用详情返回 photos 的 key，不再从签名 URL 反解
+ * @param {string} id 账单 id
+ */
+async function applyEditBackfill(id) {
+  const bill = await loadBillForEdit(id);
+  if (!bill) return;
+  editId.value = bill.id;
+  billType.value = bill.type;
+  activeCategoryId.value = bill.categoryId || "";
+  activeCategory.value = bill.category;
+  // 服务端 amount 带符号，表单输入用绝对值
+  amount.value = sanitizeAmount(String(Math.abs(Number(bill.amount) || 0)));
+  amountDisplay.value = formatAmountDisplay(amount.value);
+  payMethodId.value = bill.payMethodId || "";
+  payMethod.value = bill.payMethod;
+  date.value = bill.date;
+  time.value = bill.time || nowTime(); // 回填已选时间（HH:mm）
+  timeTouched = true;
+  remark.value = bill.remark;
+  // 回填凭证：详情 photos 为 [{key,url}]（兼容旧签名 URL 字符串结构）
+  photos.value = (Array.isArray(bill.photos) ? bill.photos : [])
+    .slice(0, 3)
+    .map(toPhotoEntry);
 }
 
 /**
  * 页面加载生命周期：
- * - 无 id（从中间 + 按钮进入）→ 新增模式，保留记忆默认值，并预热字典；
- * - 携带 id（从详情页编辑进入）→ 调 GET /bills/:id 拉取详情并逐项回填。
+ * - 先等字典就绪（按 id 匹配分类 / 支付方式依赖字典）；
+ * - 携带 id（从详情页编辑进入）→ 拉取详情回填；
+ * - 无 id → 优先应用「再记一笔」预填（storage 中转），否则应用上次记忆。
  * @param {{id?: string}} [options] 页面路由参数
  */
 onLoad(async options => {
-  // 预热字典（App.vue 已预热过则跳过）
-  categoryStore.fetchAll().catch(() => {});
-  bookStore.fetchPayMethods().catch(() => {});
+  // 预热字典并等待完成（App.vue 已预热过则跳过）
+  await Promise.all([
+    categoryStore.fetchAll().catch(() => {}),
+    bookStore.fetchPayMethods().catch(() => {}),
+  ]);
 
-  if (!options?.id) return;
-  const bill = await loadBillForEdit(options.id);
-  if (!bill) return;
-  editId.value = bill.id;
-  billType.value = bill.type;
-  activeCategory.value = bill.category;
-  // 服务端 amount 带符号，表单输入用绝对值
-  amount.value = String(Math.abs(Number(bill.amount) || 0));
-  payMethod.value = bill.payMethod;
-  date.value = bill.date;
-  remark.value = bill.remark;
-  // 回填凭证：服务端返回签名 URL，归一化后解析出 key 便于保存时传回
-  photos.value = Array.isArray(bill.photos)
-    ? bill.photos.slice(0, 3).map(url => ({
-        key: parseKeyFromUrl(url),
-        url: normalizeFileUrl(url),
-      }))
-    : [];
+  if (options?.id) {
+    await applyEditBackfill(options.id);
+    return;
+  }
+
+  // 「再记一笔」预填：详情页写入 storage，读取后立即清除避免残留
+  let prefill = null;
+  try {
+    prefill = uni.getStorageSync(BILL_PREFILL_KEY) || null;
+    if (prefill) uni.removeStorageSync(BILL_PREFILL_KEY);
+  } catch (e) {
+    prefill = null;
+  }
+  if (prefill) applyPrefill(prefill);
+  else applyRemembered();
 });
 
 /**
@@ -355,15 +545,27 @@ onLoad(async options => {
  */
 function switchType(type) {
   billType.value = type;
-  activeCategory.value = defaultCategory(type);
+  selectCategory(categoryStore.listByType(type)[0]);
 }
 
 /**
- * 日期 picker 选中回调
+ * 日期 picker 选中回调；切回今天且未手动改过时间时，时间跟随当前时刻
  * @param {object} e e.detail.value 形如 '2026-09-14'
  */
 function onDateChange(e) {
   date.value = e.detail.value;
+  if (!timeTouched && date.value === todayStr()) {
+    time.value = nowTime();
+  }
+}
+
+/**
+ * 时间 picker 选中回调
+ * @param {object} e e.detail.value 形如 '18:39'
+ */
+function onTimeChange(e) {
+  timeTouched = true;
+  time.value = e.detail.value;
 }
 
 /**
@@ -431,22 +633,24 @@ function handleClose() {
 
 /**
  * 保存账单（新增或更新）：
- * 1. 校验金额为正数；2. 按 name 反查 categoryId / payMethodId；3. 提取 photos key 数组；
- * 4. 交给 useBillForm.saveBill 调 POST/PATCH /bills；5. 成功后提示并返回。
+ * 1. 金额规范化为纯数字字符串（去尾部小数点）并校验为正数；
+ * 2. 校验分类 / 支付方式 id 已就绪（选中态即持 id，无需按 name 反查）；
+ * 3. 提取 photos key 数组；4. 交给 useBillForm.saveBill 调 POST/PATCH /bills；
+ * 5. 成功后提示并返回。
  */
 async function handleSave() {
-  const value = Number(amount.value);
+  // 提交前规范化：去掉仅用于输入过程的尾部小数点，与 BE 口径一致
+  const amountStr = amount.value.replace(/\.$/, "");
+  const value = Number(amountStr);
   if (!value || value <= 0) {
     uni.showToast({ title: "请输入正确的金额", icon: "none" });
     return;
   }
-  const categoryId = getCategoryIdByName(billType.value, activeCategory.value);
-  const payMethodId = getPayMethodIdByName(payMethod.value);
-  if (!categoryId) {
+  if (!activeCategoryId.value) {
     uni.showToast({ title: "分类数据未就绪，请稍后", icon: "none" });
     return;
   }
-  if (!payMethodId) {
+  if (!payMethodId.value) {
     uni.showToast({ title: "支付方式未就绪，请稍后", icon: "none" });
     return;
   }
@@ -454,12 +658,11 @@ async function handleSave() {
   const result = await saveBill(
     {
       type: billType.value,
-      amount: value,
-      category: activeCategory.value,
-      categoryId,
-      payMethod: payMethod.value,
-      payMethodId,
+      amount: amountStr, // 纯数字字符串（最多 2 位小数，≤99999999.99）
+      categoryId: activeCategoryId.value,
+      payMethodId: payMethodId.value,
       date: date.value,
+      time: time.value, // 'HH:mm'，服务端缺省时取当前时间
       remark: remark.value,
       photos: photos.value.map(p => p.key).filter(Boolean),
     },
@@ -528,6 +731,16 @@ async function handleSave() {
       font-size: 26rpx;
       color: rgba(255, 255, 255, 0.9);
       margin-right: 8rpx;
+    }
+  }
+
+  // 日期 + 时间胶囊组（时间胶囊与日期同款样式，仅加间距）
+  .pill-group {
+    display: flex;
+    align-items: center;
+
+    .time-pill {
+      margin-left: 14rpx;
     }
   }
 }
@@ -695,6 +908,19 @@ async function handleSave() {
       width: 100%;
       height: 100%;
       border-radius: 20rpx;
+    }
+
+    // 凭证图加载失败占位（与图片同尺寸的灰底块）
+    .photo-fallback {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef1ec;
+
+      .photo-fallback-text {
+        font-size: 20rpx;
+        color: #98a099;
+      }
     }
 
     .photo-del {

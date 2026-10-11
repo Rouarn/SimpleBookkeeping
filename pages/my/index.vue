@@ -1,15 +1,15 @@
 <!--
   @file 我的页（pages/my/index.vue）
   @description 个人中心页面：
-               1. 顶部个人信息区：装饰背景、消息铃铛、头像与昵称（点击可修改昵称 /
+               1. 顶部个人信息区：装饰背景、头像与昵称（点击可修改昵称 /
                   更换头像）、加入产品天数提示；
-               2. 记账统计：记账总笔数、记账总天数、账本数量（跨 bill / book store 实时联动）；
-               3. 功能菜单：邀请好友、设置（设置页承载记账提醒 / 意见反馈 / 关于 /
-                  检查更新 / 退出登录等应用级配置）。
+               2. 记账统计：记账总笔数、记账总天数、账本数量（来自 GET /users/me/stats）；
+               3. 功能菜单：设置（设置页承载检查更新 / 退出登录等
+                  真实可用的应用级配置）。
                用户资料持久化在 user store，统计数字不落地存储。
   @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-20
+ * @modify 2026-10-11
 -->
 <template>
   <view class="my">
@@ -20,12 +20,6 @@
       <view class="decor decor-circle"></view>
       <view class="decor decor-dot dot-jade"></view>
       <view class="decor decor-dot dot-clay"></view>
-
-      <!-- 消息铃铛 -->
-      <view class="notice-btn" @click="onNotice">
-        <uni-icons type="notification" size="23" color="#eaf3ee"></uni-icons>
-        <view class="notice-dot"></view>
-      </view>
 
       <!-- 用户资料 -->
       <view class="profile">
@@ -101,7 +95,7 @@
  * 模块说明：
  * - useProfile()：取得用户资料、加入天数、跨模块统计（来自 GET /users/me/stats），
  *   以及修改昵称（PATCH /users/me）/ 更换头像（POST /users/me/avatar）动作；
- * - 功能菜单仅保留邀请好友占位入口与设置页跳转。
+ * - 功能菜单仅保留设置页跳转（应用级配置统一收敛至设置页）。
  */
 import { computed, ref, watch } from "vue";
 import { onShow } from "@dcloudio/uni-app";
@@ -151,28 +145,18 @@ const onAvatarError = () => {
 
 /**
  * 功能菜单配置（title 文案 + icon 为 uni-icons 类型名，全应用图标语言统一）
- * 记账提醒 / 意见反馈 / 关于 / 检查更新等应用级配置已收敛至设置页
+ * 仅保留真实可用项，邀请好友等占位死入口已删除
  */
-const menuList = ref([
-  { title: "邀请好友", icon: "staff" },
-  { title: "设置", icon: "gear" },
-]);
+const menuList = ref([{ title: "设置", icon: "gear" }]);
 
 /**
- * 菜单项点击：设置跳转设置页，其余当前为占位反馈
+ * 菜单项点击：跳转设置页
  * @param {{title: string, icon: string}} item 被点击的菜单项
  */
 const onMenuTap = item => {
   if (item.title === "设置") {
     uni.navigateTo({ url: "/pages/settings/index" });
-    return;
   }
-  uni.showToast({ title: item.title, icon: "none" });
-};
-
-/** 消息铃铛点击（占位） */
-const onNotice = () => {
-  uni.showToast({ title: "消息通知", icon: "none" });
 };
 
 /** 头像 / 昵称编辑入口：弹出 ActionSheet 选择修改昵称或更换头像 */
@@ -190,16 +174,16 @@ const onEditProfile = () => {
 <style lang="scss" scoped>
 .my {
   min-height: calc(
-    100vh - var(--status-bar-height) - var(--window-top) - 123rpx
+    100vh - var(--status-bar-height) - var(--window-top) - 80rpx
   );
   background: #f3f5f2;
   padding-bottom: 160rpx;
 }
 
-// 顶部个人信息区
+// 顶部个人信息区（原消息铃铛行移除后，顶部内边距适当加大保持留白节奏）
 .header {
   position: relative;
-  padding: calc(var(--status-bar-height) + 12rpx) 32rpx 96rpx;
+  padding: calc(var(--status-bar-height) + 44rpx) 32rpx 96rpx;
   background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
   border-radius: 0 0 36rpx 36rpx;
   overflow: hidden;
@@ -247,29 +231,7 @@ const onEditProfile = () => {
   }
 }
 
-// 消息铃铛
-.notice-btn {
-  position: relative;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  height: 64rpx;
-  padding: 0 8rpx;
-
-  .notice-dot {
-    position: absolute;
-    top: 6rpx;
-    right: 4rpx;
-    width: 14rpx;
-    height: 14rpx;
-    border-radius: 50%;
-    background-color: #e06651;
-    border: 3rpx solid #133f34;
-    box-sizing: content-box;
-  }
-}
-
-// 用户资料
+// 消息铃铛入口已移除（本期无消息能力，避免假按钮）；以下为用户资料样式
 .profile {
   position: relative;
   display: flex;
