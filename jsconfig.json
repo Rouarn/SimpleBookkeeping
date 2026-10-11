@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "api/**/*.js",
+    "components/**/*.vue",
+    "composables/**/*.js",
+    "config/**/*.js",
+    "pages/**/*.vue",
+    "store/**/*.js",
+    "utils/**/*.js",
+    "App.vue",
+    "main.js"
+  ],
+  "exclude": ["node_modules", "unpackage", "uni_modules"]
+}

@@ -1,11 +1,14 @@
 /**
- * @file 鉴权 API：注册 / 登录 / 刷新 / 登出
+ * @file 鉴权 API：注册 / 登录 / 登出
+ * @description token 刷新不经过本模块：冷启动单飞与 401 静默刷新全部内聚在
+ *              api/http.js（doRefresh / ensureAccessToken），避免多处持锁
+ *              导致 refresh token 重放连坐吊销。
  * @see docs/server/04a-api-auth-user.md
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { http } from "./http";
-import { setTokens, clearTokens, getRefreshToken } from "@/utils/auth";
+import { http } from './http'
+import { setTokens, clearTokens } from '@/utils/auth'
 
 /**
  * 注册（返回 user 与 token）
@@ -13,13 +16,13 @@ import { setTokens, clearTokens, getRefreshToken } from "@/utils/auth";
  * @returns {Promise<{user:object,accessToken:string,refreshToken:string}>}
  */
 export function register(payload) {
-  return http.post("/auth/register", payload).then(data => {
+  return http.post('/auth/register', payload).then((data) => {
     setTokens({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
-    });
-    return data;
-  });
+    })
+    return data
+  })
 }
 
 /**
@@ -28,28 +31,13 @@ export function register(payload) {
  * @returns {Promise<{user:object,accessToken:string,refreshToken:string}>}
  */
 export function login(payload) {
-  return http.post("/auth/login", payload).then(data => {
+  return http.post('/auth/login', payload).then((data) => {
     setTokens({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
-    });
-    return data;
-  });
-}
-
-/**
- * 刷新 access token（需传 refreshToken，服务端校验后下发新 token 对）
- * @returns {Promise<{accessToken:string,refreshToken:string}>}
- */
-export function refresh() {
-  const refreshToken = getRefreshToken();
-  return http.post("/auth/refresh", { refreshToken }).then(data => {
-    setTokens({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-    });
-    return data;
-  });
+    })
+    return data
+  })
 }
 
 /**
@@ -57,11 +45,11 @@ export function refresh() {
  */
 export function logout() {
   return http
-    .post("/auth/logout")
+    .post('/auth/logout')
     .catch(() => {})
     .finally(() => {
-      clearTokens();
-    });
+      clearTokens()
+    })
 }
 
-export default { register, login, refresh, logout };
+export default { register, login, logout }

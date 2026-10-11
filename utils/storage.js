@@ -23,26 +23,26 @@
  */
 
 /** 内存兜底存储（进程级，刷新后失效） */
-const memoryStore = new Map();
+const memoryStore = new Map()
 
 /** 检测当前运行环境是否提供 uni 同步存储 API */
 function canUseUniStorage() {
   return (
-    typeof uni !== "undefined" &&
-    typeof uni.getStorageSync === "function" &&
-    typeof uni.setStorageSync === "function"
-  );
+    typeof uni !== 'undefined' &&
+    typeof uni.getStorageSync === 'function' &&
+    typeof uni.setStorageSync === 'function'
+  )
 }
 
 /** 检测当前运行环境是否可用 window.localStorage（部分沙箱访问 window 会抛异常） */
 function canUseLocalStorage() {
   try {
     return (
-      typeof window !== "undefined" &&
-      typeof window.localStorage !== "undefined"
-    );
-  } catch (e) {
-    return false;
+      typeof window !== 'undefined' &&
+      typeof window.localStorage !== 'undefined'
+    )
+  } catch {
+    return false
   }
 }
 
@@ -50,55 +50,55 @@ function canUseLocalStorage() {
 const uniBackend = {
   get(key) {
     // uni.getStorageSync 在 key 不存在时返回 ''（App/小程序）或 null（部分平台）
-    const value = uni.getStorageSync(key);
-    return value === "" || value === null || value === undefined
+    const value = uni.getStorageSync(key)
+    return value === '' || value === null || value === undefined
       ? null
-      : String(value);
+      : String(value)
   },
   set(key, value) {
     // uni.setStorageSync 是同步 API，签名是 (key, data)，位置参数；
     // 不要与异步的 uni.setStorage({key,data}) 混用，否则数据写不进去。
-    uni.setStorageSync(key, value);
+    uni.setStorageSync(key, value)
   },
   remove(key) {
-    uni.removeStorageSync(key);
+    uni.removeStorageSync(key)
   },
-};
+}
 
 /** @type {StorageBackend} */
 const webBackend = {
   get(key) {
-    return window.localStorage.getItem(key);
+    return window.localStorage.getItem(key)
   },
   set(key, value) {
-    window.localStorage.setItem(key, value);
+    window.localStorage.setItem(key, value)
   },
   remove(key) {
-    window.localStorage.removeItem(key);
+    window.localStorage.removeItem(key)
   },
-};
+}
 
 /** @type {StorageBackend} */
 const memoryBackend = {
   get(key) {
-    return memoryStore.has(key) ? memoryStore.get(key) : null;
+    return memoryStore.has(key) ? memoryStore.get(key) : null
   },
   set(key, value) {
-    memoryStore.set(key, value);
+    memoryStore.set(key, value)
   },
   remove(key) {
-    memoryStore.delete(key);
+    memoryStore.delete(key)
   },
-};
+}
 
 /** 按 uni 存储 -> localStorage -> 内存 的优先级解析唯一后端（模块加载时确定一次） */
 function resolveBackend() {
-  if (canUseUniStorage()) return uniBackend;
-  if (canUseLocalStorage()) return webBackend;
-  return memoryBackend;
+  if (canUseUniStorage()) return uniBackend
+  if (canUseLocalStorage()) return webBackend
+  return memoryBackend
 }
 
-const backend = resolveBackend();
+const backend = resolveBackend()
 
 /**
  * 读取一条原始字符串
@@ -107,10 +107,10 @@ const backend = resolveBackend();
  */
 export function getStorage(key) {
   try {
-    return backend.get(key);
+    return backend.get(key)
   } catch (e) {
-    console.warn(`[storage] 读取失败: ${key}`, e);
-    return null;
+    console.warn(`[storage] 读取失败: ${key}`, e)
+    return null
   }
 }
 
@@ -122,11 +122,11 @@ export function getStorage(key) {
  */
 export function setStorage(key, value) {
   try {
-    backend.set(key, String(value));
-    return true;
+    backend.set(key, String(value))
+    return true
   } catch (e) {
-    console.warn(`[storage] 写入失败: ${key}`, e);
-    return false;
+    console.warn(`[storage] 写入失败: ${key}`, e)
+    return false
   }
 }
 
@@ -136,29 +136,27 @@ export function setStorage(key, value) {
  */
 export function removeStorage(key) {
   try {
-    backend.remove(key);
+    backend.remove(key)
   } catch (e) {
-    console.warn(`[storage] 删除失败: ${key}`, e);
+    console.warn(`[storage] 删除失败: ${key}`, e)
   }
 }
 
 /**
- * 读取并反序列化 JSON，兼容历史脏数据：
- * - 存的是对象（个别平台会反序列化已存对象）→ 直接返回
- * - 存的是 JSON 字符串 → parse
- * - 解析失败 / 非对象 → 返回 null
+ * 读取并反序列化 JSON：
+ * - getStorage 约定只返回字符串或 null（写入侧统一 String(value)），故直接 parse；
+ * - 解析失败 / 不存在 → 返回 null。
  * @param {string} key
  * @returns {unknown | null}
  */
 export function getStorageJSON(key) {
-  const raw = getStorage(key);
-  if (raw === null) return null;
-  if (typeof raw === "object") return raw;
+  const raw = getStorage(key)
+  if (raw === null) return null
   try {
-    return JSON.parse(raw);
+    return JSON.parse(raw)
   } catch (e) {
-    console.warn(`[storage] JSON 解析失败，已忽略: ${key}`, e);
-    return null;
+    console.warn(`[storage] JSON 解析失败，已忽略: ${key}`, e)
+    return null
   }
 }
 
@@ -170,19 +168,19 @@ export function getStorageJSON(key) {
  */
 export function setStorageJSON(key, value) {
   try {
-    return setStorage(key, JSON.stringify(value));
+    return setStorage(key, JSON.stringify(value))
   } catch (e) {
-    console.warn(`[storage] JSON 序列化失败: ${key}`, e);
-    return false;
+    console.warn(`[storage] JSON 序列化失败: ${key}`, e)
+    return false
   }
 }
 
 /** 当前实际生效的后端名称，便于调试/文档示例 */
 export const storageBackendName = canUseUniStorage()
-  ? "uni"
+  ? 'uni'
   : canUseLocalStorage()
-    ? "localStorage"
-    : "memory";
+    ? 'localStorage'
+    : 'memory'
 
 export default {
   get: getStorage,
@@ -191,4 +189,4 @@ export default {
   getJSON: getStorageJSON,
   setJSON: setStorageJSON,
   backendName: storageBackendName,
-};
+}

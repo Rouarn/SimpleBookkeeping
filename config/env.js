@@ -8,22 +8,22 @@
  */
 
 // HBuilderX/Vite 下 import.meta.env.DEV 可用
-const isDev = !!import.meta.env?.DEV;
+const isDev = !!import.meta.env?.DEV
 
 /** API 服务基地址（真机联调用电脑局域网 IP，不能用 localhost） */
 export const API_BASE = isDev
-  ? "http://192.168.31.115:9765"
-  : "http://xl.shixian.xyz";
+  ? 'http://192.168.31.115:9765'
+  : 'http://xl.shixian.xyz'
 
 /** 自建静态资源基地址（一言等静态接口；生产必须 HTTPS） */
 export const STATIC_BASE = isDev
-  ? "http://192.168.31.115:9867/static"
-  : "https://static.shixian.xyz/static";
+  ? 'http://192.168.31.115:9867/static'
+  : 'https://static.shixian.xyz/static'
 
 /** APP 在线更新服务基地址 */
-export const UPDATE_BASE = STATIC_BASE;
+export const UPDATE_BASE = STATIC_BASE
 
 /** 签名文件访问基地址（与 API_BASE 同源，/api/v1/files/） */
-export const FILES_BASE = API_BASE;
+export const FILES_BASE = API_BASE
 
-export default { isDev, API_BASE, STATIC_BASE, UPDATE_BASE, FILES_BASE };
+export default { isDev, API_BASE, STATIC_BASE, UPDATE_BASE, FILES_BASE }

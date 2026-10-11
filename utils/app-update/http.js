@@ -7,30 +7,30 @@
  * @date 2026-09-15
  */
 
-import { UPDATE_CONFIG } from "./config";
+import { UPDATE_CONFIG } from './config'
 
 /**
  * 通用请求
  * @param {{url: string, method?: string, data?: object, timeout?: number}} opts
  * @returns {Promise<any>} 响应外壳中的 data
  */
-export function request({ url, method = "GET", data = {}, timeout = 10000 }) {
+export function request({ url, method = 'GET', data = {}, timeout = 10000 }) {
   return new Promise((resolve, reject) => {
     uni.request({
       url: `${UPDATE_CONFIG.baseUrl}${url}`,
       method,
       data,
       timeout,
-      header: { "Content-Type": "application/json" },
+      header: { 'Content-Type': 'application/json' },
       success: (res) => {
-        const body = res.data || {};
+        const body = res.data || {}
         if (res.statusCode === 200 && body.code === 200) {
-          resolve(body.data);
+          resolve(body.data)
         } else {
-          reject(new Error(body.message || `HTTP ${res.statusCode}`));
+          reject(new Error(body.message || `HTTP ${res.statusCode}`))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || "网络请求失败")),
-    });
-  });
+      fail: (err) => reject(new Error(err.errMsg || '网络请求失败')),
+    })
+  })
 }

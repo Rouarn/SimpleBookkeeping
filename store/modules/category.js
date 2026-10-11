@@ -9,17 +9,17 @@
  * @date 2026-09-14
  * @modify 2026-09-16
  */
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { dictionariesApi } from "@/api";
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { dictionariesApi } from '@/api'
 
 /** 兜底元数据（fetch 完成前 / 名称不匹配时保证 UI 不空） */
 const FALLBACK_META = {
-  name: "其他",
-  icon: "📦",
-  color: "#ff6a3d",
-  bg: "#fff0ea",
-};
+  name: '其他',
+  icon: '📦',
+  color: '#ff6a3d',
+  bg: '#fff0ea',
+}
 
 /**
  * 把服务端分类字段映射为本地 CategoryMeta 结构（含 id，记账页需用 id 提交）
@@ -33,22 +33,25 @@ function toMeta(item) {
     icon: item.icon || FALLBACK_META.icon,
     color: item.color || FALLBACK_META.color,
     bg: item.bg || FALLBACK_META.bg,
-  };
+  }
 }
 
 export const useCategoryStore = defineStore(
-  "category",
+  'category',
   () => {
     /** @type {import('vue').Ref<import('@/store/types').CategoryMeta[]>} */
-    const expenseList = ref([]);
+    const expenseList = ref([])
     /** @type {import('vue').Ref<import('@/store/types').CategoryMeta[]>} */
-    const incomeList = ref([]);
+    const incomeList = ref([])
 
-    const expenseNames = computed(() => expenseList.value.map(i => i.name));
-    const incomeNames = computed(() => incomeList.value.map(i => i.name));
+    const expenseNames = computed(() => expenseList.value.map((i) => i.name))
+    const incomeNames = computed(() => incomeList.value.map((i) => i.name))
 
-    /** @type {Record<string, boolean>} 各类型是否已拉取过（避免重复请求） */
-    const loaded = { expense: false, income: false };
+    /**
+     * 各类型是否已拉取过（响应式加载标记，避免重复请求，随 reset 复位）
+     * @type {import('vue').Ref<{expense: boolean, income: boolean}>}
+     */
+    const loaded = ref({ expense: false, income: false })
 
     /**
      * 拉取指定类型的分类字典；已拉取过则跳过（除非 force）
@@ -56,20 +59,20 @@ export const useCategoryStore = defineStore(
      * @param {boolean} [force=false]
      */
     async function fetchCategories(type, force = false) {
-      if (loaded[type] && !force) return;
-      const list = await dictionariesApi.getCategories({ type });
-      const mapped = (list || []).map(toMeta);
-      if (type === "income") incomeList.value = mapped;
-      else expenseList.value = mapped;
-      loaded[type] = true;
+      if (loaded.value[type] && !force) return
+      const list = await dictionariesApi.getCategories({ type })
+      const mapped = (list || []).map(toMeta)
+      if (type === 'income') incomeList.value = mapped
+      else expenseList.value = mapped
+      loaded.value[type] = true
     }
 
     /** 拉取全部类型字典 */
     async function fetchAll(force = false) {
       await Promise.all([
-        fetchCategories("expense", force),
-        fetchCategories("income", force),
-      ]);
+        fetchCategories('expense', force),
+        fetchCategories('income', force),
+      ])
     }
 
     /**
@@ -78,7 +81,7 @@ export const useCategoryStore = defineStore(
      * @returns {import('@/store/types').CategoryMeta[]}
      */
     function listByType(type) {
-      return type === "income" ? incomeList.value : expenseList.value;
+      return type === 'income' ? incomeList.value : expenseList.value
     }
 
     /**
@@ -88,8 +91,8 @@ export const useCategoryStore = defineStore(
      * @returns {import('@/store/types').CategoryMeta}
      */
     function getMeta(type, name) {
-      const found = listByType(type).find(i => i.name === name);
-      return found ? { ...found } : { ...FALLBACK_META };
+      const found = listByType(type).find((i) => i.name === name)
+      return found ? { ...found } : { ...FALLBACK_META }
     }
 
     /**
@@ -98,15 +101,14 @@ export const useCategoryStore = defineStore(
      * @param {string} name
      */
     function isValid(type, name) {
-      return listByType(type).some(i => i.name === name);
+      return listByType(type).some((i) => i.name === name)
     }
 
     /** 重置本地缓存与加载标记（退出登录时调用） */
     function reset() {
-      expenseList.value = [];
-      incomeList.value = [];
-      loaded.expense = false;
-      loaded.income = false;
+      expenseList.value = []
+      incomeList.value = []
+      loaded.value = { expense: false, income: false }
     }
 
     return {
@@ -114,14 +116,15 @@ export const useCategoryStore = defineStore(
       incomeList,
       expenseNames,
       incomeNames,
+      loaded,
       fetchCategories,
       fetchAll,
       listByType,
       getMeta,
       isValid,
       reset,
-    };
+    }
   },
   // 字典数据来源为服务端，不启用本地持久化
   { persist: false },
-);
+)

@@ -1,0 +1,8 @@
+# 构建产物
+unpackage/
+# 三方插件（随 uni_modules 分发，不做格式化）
+uni_modules/
+# 静态资源（图片 / 字体 / 第三方 css）
+static/
+# 依赖
+node_modules/

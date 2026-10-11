@@ -12,7 +12,8 @@
                月份与类型选择态持久化在 app store，分组数据由接口分页拉取。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-10-11
+  @modify 2026-10-11 抽取 DecorRing / EmptyState / BillRow 公共组件，
+               凭证缩略图签名过期支持页面侧换签
 -->
 <template>
   <view class="flowing-water">
@@ -68,11 +69,14 @@
     <!-- 本月收支卡片 -->
     <view class="summary-cards">
       <view class="summary-card expense-card">
-        <view class="card-decor">
-          <view class="decor-ring r1"></view>
-          <view class="decor-ring r2"></view>
-          <view class="decor-ring r3"></view>
-        </view>
+        <DecorRing
+          class="card-decor"
+          :size="240"
+          :middle="166"
+          :inner="92"
+          :middle-opacity="0.11"
+          :inner-opacity="0.15"
+        />
         <view class="card-icon-wrap">
           <uni-icons type="bars" size="26" color="#fff"></uni-icons>
         </view>
@@ -80,11 +84,14 @@
         <view class="card-label">本月总支出（元）</view>
       </view>
       <view class="summary-card income-card">
-        <view class="card-decor">
-          <view class="decor-ring r1"></view>
-          <view class="decor-ring r2"></view>
-          <view class="decor-ring r3"></view>
-        </view>
+        <DecorRing
+          class="card-decor"
+          :size="240"
+          :middle="166"
+          :inner="92"
+          :middle-opacity="0.11"
+          :inner-opacity="0.15"
+        />
         <view class="card-icon-wrap">
           <uni-icons type="redo" size="26" color="#fff"></uni-icons>
         </view>
@@ -95,74 +102,39 @@
 
     <!-- 流水列表 -->
     <view class="flow-list-wrap">
-      <view v-if="groups.length === 0" class="empty-tip">
-        <view class="empty-coin">¥</view>
-        <text class="empty-text">{{
-          keyword ? "未找到相关账单" : "本月暂无流水"
-        }}</text>
-        <text class="empty-sub">{{
-          keyword ? "换个关键词试试" : "记一笔，开始追踪你的收支"
-        }}</text>
-      </view>
-      <view
-        v-for="group in groups"
-        v-else
-        :key="group.recordDate"
-        class="flow-group"
-      >
-        <view class="group-header">
-          <view class="group-title">
-            <text class="group-day">{{ group.day }}</text>
-            <text class="group-date">{{ group.date }}</text>
+      <EmptyState
+        v-if="groups.length === 0"
+        :text="keyword ? '未找到相关账单' : '本月暂无流水'"
+        :sub="keyword ? '换个关键词试试' : '记一笔，开始追踪你的收支'"
+      />
+      <template v-else>
+        <view
+          v-for="group in groups"
+          :key="group.recordDate"
+          class="flow-group"
+        >
+          <view class="group-header">
+            <view class="group-title">
+              <text class="group-day">{{ group.day }}</text>
+              <text class="group-date">{{ group.date }}</text>
+            </view>
+            <view class="group-summary">
+              <text class="summary-chip">支 {{ group.expense }}</text>
+              <text class="summary-chip income">收 {{ group.income }}</text>
+            </view>
           </view>
-          <view class="group-summary">
-            <text class="summary-chip">支 {{ group.expense }}</text>
-            <text class="summary-chip income">收 {{ group.income }}</text>
-          </view>
-        </view>
 
-        <view class="flow-list">
-          <view
-            v-for="item in group.items"
-            :key="item.id"
-            class="flow-item"
-            hover-class="row-hover"
-            :hover-stay-time="60"
-            @click="goDetail(item)"
-          >
-            <view
-              class="flow-icon-wrap"
-              :style="{ backgroundColor: item.iconBg }"
-            >
-              <text class="flow-icon">{{ item.iconText }}</text>
-            </view>
-            <view class="flow-info">
-              <view class="flow-title-row">
-                <view class="flow-title-wrap">
-                  <text class="flow-title">{{ item.title }}</text>
-                  <text v-if="item.remark" class="flow-remark">{{
-                    item.remark
-                  }}</text>
-                </view>
-                <text class="flow-amount" :class="{ income: item.amount > 0 }">
-                  {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
-                </text>
-              </view>
-              <view class="flow-meta">
-                <text class="flow-time">{{ item.time }}</text>
-                <text class="flow-dot">·</text>
-                <text class="flow-pay">{{ item.payMethod }}</text>
-              </view>
-            </view>
-            <uni-icons
-              class="flow-arrow"
-              type="right"
-              size="14"
-              color="#c2c9c3"
-            ></uni-icons>
+          <view class="flow-list">
+            <BillRow
+              v-for="item in group.items"
+              :key="item.id"
+              :bill="item"
+              @click="goDetail"
+              @photo-error="resignBillPhoto"
+            />
           </view>
         </view>
-      </view>
+      </template>
 
       <!-- 分页底态：触底加载中 / 已加载全部（仅在有数据时展示） -->
       <view
@@ -170,7 +142,7 @@
         class="list-footer"
       >
         <text class="footer-text">{{
-          loadingMore ? "加载中…" : "没有更多了"
+          loadingMore ? '加载中…' : '没有更多了'
         }}</text>
       </view>
     </view>
@@ -188,17 +160,18 @@
  * - 本页负责：类型 ActionSheet、月份 picker、搜索（展开输入框 + 300ms 防抖触发
  *   load() 从第一页重查，清空恢复全量）、触底分页与下拉刷新入口。
  */
-import { ref, watch } from "vue";
+import { ref, watch } from 'vue'
 import {
   onShow,
   onUnload,
   onReachBottom,
   onPullDownRefresh,
-} from "@dcloudio/uni-app";
-import { useFlowingData, goBillDetail } from "@/composables/useBookkeeping";
+} from '@dcloudio/uni-app'
+import { useFlowingData, goBillDetail } from '@/composables/useBookkeeping'
+import { billsApi, normalizeFileUrl } from '@/api'
 
 // 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
-const typeOptions = ["全部类型", "支出", "收入"];
+const typeOptions = ['全部类型', '支出', '收入']
 
 // 月份 / 类型选择态持久化在 app store；分组与月汇总由 load() 异步拉取
 const {
@@ -211,101 +184,128 @@ const {
   loadMore,
   loadingMore,
   finished,
-} = useFlowingData();
+} = useFlowingData()
 
 // ---------- 搜索 ----------
 // 搜索框展开态；searchText 为输入框内容，防抖 300ms 后同步到 keyword 触发重查
-const SEARCH_DEBOUNCE = 300;
-const searchVisible = ref(false);
-const searchText = ref("");
-let searchTimer = null;
+const SEARCH_DEBOUNCE = 300
+const searchVisible = ref(false)
+const searchText = ref('')
+let searchTimer = null
 
 /** 同步关键字到 composable 并从第一页重查（keyword 相同则跳过） */
 function search(kw) {
-  if (kw === keyword.value) return;
-  keyword.value = kw;
-  load().catch(() => {});
+  if (kw === keyword.value) return
+  keyword.value = kw
+  load().catch(() => {})
 }
 
 /** 输入防抖：300ms 内连续输入只取最后一次 */
 function onSearchInput(e) {
-  searchText.value = e.detail.value;
-  clearTimeout(searchTimer);
+  searchText.value = e.detail.value
+  clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
-    search(searchText.value.trim());
-  }, SEARCH_DEBOUNCE);
+    search(searchText.value.trim())
+  }, SEARCH_DEBOUNCE)
 }
 
 /** 键盘确认：跳过防抖立即检索 */
 function flushSearch() {
-  clearTimeout(searchTimer);
-  search(searchText.value.trim());
+  clearTimeout(searchTimer)
+  search(searchText.value.trim())
 }
 
 /** 清空关键词并恢复全量列表 */
 function clearSearch() {
-  clearTimeout(searchTimer);
-  searchText.value = "";
-  search("");
+  clearTimeout(searchTimer)
+  searchText.value = ''
+  search('')
 }
 
 /** 点击顶部搜索图标：展开 / 收起搜索框；收起时若有关键词则恢复全量 */
 const handleSearch = () => {
-  searchVisible.value = !searchVisible.value;
+  searchVisible.value = !searchVisible.value
   if (!searchVisible.value) {
-    clearSearch();
+    clearSearch()
   }
-};
+}
 
 // 页面卸载清理防抖定时器
 onUnload(() => {
-  clearTimeout(searchTimer);
-});
+  clearTimeout(searchTimer)
+})
 
 // 进入页面 / 从后台恢复时拉取；月份或类型变化时重置到第一页重新拉取
 onShow(() => {
-  load().catch(() => {});
-});
+  load().catch(() => {})
+})
 watch([currentMonth, currentType], () => {
-  load().catch(() => {});
-});
+  load().catch(() => {})
+})
 
 // 触底加载下一页（内部自带 loading / finished 防抖与失败重试语义）
 onReachBottom(() => {
-  loadMore();
-});
+  loadMore()
+})
 
 // 下拉刷新：重置到第一页重新拉取，完成后关闭刷新动画
 onPullDownRefresh(async () => {
-  await load().catch(() => {});
-  uni.stopPullDownRefresh();
-});
+  await load().catch(() => {})
+  uni.stopPullDownRefresh()
+})
 
 /** 点击顶部类型文字 → 弹出 ActionSheet 切换筛选类型（写入后列表自动重算） */
 const handleTypeClick = () => {
   uni.showActionSheet({
     itemList: typeOptions,
-    success: res => {
-      currentType.value = typeOptions[res.tapIndex];
+    success: (res) => {
+      currentType.value = typeOptions[res.tapIndex]
     },
-  });
-};
+  })
+}
 
 /**
  * 月份 picker 选中回调
  * @param {object} e uni-app picker change 事件，e.detail.value 形如 '2026-09'
  */
-const handleDateChange = e => {
-  currentMonth.value = e.detail.value;
-};
+const handleDateChange = (e) => {
+  currentMonth.value = e.detail.value
+}
 
 /**
  * 点击流水单条 → 跳转详情页
  * @param {object} item 被点击的流水项
  */
-const goDetail = item => {
-  goBillDetail(item.id);
-};
+const goDetail = (item) => {
+  goBillDetail(item.id)
+}
+
+/**
+ * 凭证缩略图签名过期换签：重拉该账单详情，用新签名 URL 原地替换分组中的
+ * photos（与详情页同一套思路）。组件内保证每条账单最多触发一次，失败静默，
+ * 行内缩略图保持灰底占位。
+ * @param {object} item 加载失败的流水项
+ */
+const resignBillPhoto = async (item) => {
+  try {
+    const detail = await billsApi.getOne(item.id)
+    const photos = (detail?.photos || []).map((p) =>
+      typeof p === 'string'
+        ? { key: '', url: normalizeFileUrl(p) }
+        : { key: p?.key || '', url: normalizeFileUrl(p?.url) },
+    )
+    if (!photos.length) return
+    for (const group of groups.value) {
+      const found = group.items.find((b) => b.id === item.id)
+      if (found) {
+        found.photos = photos
+        break
+      }
+    }
+  } catch (e) {
+    // 换签失败不阻断浏览，缩略图保持占位，下次进页会重新拉列表
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -313,7 +313,7 @@ const goDetail = item => {
   width: 100%;
   min-height: 100vh;
   margin-top: var(--status-bar-height);
-  background: #f3f5f2;
+  background: $bg-page;
   padding-bottom: 160rpx;
 }
 
@@ -331,7 +331,7 @@ const goDetail = item => {
     .type-text {
       font-size: 42rpx;
       font-weight: 700;
-      color: #1e2521;
+      color: $text-title;
       letter-spacing: 1rpx;
       margin-right: 8rpx;
     }
@@ -366,7 +366,7 @@ const goDetail = item => {
     height: 100%;
     margin-left: 16rpx;
     font-size: 27rpx;
-    color: #1e2521;
+    color: $text-title;
   }
 
   .search-clear {
@@ -394,7 +394,7 @@ const goDetail = item => {
     margin: 0 10rpx 0 12rpx;
     font-size: 26rpx;
     font-weight: 600;
-    color: #2f6b54;
+    color: $color-primary-mid;
     font-variant-numeric: tabular-nums;
   }
 }
@@ -410,11 +410,11 @@ const goDetail = item => {
 .summary-card {
   flex: 1;
   position: relative;
-  border-radius: 24rpx;
+  border-radius: $radius-card;
   padding: 30rpx 26rpx;
   overflow: hidden;
 
-  // 同心圆环暗纹（与首页主卡同源）
+  // 同心圆环暗纹（DecorRing 组件根节点，环体样式内聚在组件内）
   .card-decor {
     position: absolute;
     top: -90rpx;
@@ -422,29 +422,6 @@ const goDetail = item => {
     width: 240rpx;
     height: 240rpx;
     pointer-events: none;
-
-    .decor-ring {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      border-radius: 50%;
-      border: 2rpx solid rgba(255, 255, 255, 0.08);
-      transform: translate(-50%, -50%);
-    }
-    .r1 {
-      width: 240rpx;
-      height: 240rpx;
-    }
-    .r2 {
-      width: 166rpx;
-      height: 166rpx;
-      border-color: rgba(255, 255, 255, 0.11);
-    }
-    .r3 {
-      width: 92rpx;
-      height: 92rpx;
-      border-color: rgba(255, 255, 255, 0.15);
-    }
   }
 
   .card-icon-wrap {
@@ -480,12 +457,12 @@ const goDetail = item => {
 }
 
 .expense-card {
-  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
+  background: $gradient-header;
   box-shadow: 0 14rpx 32rpx rgba(12, 58, 46, 0.24);
 }
 
 .income-card {
-  background: linear-gradient(150deg, #b5523e 0%, #913527 100%);
+  background: $gradient-income;
   box-shadow: 0 14rpx 32rpx rgba(145, 53, 39, 0.24);
 }
 
@@ -502,7 +479,7 @@ const goDetail = item => {
 
   .footer-text {
     font-size: 23rpx;
-    color: #98a099;
+    color: $text-secondary;
   }
 }
 
@@ -522,13 +499,13 @@ const goDetail = item => {
       .group-day {
         font-size: 32rpx;
         font-weight: 700;
-        color: #1e2521;
+        color: $text-title;
       }
 
       .group-date {
         margin-left: 12rpx;
         font-size: 22rpx;
-        color: #98a099;
+        color: $text-secondary;
         font-variant-numeric: tabular-nums;
       }
     }
@@ -542,7 +519,7 @@ const goDetail = item => {
         font-size: 21rpx;
         line-height: 1.4;
         border-radius: 999rpx;
-        background: #e9f0eb;
+        background: $bg-tint;
         color: #56645c;
         font-variant-numeric: tabular-nums;
 
@@ -551,8 +528,8 @@ const goDetail = item => {
         }
 
         &.income {
-          background: #fcebe8;
-          color: #d54e3c;
+          background: $color-danger-bg;
+          color: $color-danger;
         }
       }
     }
@@ -560,152 +537,9 @@ const goDetail = item => {
 
   .flow-list {
     background: #fff;
-    border-radius: 24rpx;
+    border-radius: $radius-card;
     box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
     overflow: hidden;
-
-    .row-hover {
-      background: #f6f9f6;
-    }
-
-    .flow-item {
-      position: relative;
-      display: flex;
-      align-items: center;
-      padding: 26rpx 26rpx;
-
-      &::after {
-        content: "";
-        position: absolute;
-        left: 128rpx;
-        right: 0;
-        bottom: 0;
-        height: 1rpx;
-        background: #edf0ec;
-      }
-      &:last-child::after {
-        display: none;
-      }
-
-      .flow-icon-wrap {
-        width: 80rpx;
-        height: 80rpx;
-        margin-right: 22rpx;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-
-        .flow-icon {
-          font-size: 38rpx;
-        }
-      }
-
-      .flow-info {
-        flex: 1;
-        min-width: 0;
-
-        .flow-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          .flow-title-wrap {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            align-items: baseline;
-            margin-right: 16rpx;
-            overflow: hidden;
-          }
-
-          .flow-title {
-            font-size: 29rpx;
-            font-weight: 500;
-            color: #202622;
-            flex-shrink: 0;
-          }
-
-          .flow-remark {
-            margin-left: 10rpx;
-            font-size: 23rpx;
-            color: #98a099;
-            min-width: 0;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-          }
-
-          .flow-amount {
-            font-size: 31rpx;
-            font-weight: 600;
-            color: #222924;
-            flex-shrink: 0;
-            font-variant-numeric: tabular-nums;
-
-            &.income {
-              color: #df543f;
-            }
-          }
-        }
-
-        .flow-meta {
-          margin-top: 7rpx;
-
-          .flow-time,
-          .flow-pay {
-            font-size: 21rpx;
-            color: #98a099;
-          }
-          .flow-dot {
-            margin: 0 9rpx;
-            font-size: 21rpx;
-            color: #c6ccc6;
-          }
-        }
-      }
-
-      .flow-arrow {
-        flex-shrink: 0;
-        margin-left: 12rpx;
-      }
-    }
-  }
-}
-
-// 空状态
-.empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 72rpx 0 80rpx;
-
-  .empty-coin {
-    width: 104rpx;
-    height: 104rpx;
-    margin-bottom: 28rpx;
-    border-radius: 50%;
-    border: 2rpx solid #d6e2da;
-    background: #f8faf8;
-    box-shadow: 0 0 0 10rpx rgba(76, 175, 135, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40rpx;
-    font-weight: 600;
-    color: #7ba48f;
-  }
-
-  .empty-text {
-    font-size: 28rpx;
-    color: #8b938d;
-  }
-
-  .empty-sub {
-    margin-top: 10rpx;
-    font-size: 22rpx;
-    color: #abb3ac;
   }
 }
 </style>

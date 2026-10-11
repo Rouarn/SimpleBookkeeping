@@ -8,15 +8,15 @@
  *              - maxRetry：下载失败自动重试次数。
  * @date 2026-10-11
  */
-import { UPDATE_BASE } from "@/config/env";
+import { UPDATE_BASE } from '@/config/env'
 
 export const UPDATE_CONFIG = {
   // 更新服务基地址（生产 HTTPS，见 config/env.js）
   baseUrl: UPDATE_BASE,
   // 必须与后台「APP 版本管理」里创建的应用标识一致
-  appKey: "simple-bookkeeping",
+  appKey: 'simple-bookkeeping',
   // 启动静默检查节流：6 小时内不重复发起检查请求
   silentCheckIntervalMs: 6 * 60 * 60 * 1000,
   // 下载失败自动重试次数
   maxRetry: 2,
-};
+}

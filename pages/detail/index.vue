@@ -15,7 +15,8 @@
                提供重试与返回入口。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-10-11
+  @modify 2026-10-11 金额格式化收敛至 utils/rmb；凭证 key 去 index；
+               页面底色渐变改走 design token
 -->
 <template>
   <view class="detail-page">
@@ -41,7 +42,7 @@
 
       <view class="bill-category">{{ detail.title }}</view>
       <view class="bill-amount">
-        {{ detail.amount > 0 ? "+" : "" }}{{ detail.amount.toFixed(2) }}
+        {{ detail.amount > 0 ? '+' : '' }}{{ formatMoney(detail.amount) }}
       </view>
 
       <!-- 票据分隔线 -->
@@ -77,7 +78,7 @@
           <view class="photo-thumbs">
             <template
               v-for="(photo, index) in detail.photos"
-              :key="photo.key || index"
+              :key="photo.key || photo.url"
             >
               <!-- 加载失败（如签名过期）的凭证图以灰底占位兜底 -->
               <view
@@ -146,9 +147,11 @@
  * - 本页负责导航返回、删除二次确认、错误态重试、跳转编辑与图片预览交互，
  *   凭证图加载失败时展示占位并触发一次换签刷新（重拉详情取新签名 URL）。
  */
-import { ref, watch } from "vue";
-import { onLoad } from "@dcloudio/uni-app";
-import { useBillDetail, BILL_PREFILL_KEY } from "@/composables/useBookkeeping";
+import { ref, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { useBillDetail, BILL_PREFILL_KEY } from '@/composables/useBookkeeping'
+// 金额格式全应用统一收敛到 utils/rmb（四舍五入两位 + 固定两位小数）
+import { formatMoney } from '@/utils/rmb'
 
 // 详情数据按 id 从 bill store 读取，删除后通过 store 广播变更，各页面自动联动
 const {
@@ -159,123 +162,123 @@ const {
   loadFromChannel,
   removeCurrent,
   reload,
-} = useBillDetail();
+} = useBillDetail()
 
 // onLoad 入参（query）留档，供错误态「重试」重新解析（无 id 场景兜底）
-let loadOptions = null;
+let loadOptions = null
 
 /** 页面加载：优先取 query 的 id，缺省注册 eventChannel 监听等待上一页 emit */
-onLoad(options => {
-  loadOptions = options;
-  loadFromChannel(options);
-});
+onLoad((options) => {
+  loadOptions = options
+  loadFromChannel(options)
+})
 
 /** 返回上一页 */
 const goBack = () => {
-  uni.navigateBack();
-};
+  uni.navigateBack()
+}
 
 /**
  * 错误态重试：有 id 直接重拉详情；无 id（链接无效）时重新解析入参
  */
 const handleRetry = () => {
   if (currentId.value) {
-    reload(currentId.value);
-    return;
+    reload(currentId.value)
+    return
   }
-  loadFromChannel(loadOptions);
-};
+  loadFromChannel(loadOptions)
+}
 
 /** 删除账单：先弹确认框，确认后调 DELETE /bills/:id；成功才提示并跳回 */
 const handleDelete = () => {
   uni.showModal({
-    title: "提示",
-    content: "确定删除该账单吗？",
-    success: async res => {
-      if (!res.confirm) return;
-      if (!detail.value?.id) return;
+    title: '提示',
+    content: '确定删除该账单吗？',
+    success: async (res) => {
+      if (!res.confirm) return
+      if (!detail.value?.id) return
       try {
-        const ok = await removeCurrent();
-        if (!ok) return;
-        uni.showToast({ title: "已删除", icon: "success" });
-        setTimeout(() => uni.navigateBack(), 300);
+        const ok = await removeCurrent()
+        if (!ok) return
+        uni.showToast({ title: '已删除', icon: 'success' })
+        setTimeout(() => uni.navigateBack(), 300)
       } catch {
         // 删除失败：http 层已统一 toast 错误原因，这里仅中断跳转、停留原页
       }
     },
-  });
-};
+  })
+}
 
 /** 编辑账单：携带账单 id 跳转记账页，由其 onLoad 进入编辑回填模式 */
 const handleEdit = () => {
-  if (!detail.value?.id) return;
-  uni.navigateTo({ url: `/pages/add/index?id=${detail.value.id}` });
-};
+  if (!detail.value?.id) return
+  uni.navigateTo({ url: `/pages/add/index?id=${detail.value.id}` })
+}
 
 /**
  * 再记一笔：复制当前单据要素（金额 / 类型 / 分类 / 支付方式 / 备注）写入
  * storage 中转（BILL_PREFILL_KEY，记账页读取后即清），跳转记账页预填
  */
 const handleRedo = () => {
-  const d = detail.value;
-  if (!d) return;
+  const d = detail.value
+  if (!d) return
   try {
     uni.setStorageSync(BILL_PREFILL_KEY, {
       type: d.type,
       // 服务端 amount 带符号，预填表单输入用绝对值
       amount: String(Math.abs(Number(d.amount) || 0)),
-      categoryId: d.categoryId || "",
-      payMethodId: d.payMethodId || "",
-      remark: d.remark || "",
-    });
+      categoryId: d.categoryId || '',
+      payMethodId: d.payMethodId || '',
+      remark: d.remark || '',
+    })
   } catch (e) {
     // storage 写入失败不阻断跳转，记账页按无预填处理
   }
-  uni.navigateTo({ url: "/pages/add/index" });
-};
+  uni.navigateTo({ url: '/pages/add/index' })
+}
 
 /**
  * 点击缩略图全屏预览凭证（支持左右滑动查看多张）
  * @param {number} index 当前点击图片的下标，作为预览起始位置
  */
-const previewPhotos = index => {
+const previewPhotos = (index) => {
   // photos 为 {key,url} 对象数组，预览取 url 列表
-  const urls = (detail.value.photos || []).map(p => p.url);
+  const urls = (detail.value.photos || []).map((p) => p.url)
   uni.previewImage({
     urls,
     current: urls[index],
-  });
-};
+  })
+}
 
 // 凭证图加载失败标记（下标 → true），失败图切换为灰底占位
-const photoFailed = ref({});
+const photoFailed = ref({})
 // 换签刷新标记：凭证图为带签名的临时 URL，签名过期会导致加载失败；
 // 现无单图换签接口，重拉详情（GET /bills/:id）即可拿到服务端重新签发的
 // URL。仅自动触发一次，防止服务端持续异常时陷入「失败 → 重拉」死循环
-let photoResigned = false;
+let photoResigned = false
 
 /**
  * 凭证图加载失败：标记占位；首次失败时重拉详情换签重试
  * @param {number} index 加载失败图片的下标
  */
-const onPhotoError = index => {
-  photoFailed.value[index] = true;
+const onPhotoError = (index) => {
+  photoFailed.value[index] = true
   if (!photoResigned && currentId.value) {
-    photoResigned = true;
-    reload(currentId.value);
+    photoResigned = true
+    reload(currentId.value)
   }
-};
+}
 
 // 详情重拉成功（含换签刷新）后清空失败标记，给新签名 URL 一次加载机会
 watch(detail, () => {
-  photoFailed.value = {};
-});
+  photoFailed.value = {}
+})
 </script>
 
 <style lang="scss" scoped>
 .detail-page {
   min-height: 100vh;
-  background: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
+  background: $gradient-page;
 }
 
 .loading-tip {
@@ -325,7 +328,7 @@ watch(detail, () => {
     &.primary {
       background-color: #fff;
       border-color: #fff;
-      color: #175142;
+      color: $color-primary-deep;
       font-weight: 600;
     }
 
@@ -354,7 +357,7 @@ watch(detail, () => {
     height: 144rpx;
     border-radius: 50%;
     background-color: #fff;
-    border: 5rpx solid #175142;
+    border: 5rpx solid $color-primary-deep;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -370,7 +373,7 @@ watch(detail, () => {
     padding-top: 104rpx;
     text-align: center;
     font-size: 28rpx;
-    color: #98a099;
+    color: $text-secondary;
   }
 
   .bill-amount {
@@ -378,7 +381,7 @@ watch(detail, () => {
     text-align: center;
     font-size: 60rpx;
     font-weight: 700;
-    color: #1e2521;
+    color: $text-title;
     font-variant-numeric: tabular-nums;
   }
 
@@ -395,7 +398,7 @@ watch(detail, () => {
       width: 42rpx;
       height: 42rpx;
       border-radius: 50%;
-      background: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
+      background: $gradient-page;
 
       &.notch-left {
         left: -61rpx;
@@ -421,14 +424,14 @@ watch(detail, () => {
 
       .info-label {
         font-size: 27rpx;
-        color: #98a099;
+        color: $text-secondary;
         flex-shrink: 0;
       }
 
       .info-value {
         font-size: 27rpx;
         font-weight: 500;
-        color: #202622;
+        color: $text-primary;
         text-align: right;
         margin-left: 40rpx;
 
@@ -463,7 +466,7 @@ watch(detail, () => {
 
             .photo-fallback-text {
               font-size: 20rpx;
-              color: #98a099;
+              color: $text-secondary;
             }
           }
         }
@@ -477,7 +480,7 @@ watch(detail, () => {
     border-top: 2rpx dashed #dbe1db;
     text-align: center;
     font-size: 24rpx;
-    color: #98a099;
+    color: $text-secondary;
   }
 }
 

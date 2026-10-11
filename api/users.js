@@ -1,17 +1,17 @@
 /**
- * @file 用户 API：资料 / 头像 / 统计 / 偏好
+ * @file 用户 API：资料 / 头像 / 统计
  * @see docs/server/04a-api-auth-user.md
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { http, upload, normalizeFileUrl } from "./http";
+import { http, upload, normalizeFileUrl } from './http'
 
 /**
  * 获取当前用户资料
  * @returns {Promise<object>} {id,username,name,avatar,joinDate,...}
  */
 export function getMe() {
-  return http.get("/users/me");
+  return http.get('/users/me')
 }
 
 /**
@@ -20,7 +20,7 @@ export function getMe() {
  * @returns {Promise<object>} 更新后的用户
  */
 export function updateMe(payload) {
-  return http.patch("/users/me", payload);
+  return http.patch('/users/me', payload)
 }
 
 /**
@@ -31,15 +31,15 @@ export function updateMe(payload) {
  */
 export function uploadAvatar(filePath) {
   return upload({
-    url: "/users/me/avatar",
+    url: '/users/me/avatar',
     filePath,
-    name: "file",
-  }).then(data => {
+    name: 'file',
+  }).then((data) => {
     // 归一化签名 URL，确保使用客户端可达的 BASE_URL
-    if (data && data.avatar) data.avatar = normalizeFileUrl(data.avatar);
-    if (data && data.url) data.url = normalizeFileUrl(data.url);
-    return data;
-  });
+    if (data && data.avatar) data.avatar = normalizeFileUrl(data.avatar)
+    if (data && data.url) data.url = normalizeFileUrl(data.url)
+    return data
+  })
 }
 
 /**
@@ -47,24 +47,7 @@ export function uploadAvatar(filePath) {
  * @returns {Promise<object>}
  */
 export function getStats() {
-  return http.get("/users/me/stats");
-}
-
-/**
- * 读取偏好
- * @returns {Promise<object>}
- */
-export function getPreferences() {
-  return http.get("/users/me/preferences");
-}
-
-/**
- * 覆盖写入偏好
- * @param {object} payload
- * @returns {Promise<object>}
- */
-export function putPreferences(payload) {
-  return http.put("/users/me/preferences", payload);
+  return http.get('/users/me/stats')
 }
 
 export default {
@@ -72,6 +55,4 @@ export default {
   updateMe,
   uploadAvatar,
   getStats,
-  getPreferences,
-  putPreferences,
-};
+}

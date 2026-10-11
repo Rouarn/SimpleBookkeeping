@@ -11,63 +11,71 @@
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-20
  */
-import { ref } from "vue";
-import { getStorageJSON, setStorageJSON } from "@/utils/storage";
-import { STATIC_BASE } from "@/config/env";
+import { ref } from 'vue'
+import { getStorageJSON, setStorageJSON } from '@/utils/storage'
+import { STATIC_BASE } from '@/config/env'
 
 /** 一言接口地址（Hitokoto 兼容协议，JSON 直出） */
-const HITOKOTO_URL = `${STATIC_BASE}/hitokoto?encode=json&min_length=4&max_length=30`;
+const HITOKOTO_URL = `${STATIC_BASE}/hitokoto?encode=json&min_length=4&max_length=30`
 
 /** 最近一句的本地缓存键 */
-const CACHE_KEY = "hitokoto_last";
+const CACHE_KEY = 'hitokoto_last'
 
 /** 当前句子（模块级单例）：{ text, from, who } */
-const quote = ref(getStorageJSON(CACHE_KEY) || null);
+const quote = ref(getStorageJSON(CACHE_KEY) || null)
 
 /** 是否正在拉取 */
-const loading = ref(false);
+const loading = ref(false)
 
 /** 进行中的请求 Promise（并发单飞） */
-let pending = null;
+let pending = null
 
 /** 冷启动是否已自动拉取过 */
-let autoFetched = false;
+let autoFetched = false
 
 /**
- * 拉取一句新的一言；失败时静默保留当前句子（或缓存句）。
+ * 拉取一句新的一言；失败时保留当前句子（或缓存句）。
+ * @param {object} [options]
+ * @param {boolean} [options.silent=true] 失败是否静默：自动拉取静默，
+ *   用户手动点「换一句」时传 false 以 toast 反馈（否则表现为"点了没反应"）
  * @returns {Promise<void>}
  */
-export function refreshHitokoto() {
-  if (pending) return pending;
-  loading.value = true;
-  pending = new Promise(resolve => {
+export function refreshHitokoto({ silent = true } = {}) {
+  if (pending) return pending
+  loading.value = true
+  let ok = false
+  pending = new Promise((resolve) => {
     uni.request({
       url: HITOKOTO_URL,
-      method: "GET",
+      method: 'GET',
       timeout: 8000,
-      success: res => {
-        const d = res.data;
-        if (res.statusCode === 200 && d && typeof d.hitokoto === "string") {
+      success: (res) => {
+        const d = res.data
+        if (res.statusCode === 200 && d && typeof d.hitokoto === 'string') {
+          ok = true
           quote.value = {
             text: d.hitokoto,
-            from: d.from || "",
-            who: d.from_who || "",
-          };
-          setStorageJSON(CACHE_KEY, quote.value);
+            from: d.from || '',
+            who: d.from_who || '',
+          }
+          setStorageJSON(CACHE_KEY, quote.value)
         }
         // 接口异常时不打扰用户，保留上一句
       },
       fail: () => {
-        // 断网 / 超时：静默，缓存句兜底
+        // 断网 / 超时：缓存句兜底
       },
       complete: () => {
-        loading.value = false;
-        pending = null;
-        resolve();
+        loading.value = false
+        pending = null
+        if (!silent && !ok) {
+          uni.showToast({ title: '一言获取失败，请检查网络', icon: 'none' })
+        }
+        resolve()
       },
-    });
-  });
-  return pending;
+    })
+  })
+  return pending
 }
 
 /**
@@ -79,8 +87,9 @@ export function refreshHitokoto() {
  */
 export function useHitokoto(autoLoad = true) {
   if (autoLoad && !autoFetched) {
-    autoFetched = true;
-    refreshHitokoto();
+    autoFetched = true
+    refreshHitokoto()
   }
-  return { quote, loading, refresh: refreshHitokoto };
+  // 手动刷新（卡片点击）：失败时 toast 反馈
+  return { quote, loading, refresh: () => refreshHitokoto({ silent: false }) }
 }

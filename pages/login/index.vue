@@ -4,17 +4,13 @@
                未登录访问其他页面时由 App.vue onLaunch / http 401 拦截统一跳转。
                设计语言与首页/我的页一致：深松绿渐变头 + 暖灰背景 + 白卡。
   @author 夏季 <2937375029@qq.com>
-  * @date 2026-09-16
+  @date 2026-09-16
+  @modify 2026-10-11 抽取 PageHeader 公共渐变页头
 -->
 <template>
   <view class="login">
-    <!-- 顶部装饰区 -->
-    <view class="header">
-      <view class="decor decor-arc"></view>
-      <view class="decor decor-circle"></view>
-      <view class="decor decor-dot dot-jade"></view>
-      <view class="decor decor-dot dot-clay"></view>
-
+    <!-- 顶部装饰区（渐变 / 圆角 / 双圆 + 双点由 PageHeader 内聚） -->
+    <PageHeader variant="login">
       <view class="brand">
         <view class="brand-coin">
           <text class="brand-coin-text">绿</text>
@@ -22,7 +18,7 @@
         <text class="brand-title">小绿记账</text>
         <text class="brand-sub">记一笔，知一月</text>
       </view>
-    </view>
+    </PageHeader>
 
     <!-- 表单卡片 -->
     <view class="card">
@@ -111,7 +107,7 @@
       </view>
 
       <button class="submit" :loading="loading" @click="onSubmit">
-        {{ mode === "login" ? "登录" : "注册并登录" }}
+        {{ mode === 'login' ? '登录' : '注册并登录' }}
       </button>
     </view>
 
@@ -120,7 +116,7 @@
       @click="switchMode(mode === 'login' ? 'register' : 'login')"
     >
       <text>{{
-        mode === "login" ? "还没有账号？点击注册" : "已有账号？去登录"
+        mode === 'login' ? '还没有账号？点击注册' : '已有账号？去登录'
       }}</text>
     </view>
   </view>
@@ -132,40 +128,40 @@
  * - mode: 'login' | 'register' 双模切换；
  * - submit 调 authApi，成功后 reLaunch 到首页。
  */
-import { ref } from "vue";
-import { authApi } from "@/api";
+import { ref } from 'vue'
+import { authApi } from '@/api'
 
-const mode = ref("login");
-const loading = ref(false);
+const mode = ref('login')
+const loading = ref(false)
 const form = ref({
-  phone: "",
-  nickname: "",
-  password: "",
-  confirm: "",
+  phone: '',
+  nickname: '',
+  password: '',
+  confirm: '',
   agree: false, // 注册模式：协议勾选
-});
+})
 
 /**
  * 切换协议勾选
  */
 function toggleAgree() {
-  form.value.agree = !form.value.agree;
+  form.value.agree = !form.value.agree
 }
 
 /**
  * 打开用户协议与隐私政策页
  */
 function openAgreement() {
-  uni.navigateTo({ url: "/pages/agreement/index" });
+  uni.navigateTo({ url: '/pages/agreement/index' })
 }
 
 /**
  * 切换登录 / 注册模式，清空敏感字段但保留账号便于切换
  */
 function switchMode(next) {
-  if (mode.value === next) return;
-  mode.value = next;
-  form.value.confirm = "";
+  if (mode.value === next) return
+  mode.value = next
+  form.value.confirm = ''
 }
 
 /**
@@ -173,60 +169,60 @@ function switchMode(next) {
  * @returns {string} 校验失败文案，空串表示通过
  */
 function validate() {
-  const f = form.value;
+  const f = form.value
   if (!/^1[3-9]\d{9}$/.test(f.phone)) {
-    return "请输入正确的手机号";
+    return '请输入正确的手机号'
   }
   if (!f.password || f.password.length < 8 || f.password.length > 32) {
-    return "密码需 8~32 位";
+    return '密码需 8~32 位'
   }
-  if (mode.value === "register") {
+  if (mode.value === 'register') {
     if (f.confirm !== f.password) {
-      return "两次密码不一致";
+      return '两次密码不一致'
     }
     if (f.nickname && f.nickname.length > 12) {
-      return "昵称最多 12 字";
+      return '昵称最多 12 字'
     }
     if (!f.agree) {
-      return "请先阅读并同意用户协议与隐私政策";
+      return '请先阅读并同意用户协议与隐私政策'
     }
   }
-  return "";
+  return ''
 }
 
 async function onSubmit() {
-  if (loading.value) return;
-  const msg = validate();
+  if (loading.value) return
+  const msg = validate()
   if (msg) {
-    uni.showToast({ title: msg, icon: "none" });
-    return;
+    uni.showToast({ title: msg, icon: 'none' })
+    return
   }
-  loading.value = true;
+  loading.value = true
   // 成功后不再解锁：reLaunch 前 400ms 窗口内保持提交锁，按钮不可再点
   //（页面随跳转销毁，失败路径仍正常解锁供重试）
-  let jumping = false;
+  let jumping = false
   try {
-    const f = form.value;
-    if (mode.value === "login") {
-      await authApi.login({ phone: f.phone, password: f.password });
+    const f = form.value
+    if (mode.value === 'login') {
+      await authApi.login({ phone: f.phone, password: f.password })
     } else {
       // nickname 可选，为空时不传（服务端默认「小绿」）
-      const payload = { phone: f.phone, password: f.password };
-      if (f.nickname) payload.nickname = f.nickname.slice(0, 12);
-      await authApi.register(payload);
+      const payload = { phone: f.phone, password: f.password }
+      if (f.nickname) payload.nickname = f.nickname.slice(0, 12)
+      await authApi.register(payload)
     }
-    jumping = true;
+    jumping = true
     uni.showToast({
-      title: mode.value === "login" ? "登录成功" : "注册成功",
-      icon: "success",
-    });
+      title: mode.value === 'login' ? '登录成功' : '注册成功',
+      icon: 'success',
+    })
     setTimeout(() => {
-      uni.reLaunch({ url: "/pages/index/index" });
-    }, 400);
+      uni.reLaunch({ url: '/pages/index/index' })
+    }, 400)
   } catch (e) {
     // http.js 已统一 toast
   } finally {
-    if (!jumping) loading.value = false;
+    if (!jumping) loading.value = false
   }
 }
 </script>
@@ -234,62 +230,13 @@ async function onSubmit() {
 <style lang="scss" scoped>
 .login {
   min-height: 100vh;
-  background: #f3f5f2;
+  background: $bg-page;
   display: flex;
   flex-direction: column;
 }
 
-// 顶部装饰区
-.header {
-  position: relative;
-  height: 420rpx;
-  padding: calc(var(--status-bar-height) + 60rpx) 48rpx 0;
-  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
-  border-radius: 0 0 44rpx 44rpx;
-  overflow: hidden;
-}
-
-.decor {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.decor-arc {
-  width: 520rpx;
-  height: 520rpx;
-  left: -220rpx;
-  top: -240rpx;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.decor-circle {
-  width: 460rpx;
-  height: 460rpx;
-  right: -160rpx;
-  top: -160rpx;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.decor-dot {
-  width: 22rpx;
-  height: 22rpx;
-
-  &.dot-jade {
-    right: 220rpx;
-    top: 120rpx;
-    background: rgba(143, 226, 189, 0.45);
-  }
-
-  &.dot-clay {
-    width: 32rpx;
-    height: 32rpx;
-    right: 96rpx;
-    top: 230rpx;
-    background: rgba(216, 122, 99, 0.4);
-  }
-}
-
+// 顶部装饰区的渐变 / 圆角 / 双圆 + 双点由 PageHeader 组件内聚，
+// 本页只保留插槽内品牌区样式
 .brand {
   position: relative;
   z-index: 2;
@@ -325,7 +272,7 @@ async function onSubmit() {
     margin-top: 26rpx;
     font-size: 44rpx;
     font-weight: 700;
-    color: #f1f7f3;
+    color: $text-inverse;
     letter-spacing: 2rpx;
   }
 
@@ -343,7 +290,7 @@ async function onSubmit() {
   position: relative;
   z-index: 2;
   background: #fff;
-  border-radius: 28rpx;
+  border-radius: $radius-xl;
   padding: 36rpx 36rpx 44rpx;
   box-shadow: 0 12rpx 36rpx rgba(28, 54, 45, 0.08);
 }
@@ -352,8 +299,8 @@ async function onSubmit() {
   position: relative;
   display: flex;
   margin-bottom: 36rpx;
-  background: #f3f5f2;
-  border-radius: 16rpx;
+  background: $bg-page;
+  border-radius: $radius-sm;
   padding: 6rpx;
 
   .tab {
@@ -363,11 +310,11 @@ async function onSubmit() {
     text-align: center;
     padding: 18rpx 0;
     font-size: 28rpx;
-    color: #6c736b;
+    color: $text-regular;
     transition: color 0.2s;
 
     &.active {
-      color: #175142;
+      color: $color-primary-deep;
       font-weight: 600;
     }
   }
@@ -379,7 +326,7 @@ async function onSubmit() {
     width: calc(50% - 6rpx);
     height: calc(100% - 12rpx);
     background: #fff;
-    border-radius: 12rpx;
+    border-radius: $radius-xs;
     box-shadow: 0 4rpx 12rpx rgba(28, 54, 45, 0.08);
     transition: transform 0.25s;
 
@@ -395,7 +342,7 @@ async function onSubmit() {
   .label {
     display: block;
     font-size: 24rpx;
-    color: #6c736b;
+    color: $text-regular;
     margin-bottom: 12rpx;
     margin-left: 4rpx;
   }
@@ -406,14 +353,14 @@ async function onSubmit() {
     padding: 0 24rpx;
     font-size: 30rpx;
     color: #202622;
-    background: #f6f8f5;
+    background: $bg-warm;
     border: 1rpx solid #e6ebe6;
-    border-radius: 18rpx;
+    border-radius: $radius-md;
     box-sizing: border-box;
     transition: border-color 0.2s;
 
     &:focus {
-      border-color: #4caf87;
+      border-color: $color-accent;
     }
   }
 }
@@ -437,8 +384,8 @@ async function onSubmit() {
     transition: all 0.15s;
 
     &.checked {
-      background: #1c6450;
-      border-color: #1c6450;
+      background: $color-primary;
+      border-color: $color-primary;
     }
   }
 
@@ -450,12 +397,12 @@ async function onSubmit() {
 
   .agree-text {
     font-size: 24rpx;
-    color: #6c736b;
+    color: $text-regular;
   }
 
   .agree-link {
     font-size: 24rpx;
-    color: #1c6450;
+    color: $color-primary;
     font-weight: 600;
   }
 }
@@ -469,8 +416,8 @@ async function onSubmit() {
   font-weight: 600;
   color: #fff;
   letter-spacing: 2rpx;
-  background: linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%);
-  border-radius: 22rpx;
+  background: $gradient-submit;
+  border-radius: $radius-btn-lg;
   border: none;
 
   &::after {
@@ -486,6 +433,6 @@ async function onSubmit() {
   margin-top: 36rpx;
   text-align: center;
   font-size: 24rpx;
-  color: #98a099;
+  color: $text-secondary;
 }
 </style>

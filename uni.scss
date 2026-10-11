@@ -1,1 +1,86 @@
 @import '@/uni_modules/uni-scss/variables.scss';
+
+/* ======================================================================
+ * 小绿记账 Design Token（阶段四 P2-14）
+ * uni.scss 由 uni-app 编译期自动注入每个组件的 <style lang="scss">，
+ * 故本文件只放 SCSS 变量 / mixin（不产生实际 CSS 输出）。
+ * 所有色值均从重构前页面硬编码中逐一收集，命名不改设计、只收敛重复。
+ * ==================================================================== */
+
+/* ---------- 品牌色：深松绿系 ---------- */
+$color-primary-deepest: #0c3a2e; // 渐变深端 / 最深底色
+$color-primary-deep: #175142; // 主色（头部渐变浅端、主按钮、选中文字）
+$color-primary: #1c6450; // 勾选 / 次级主按钮
+$color-primary-mid: #2f6b54; // 主题强调（图标、日期胶囊、图例）
+$color-accent: #4caf87; // 输入聚焦边框
+$color-mint: #4fc794; // 渐变亮端（进度条、支出柱）
+$color-mint-light: #93e7c4; // 渐变亮端 2
+$color-mint-soft: #8fe2bd; // 深底上的薄荷点缀（胶囊描边、编辑图标）
+
+/* ---------- 语义色：朱砂 / 陶土系（本应用收入为红、支出为绿，以现状为准） ---------- */
+$color-clay: #b5523e; // 收入渐变浅端
+$color-clay-deep: #913527; // 收入渐变深端
+$color-clay-bar: #d97a66; // 收入柱渐变亮端
+$color-danger: #d54e3c; // 错误 / 删除 / 收入红
+$color-danger-soft: #df543f; // 流水行收入金额
+$color-danger-bg: #fcebe8; // 浅红底
+$color-terracotta: #a8543f; // 米纸卡上的朱砂（印章、强更标签）
+
+/* ---------- 暖灰背景 ---------- */
+$bg-page: #f3f5f2; // 全站页面暖灰底
+$bg-warm: #f6f8f5; // 输入框浅暖底
+$bg-card: #ffffff; // 卡片白
+$bg-hover: #f6f9f6; // 列表行按压缩放
+$bg-tint: #e9f0eb; // 支出小结胶囊底
+$bg-tint-icon: #e9f3ed; // 菜单图标底
+
+/* ---------- 文本 ---------- */
+$text-title: #1e2521; // 页面 / 区块大标题
+$text-primary: #202622; // 主文本
+$text-strong: #222924; // 金额等强文本
+$text-regular: #6c736b; // 常规次级文本
+$text-secondary: #98a099; // 辅助说明文本
+$text-placeholder: #8b938d; // 空态文本
+$text-inverse: #f1f7f3; // 深底上的主文本
+
+/* ---------- 圆角（rpx） ---------- */
+$radius-xxl: 44rpx; // 登录页头部底边
+$radius-xl: 28rpx; // 大卡 / 弹窗
+$radius-lg: 26rpx; // 统计白色面板
+$radius-card: 24rpx; // 列表 / 菜单白卡
+$radius-btn-lg: 22rpx; // 登录主按钮
+$radius-md: 18rpx; // 菜单图标砖 / 输入框
+$radius-sm: 16rpx; // 小卡 / 图标砖
+$radius-xs: 12rpx; // 勾选框
+
+/* ---------- 间距（rpx） ---------- */
+$space-page-x: 24rpx; // 页面左右常规边距
+$space-card-y: 28rpx; // 卡片纵向节奏
+$space-section: 32rpx; // 区块边距
+
+/* ---------- 渐变（现状共两套角度，均原样保留） ---------- */
+// 150deg：页面头部 / 卡片主渐变
+$gradient-header: linear-gradient(
+  150deg,
+  #175142 0%,
+  #0c3a2e 100%
+);
+// 160deg：详情 / 记账整页底色与票据缺口
+$gradient-page: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
+// 登录主按钮（浅端为 #1c6450）
+$gradient-submit: linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%);
+// 记账页保存按钮（90deg）
+$gradient-save: linear-gradient(90deg, #175142 0%, #246b56 100%);
+// 收入卡（150deg 陶土）
+$gradient-income: linear-gradient(150deg, #b5523e 0%, #913527 100%);
+// 柱状图
+$gradient-bar-expense: linear-gradient(180deg, #4fc794 0%, #2f6b54 100%);
+$gradient-bar-income: linear-gradient(180deg, #d97a66 0%, #b5523e 100%);
+// 进度条
+$gradient-progress: linear-gradient(90deg, #4fc794 0%, #93e7c4 100%);
+
+/* ---------- 常用 mixin ---------- */
+// 深松绿渐变圆角页头背景（各页几何尺寸仍在各自组件 / 页面内声明）
+@mixin page-header-gradient {
+  background: $gradient-header;
+}

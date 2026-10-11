@@ -10,8 +10,8 @@
  * @date 2026-09-15
  */
 
-import { UPDATE_CONFIG } from "./config";
-import { getDeviceId, getNetworkType, getCurrentVersion } from "./device";
+import { UPDATE_CONFIG } from './config'
+import { getDeviceId, getNetworkType, getCurrentVersion } from './device'
 
 /**
  * 上报单个升级事件
@@ -20,18 +20,18 @@ import { getDeviceId, getNetworkType, getCurrentVersion } from "./device";
  */
 export function reportEvent(event, extra = {}) {
   // #ifndef APP-PLUS
-  return;
+  return
   // #endif
 
   // #ifdef APP-PLUS
   try {
-    const { versionCode } = getCurrentVersion();
-    const sys = uni.getSystemInfoSync();
+    const { versionCode } = getCurrentVersion()
+    const sys = uni.getSystemInfoSync()
     uni.request({
       url: `${UPDATE_CONFIG.baseUrl}/app-updates/report`,
-      method: "POST",
+      method: 'POST',
       timeout: 5000,
-      header: { "Content-Type": "application/json" },
+      header: { 'Content-Type': 'application/json' },
       data: {
         deviceId: getDeviceId(),
         appKey: UPDATE_CONFIG.appKey,
@@ -39,12 +39,12 @@ export function reportEvent(event, extra = {}) {
         fromVersionCode: extra.fromVersionCode ?? versionCode,
         networkType: getNetworkType(),
         osVersion:
-          sys.osName && sys.osVersion ? `${sys.osName} ${sys.osVersion}` : "",
-        deviceModel: sys.deviceModel || sys.model || "",
+          sys.osName && sys.osVersion ? `${sys.osName} ${sys.osVersion}` : '',
+        deviceModel: sys.deviceModel || sys.model || '',
         ...extra,
       },
       fail: () => {},
-    });
+    })
   } catch (e) {
     // 静默
   }

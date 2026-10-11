@@ -16,15 +16,15 @@
  * @param {number} n 0-99 的整数
  * @returns {string} 两位字符串，如 9 -> '09'
  */
-export const pad = n => String(n).padStart(2, "0");
+export const pad = (n) => String(n).padStart(2, '0')
 
 /**
  * 当前年月
  * @returns {string} 形如 '2026-09'
  */
 export function currentMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
 }
 
 /**
@@ -32,7 +32,7 @@ export function currentMonth() {
  * @returns {string} 形如 '2026'
  */
 export function currentYear() {
-  return String(new Date().getFullYear());
+  return String(new Date().getFullYear())
 }
 
 /**
@@ -40,8 +40,8 @@ export function currentYear() {
  * @returns {string} 形如 '2026-09-14'
  */
 export function todayStr() {
-  const now = new Date();
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const now = new Date()
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
 /**
@@ -49,8 +49,8 @@ export function todayStr() {
  * @returns {string} 形如 '18:39'
  */
 export function nowTime() {
-  const now = new Date();
-  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const now = new Date()
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`
 }
 
 /**
@@ -59,7 +59,7 @@ export function nowTime() {
  * @returns {string} 形如 '2026-09-14'
  */
 export function formatDate(date) {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 }
 
 /**
@@ -68,10 +68,10 @@ export function formatDate(date) {
  * @returns {string} 形如 '9月14日'；入参非法时返回空串
  */
 export function formatMD(dateStr) {
-  if (!dateStr || typeof dateStr !== "string") return "";
-  const [, m, d] = dateStr.split("-");
-  if (!m || !d) return "";
-  return `${Number(m)}月${Number(d)}日`;
+  if (!dateStr || typeof dateStr !== 'string') return ''
+  const [, m, d] = dateStr.split('-')
+  if (!m || !d) return ''
+  return `${Number(m)}月${Number(d)}日`
 }
 
 /**
@@ -80,9 +80,9 @@ export function formatMD(dateStr) {
  * @returns {string} 形如 '2026年9月'；入参非法时返回空串
  */
 export function formatMonthCN(month) {
-  if (!month || typeof month !== "string") return "";
-  const [y, m] = month.split("-");
-  return `${y}年${Number(m)}月`;
+  if (!month || typeof month !== 'string') return ''
+  const [y, m] = month.split('-')
+  return `${y}年${Number(m)}月`
 }
 
 /**
@@ -91,17 +91,17 @@ export function formatMonthCN(month) {
  * @returns {number} 相差天数；入参为空或非法日期时返回 NaN
  */
 export function diffFromToday(dateStr) {
-  if (!dateStr) return NaN;
+  if (!dateStr) return NaN
   // 统一补 T00:00:00 截断到当天零点，消除时分秒与夏令时对整天差值的干扰
-  const target = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return NaN;
-  const today = new Date(`${formatDate(new Date())}T00:00:00`);
+  const target = new Date(`${dateStr}T00:00:00`)
+  if (Number.isNaN(target.getTime())) return NaN
+  const today = new Date(`${formatDate(new Date())}T00:00:00`)
   // 一天的毫秒数 86400000；round 兜底时区/夏令时造成的不足整天偏差
-  return Math.round((today.getTime() - target.getTime()) / 86400000);
+  return Math.round((today.getTime() - target.getTime()) / 86400000)
 }
 
 /** 星期中文名，下标与 Date.prototype.getDay() 返回值（0=周日）一一对应 */
-const WEEK_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+const WEEK_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 /**
  * 流水分组用的中文日标签：今天 / 昨天 / 周X
@@ -109,11 +109,11 @@ const WEEK_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", 
  * @returns {string} 今天 / 昨天 / 周X；入参非法时返回空串
  */
 export function dayLabel(dateStr) {
-  const diff = diffFromToday(dateStr);
-  if (diff === 0) return "今天";
-  if (diff === 1) return "昨天";
-  const d = new Date(`${dateStr}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? "" : WEEK_NAMES[d.getDay()];
+  const diff = diffFromToday(dateStr)
+  if (diff === 0) return '今天'
+  if (diff === 1) return '昨天'
+  const d = new Date(`${dateStr}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? '' : WEEK_NAMES[d.getDay()]
 }
 
 /**
@@ -123,7 +123,7 @@ export function dayLabel(dateStr) {
  * @returns {boolean} 前缀匹配即同月，避免 new Date 解析的跨端差异
  */
 export function isSameMonth(dateStr, month) {
-  return typeof dateStr === "string" && dateStr.startsWith(`${month}-`);
+  return typeof dateStr === 'string' && dateStr.startsWith(`${month}-`)
 }
 
 /**
@@ -133,7 +133,7 @@ export function isSameMonth(dateStr, month) {
  * @returns {string} 'YYYY-MM'
  */
 export function shiftMonth(month, offset) {
-  const [y, m] = String(month).split("-").map(Number);
-  const d = new Date(y, (m || 1) - 1 + offset, 1);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  const [y, m] = String(month).split('-').map(Number)
+  const d = new Date(y, (m || 1) - 1 + offset, 1)
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 }

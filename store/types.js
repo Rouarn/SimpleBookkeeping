@@ -7,6 +7,8 @@
  *              2. 统计派生：MonthSummary / FlowGroup / AggregateStat；
  *              3. 基础字典：CategoryMeta / Book / UserProfile / AppUIState；
  *              4. 基础设施：PersistOptions（持久化插件配置）。
+ *              注意：账单接口的传输模型 typedef（BillListItem / BillDetail /
+ *              BillPhoto / PageData）位于 api/bills.js，与后端 bill.vo.ts 对齐。
  *              在任意 js/vue 文件中通过 `@param {import('@/store/types').Bill}` 等方式引用。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
@@ -115,7 +117,7 @@
  * UI / 偏好状态（全部为轻量选择态，适合持久化）
  * @typedef {Object} AppUIState
  * @property {string} flowMonth           流水页选中月份 'YYYY-MM'
- * @property {string} flowType            流水页类型筛选
+ * @property {("all"|"expense"|"income")} flowType  流水页类型筛选 code（持久化只存 code，中文文案由 composable 映射；服务端参数 all→ALL）
  * @property {string} statsMonth          统计页选中月份 'YYYY-MM'
  * @property {string} statsYear           统计页选中年份 'YYYY'（年视图用）
  * @property {"month"|"year"} statsScope  统计页时间粒度：单月 / 整年
@@ -147,4 +149,4 @@
  * @property {Record<number, (saved: any) => any>} [migrations]  旧版本 -> 新版本的迁移函数表
  */
 
-export {};
+export {}

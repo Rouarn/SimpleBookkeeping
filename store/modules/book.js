@@ -10,12 +10,12 @@
  * @date 2026-09-14
  * @modify 2026-09-16
  */
-import { defineStore } from "pinia";
-import { ref, computed } from "vue";
-import { booksApi, dictionariesApi } from "@/api";
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { booksApi, dictionariesApi } from '@/api'
 
 /** 支付方式静态兜底元数据（接口未拉取或名称不匹配时） */
-const PAY_FALLBACK = { short: "其", color: "#8a8f9c", bg: "#f1f2f7" };
+const PAY_FALLBACK = { short: '其', color: '#8a8f9c', bg: '#f1f2f7' }
 
 /**
  * 把服务端支付方式字段映射为展示元数据
@@ -25,52 +25,51 @@ function toPayMeta(item) {
   return {
     id: item.id,
     name: item.name,
-    short: item.shortName || item.name?.slice(0, 1) || "其",
+    short: item.shortName || item.name?.slice(0, 1) || '其',
     color: item.color || PAY_FALLBACK.color,
     bg: item.bg || PAY_FALLBACK.bg,
-  };
+  }
 }
 
 export const useBookStore = defineStore(
-  "book",
+  'book',
   () => {
     /** @type {import('vue').Ref<import('@/store/types').Book[]>} */
-    const books = ref([]);
-    const activeBookId = ref("");
+    const books = ref([])
+    const activeBookId = ref('')
     /** 收付款方式选项（接口缓存） */
-    const payMethods = ref([]);
+    const payMethods = ref([])
+    /** 是否已拉取过账本列表（响应式加载标记，随 reset 复位） */
+    const booksLoaded = ref(false)
+    /** 是否已拉取过支付方式 */
+    const payLoaded = ref(false)
 
     const activeBook = computed(
       () =>
-        books.value.find(b => b.id === activeBookId.value) ||
-        books.value[0] || { id: "", name: "默认账本", budget: 0 },
-    );
-
-    /** 是否已拉取过账本列表 */
-    let booksLoaded = false;
-    /** 是否已拉取过支付方式 */
-    let payLoaded = false;
+        books.value.find((b) => b.id === activeBookId.value) ||
+        books.value[0] || { id: '', name: '默认账本', budget: 0 },
+    )
 
     /**
      * 拉取账本列表 + 当前激活账本
      * @param {boolean} [force=false]
      */
     async function fetchBooks(force = false) {
-      if (booksLoaded && !force) return;
+      if (booksLoaded.value && !force) return
       const [list, active] = await Promise.all([
         booksApi.list(),
         booksApi.getActive().catch(() => null),
-      ]);
+      ])
       // GET /books 返回 {list:[...]}；兼容直接数组形态
-      const arr = Array.isArray(list) ? list : list?.list || [];
-      books.value = arr.map(b => ({
+      const arr = Array.isArray(list) ? list : list?.list || []
+      books.value = arr.map((b) => ({
         id: b.id,
         name: b.name,
         budget: Number(b.budget) || 0,
-      }));
-      if (active && active.id) activeBookId.value = active.id;
-      else if (books.value[0]) activeBookId.value = books.value[0].id;
-      booksLoaded = true;
+      }))
+      if (active && active.id) activeBookId.value = active.id
+      else if (books.value[0]) activeBookId.value = books.value[0].id
+      booksLoaded.value = true
     }
 
     /**
@@ -78,10 +77,10 @@ export const useBookStore = defineStore(
      * @param {boolean} [force=false]
      */
     async function fetchPayMethods(force = false) {
-      if (payLoaded && !force) return;
-      const list = await dictionariesApi.getPayMethods();
-      payMethods.value = (list || []).map(toPayMeta);
-      payLoaded = true;
+      if (payLoaded.value && !force) return
+      const list = await dictionariesApi.getPayMethods()
+      payMethods.value = (list || []).map(toPayMeta)
+      payLoaded.value = true
     }
 
     /**
@@ -89,7 +88,7 @@ export const useBookStore = defineStore(
      * @returns {import('@/store/types').Book | undefined}
      */
     function getBook(id) {
-      return books.value.find(b => b.id === id);
+      return books.value.find((b) => b.id === id)
     }
 
     /**
@@ -97,10 +96,10 @@ export const useBookStore = defineStore(
      * @param {string} name
      */
     function getPayMeta(name) {
-      const found = payMethods.value.find(p => p.name === name);
+      const found = payMethods.value.find((p) => p.name === name)
       return found
         ? { short: found.short, color: found.color, bg: found.bg }
-        : { ...PAY_FALLBACK };
+        : { ...PAY_FALLBACK }
     }
 
     /**
@@ -108,9 +107,9 @@ export const useBookStore = defineStore(
      * @param {string} id
      */
     async function setActiveBook(id) {
-      if (!books.value.some(b => b.id === id)) return;
-      await booksApi.setActive({ bookId: id });
-      activeBookId.value = id;
+      if (!books.value.some((b) => b.id === id)) return
+      await booksApi.setActive({ bookId: id })
+      activeBookId.value = id
     }
 
     /**
@@ -120,13 +119,13 @@ export const useBookStore = defineStore(
      */
     async function addBook({ name, budget = 0 }) {
       const created = await booksApi.create({
-        name: String(name || "新账本").slice(0, 12),
+        name: String(name || '新账本').slice(0, 12),
         budget: Math.max(0, Number(budget) || 0),
-      });
+      })
       // 主动刷新本地缓存
-      booksLoaded = false;
-      await fetchBooks(true);
-      return created;
+      booksLoaded.value = false
+      await fetchBooks(true)
+      return created
     }
 
     /**
@@ -135,18 +134,18 @@ export const useBookStore = defineStore(
      * @param {Partial<Pick<import('@/store/types').Book,'name'|'budget'>>} patch
      */
     async function updateBook(id, patch) {
-      const payload = {};
-      if (typeof patch.name === "string" && patch.name.trim()) {
-        payload.name = patch.name.trim().slice(0, 12);
+      const payload = {}
+      if (typeof patch.name === 'string' && patch.name.trim()) {
+        payload.name = patch.name.trim().slice(0, 12)
       }
       if (patch.budget !== undefined) {
-        payload.budget = Math.max(0, Number(patch.budget) || 0);
+        payload.budget = Math.max(0, Number(patch.budget) || 0)
       }
-      await booksApi.update(id, payload);
-      const book = getBook(id);
+      await booksApi.update(id, payload)
+      const book = getBook(id)
       if (book) {
-        if (payload.name) book.name = payload.name;
-        if (payload.budget !== undefined) book.budget = payload.budget;
+        if (payload.name) book.name = payload.name
+        if (payload.budget !== undefined) book.budget = payload.budget
       }
     }
 
@@ -155,22 +154,24 @@ export const useBookStore = defineStore(
      * @param {number} budget
      */
     async function setBudget(budget) {
-      await updateBook(activeBook.value.id, { budget });
+      await updateBook(activeBook.value.id, { budget })
     }
 
     /** 重置本地缓存与加载标记（退出登录时调用） */
     function reset() {
-      books.value = [];
-      activeBookId.value = "";
-      payMethods.value = [];
-      booksLoaded = false;
-      payLoaded = false;
+      books.value = []
+      activeBookId.value = ''
+      payMethods.value = []
+      booksLoaded.value = false
+      payLoaded.value = false
     }
 
     return {
       books,
       activeBookId,
       payMethods,
+      booksLoaded,
+      payLoaded,
       activeBook,
       fetchBooks,
       fetchPayMethods,
@@ -181,8 +182,8 @@ export const useBookStore = defineStore(
       updateBook,
       setBudget,
       reset,
-    };
+    }
   },
   // 数据来源为服务端，不启用本地持久化
   { persist: false },
-);
+)

@@ -24,8 +24,16 @@
     >
       <!-- 深松绿引导头 -->
       <view class="upd-hero">
-        <view class="upd-decor upd-decor-arc"></view>
-        <view class="upd-decor upd-decor-circle"></view>
+        <!-- 铜钱纹同心环（外环 340 .10 / 中环 230 .14，几何同原两环；
+             根节点定位仍由 .upd-decor-arc 提供：right:-130rpx;top:-150rpx） -->
+        <DecorRing
+          class="upd-decor-arc"
+          :size="340"
+          :middle="230"
+          :inner="0"
+          :outer-opacity="0.1"
+          :middle-opacity="0.14"
+        />
 
         <view
           v-if="!state.info?.forceUpdate && !state.downloading"
@@ -55,7 +63,7 @@
           </view>
           <scroll-view scroll-y class="upd-log-scroll">
             <text class="upd-log-text">{{
-              state.info?.updateLog || "性能优化与问题修复，建议立即更新。"
+              state.info?.updateLog || '性能优化与问题修复，建议立即更新。'
             }}</text>
           </scroll-view>
         </view>
@@ -132,14 +140,14 @@
 </template>
 
 <script setup>
-import { useAppUpdate } from "@/composables/use-app-update";
+import { useAppUpdate } from '@/composables/use-app-update'
 
-const { state, startDownload, retry, dismiss, exitApp } = useAppUpdate();
+const { state, startDownload, retry, dismiss, exitApp } = useAppUpdate()
 
 /** 字节数格式化为 MB 展示 */
 function formatSize(bytes) {
-  if (!bytes) return "未知";
-  return (bytes / 1024 / 1024).toFixed(1) + " MB";
+  if (!bytes) return '未知'
+  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
 }
 </script>
 
@@ -177,32 +185,14 @@ function formatSize(bytes) {
   flex-direction: column;
   align-items: center;
   padding: 44rpx 40rpx 34rpx;
-  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
+  background: $gradient-header;
   overflow: hidden;
 }
 
-.upd-decor {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  background: transparent;
-}
-
-// 铜钱纹同心环：与首页统计卡同一装饰语言
+// 铜钱纹同心环：DecorRing 根节点定位（环体样式内聚在组件内，与原两圆基本同心）
 .upd-decor-arc {
-  width: 340rpx;
-  height: 340rpx;
   right: -130rpx;
   top: -150rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.1);
-}
-
-.upd-decor-circle {
-  width: 230rpx;
-  height: 230rpx;
-  right: -75rpx;
-  top: -96rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.14);
 }
 
 // 关闭按钮
@@ -242,7 +232,7 @@ function formatSize(bytes) {
   margin-top: 24rpx;
   font-size: 36rpx;
   font-weight: 700;
-  color: #f1f7f3;
+  color: $text-inverse;
   letter-spacing: 1rpx;
 }
 
@@ -302,7 +292,7 @@ function formatSize(bytes) {
   height: 26rpx;
   border-radius: 4rpx;
   margin-right: 12rpx;
-  background: #175142;
+  background: $color-primary-deep;
 }
 
 .upd-log-scroll {
@@ -356,7 +346,7 @@ function formatSize(bytes) {
 .upd-progress-pct {
   font-size: 30rpx;
   font-weight: 700;
-  color: #175142;
+  color: $color-primary-deep;
   font-variant-numeric: tabular-nums;
 }
 
@@ -370,7 +360,7 @@ function formatSize(bytes) {
 .upd-progress-fill {
   height: 100%;
   border-radius: 8rpx;
-  background: linear-gradient(90deg, #4fc794 0%, #93e7c4 100%);
+  background: $gradient-progress;
   transition: width 0.2s;
 }
 
@@ -398,7 +388,7 @@ function formatSize(bytes) {
   margin-top: 24rpx;
   padding: 18rpx 22rpx;
   border-radius: 16rpx;
-  background: #fcebe8;
+  background: $color-danger-bg;
 }
 
 .upd-error-badge {
@@ -410,7 +400,7 @@ function formatSize(bytes) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #d54e3c;
+  background: $color-danger;
   color: #ffffff;
   font-size: 22rpx;
   font-weight: 700;
@@ -459,7 +449,7 @@ function formatSize(bytes) {
   margin: 0;
   padding: 0;
   border-radius: 20rpx;
-  background: #175142;
+  background: $color-primary-deep;
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 700;

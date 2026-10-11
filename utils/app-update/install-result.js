@@ -8,25 +8,25 @@
  * @date 2026-09-15
  */
 
-import { getCurrentVersion } from "./device";
-import { reportEvent } from "./reporter";
+import { getCurrentVersion } from './device'
+import { reportEvent } from './reporter'
 
-const PENDING_INSTALL_KEY = "app_update_pending_install_code";
+const PENDING_INSTALL_KEY = 'app_update_pending_install_code'
 
 /** 新版本首次启动时调用：回补安装成功事件，无标记时直接返回 */
 export function reportInstallResult() {
   // #ifndef APP-PLUS
-  return;
+  return
   // #endif
 
   // #ifdef APP-PLUS
-  const pending = Number(uni.getStorageSync(PENDING_INSTALL_KEY) || 0);
-  if (!pending) return;
-  const { versionCode } = getCurrentVersion();
+  const pending = Number(uni.getStorageSync(PENDING_INSTALL_KEY) || 0)
+  if (!pending) return
+  const { versionCode } = getCurrentVersion()
   if (versionCode >= pending) {
-    reportEvent("install_success", { toVersionCode: versionCode });
-    reportEvent("new_version_launch", { toVersionCode: versionCode });
-    uni.removeStorageSync(PENDING_INSTALL_KEY);
+    reportEvent('install_success', { toVersionCode: versionCode })
+    reportEvent('new_version_launch', { toVersionCode: versionCode })
+    uni.removeStorageSync(PENDING_INSTALL_KEY)
   }
   // #endif
 }

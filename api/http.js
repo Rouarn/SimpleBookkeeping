@@ -11,7 +11,9 @@
  *                 refresh token，不误清登录态，由调用方按网络错误提示并重试；
  *              5) 错误码统一 toast：42900/42901「操作过于频繁」、5xx「服务繁忙」、网络异常；
  *              6) multipart 上传统一走 upload()：与 request 同一鉴权闸门与
- *                 401 单飞重试语义。
+ *                 401 单飞重试语义；
+ *              7) 失败一律 reject ApiError（Error 子类，保留 code/raw 属性，
+ *                 与历史裸对象 {code,message,raw} 形状兼容）。
  *              注意：服务端 refresh token「轮换 + 重放即连坐吊销」，故同进程内
  *              必须严格单飞（refreshing 锁 + 启动引导 Promise），避免重复使用旧 rt。
  *              与 utils/app-update/* 内的 http 模块完全独立，互不耦合。
@@ -23,17 +25,38 @@ import {
   getRefreshToken,
   setTokens,
   ensureLoggedIn,
-} from "@/utils/auth";
-import { API_BASE } from "@/config/env";
+} from '@/utils/auth'
+import { API_BASE } from '@/config/env'
 
 /** 服务端基地址（统一来自 config/env.js，生产强制 HTTPS） */
-export const BASE_URL = API_BASE;
+export const BASE_URL = API_BASE
+
+/**
+ * 统一 API 错误类型（Error 子类）
+ * 与历史 reject 裸对象 {code,message,raw} 形状完全兼容：
+ * - code：业务错误码（信封 body.code）、HTTP 状态码，或 -1（网络异常）；
+ * - raw：原始响应 / 底层错误对象，供调用方按需取细节；
+ * - message：可直接 toast 的错误文案（Error 原生属性）；
+ * - name 固定为 'ApiError'，catch 中可用 instanceof ApiError 精确判断。
+ */
+export class ApiError extends Error {
+  /**
+   * @param {string} message 错误文案
+   * @param {{code?: number, raw?: any}} [options] code 错误码；raw 原始响应/错误
+   */
+  constructor(message, { code, raw } = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.code = code
+    this.raw = raw
+  }
+}
 
 /** 全局 API 前缀 */
-const API_PREFIX = "/api/v1";
+const API_PREFIX = '/api/v1'
 
 /** 文件访问路径前缀（与服务端 FilesController 一致） */
-const FILES_PATH = "/api/v1/files/";
+const FILES_PATH = '/api/v1/files/'
 
 /**
  * 归一化服务端返回的文件 URL：若 URL 的 host/port 与客户端 BASE_URL 不一致
@@ -43,28 +66,28 @@ const FILES_PATH = "/api/v1/files/";
  * @returns {string} 客户端可访问的 URL
  */
 export function normalizeFileUrl(url) {
-  if (!url || typeof url !== "string") return url;
-  const idx = url.indexOf(FILES_PATH);
-  if (idx === -1) return url;
-  const tail = url.slice(idx); // /api/v1/files/bills/...?e=...&sign=...
-  return `${BASE_URL}${tail}`;
+  if (!url || typeof url !== 'string') return url
+  const idx = url.indexOf(FILES_PATH)
+  if (idx === -1) return url
+  const tail = url.slice(idx) // /api/v1/files/bills/...?e=...&sign=...
+  return `${BASE_URL}${tail}`
 }
 
 /** 免鉴权路径前缀（白名单，命中即不注入 Authorization） */
-const WHITELIST = ["/auth/register", "/auth/login", "/auth/refresh"];
+const WHITELIST = ['/auth/register', '/auth/login', '/auth/refresh']
 
 /** 是否在刷新中（避免并发多次 refresh） */
-let refreshing = false;
+let refreshing = false
 
 /** 等待 refresh 完成的请求队列（刷新成功后依次重试） */
-let pendingQueue = [];
+let pendingQueue = []
 
 /**
  * 路径是否在免鉴权白名单（按 path 片段匹配，避免 query 干扰）
  * @param {string} path 形如 "/auth/login"
  */
 function isWhitelisted(path) {
-  return WHITELIST.some(prefix => path.startsWith(prefix));
+  return WHITELIST.some((prefix) => path.startsWith(prefix))
 }
 
 /**
@@ -72,9 +95,9 @@ function isWhitelisted(path) {
  * @param {string} path 形如 "/bills" 或 "/bills/abc"
  */
 function buildUrl(path) {
-  if (/^https?:\/\//.test(path)) return path;
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return `${BASE_URL}${API_PREFIX}${p}`;
+  if (/^https?:\/\//.test(path)) return path
+  const p = path.startsWith('/') ? path : `/${path}`
+  return `${BASE_URL}${API_PREFIX}${p}`
 }
 
 /**
@@ -82,9 +105,9 @@ function buildUrl(path) {
  * @param {string} title
  * @param {"none"|"success"|"error"} [icon]
  */
-function toast(title, icon = "none") {
-  if (!title) return;
-  uni.showToast({ title, icon, duration: 2000 });
+function toast(title, icon = 'none') {
+  if (!title) return
+  uni.showToast({ title, icon, duration: 2000 })
 }
 
 /**
@@ -99,39 +122,39 @@ function toast(title, icon = "none") {
  */
 function doRefresh() {
   if (refreshing) {
-    return new Promise(resolve => pendingQueue.push(resolve));
+    return new Promise((resolve) => pendingQueue.push(resolve))
   }
-  refreshing = true;
-  const rt = getRefreshToken();
+  refreshing = true
+  const rt = getRefreshToken()
   if (!rt) {
-    refreshing = false;
-    pendingQueue.forEach(r => r("invalid"));
-    pendingQueue = [];
-    return Promise.resolve("invalid");
+    refreshing = false
+    pendingQueue.forEach((r) => r('invalid'))
+    pendingQueue = []
+    return Promise.resolve('invalid')
   }
   /** 统一结算等待队列与本次 Promise */
-  const settle = resolve => status => {
-    pendingQueue.forEach(r => r(status));
-    pendingQueue = [];
-    resolve(status);
-  };
-  return new Promise(resolve => {
-    const done = settle(resolve);
+  const settle = (resolve) => (status) => {
+    pendingQueue.forEach((r) => r(status))
+    pendingQueue = []
+    resolve(status)
+  }
+  return new Promise((resolve) => {
+    const done = settle(resolve)
     uni.request({
       url: `${BASE_URL}${API_PREFIX}/auth/refresh`,
-      method: "POST",
+      method: 'POST',
       data: { refreshToken: rt },
       timeout: 15000,
-      success: res => {
-        const body = res.data || {};
+      success: (res) => {
+        const body = res.data || {}
         if (res.statusCode >= 200 && res.statusCode < 300 && body.code === 0) {
-          const tokens = body.data || {};
+          const tokens = body.data || {}
           setTokens({
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
-          });
-          done("ok");
-          return;
+          })
+          done('ok')
+          return
         }
         // 服务端明确表示凭证失效（refresh 缺失/非法/过期/已吊销）
         if (
@@ -139,18 +162,18 @@ function doRefresh() {
           body.code === 40100 ||
           body.code === 40102
         ) {
-          done("invalid");
+          done('invalid')
         } else {
           // 429 / 5xx 等：不认定登录态失效，保留 rt 以便下次重试
-          done("unavailable");
+          done('unavailable')
         }
       },
-      fail: () => done("unavailable"),
+      fail: () => done('unavailable'),
       complete: () => {
-        refreshing = false;
+        refreshing = false
       },
-    });
-  });
+    })
+  })
 }
 
 /**
@@ -162,16 +185,16 @@ function doRefresh() {
  * unavailable 后下次调用可用保留的 rt 重新尝试。
  * @returns {Promise<'ok'|'invalid'|'unavailable'>}
  */
-let bootPromise = null;
+let bootPromise = null
 export function ensureAccessToken() {
-  if (getAccessToken()) return Promise.resolve("ok");
-  if (!getRefreshToken()) return Promise.resolve("invalid");
+  if (getAccessToken()) return Promise.resolve('ok')
+  if (!getRefreshToken()) return Promise.resolve('invalid')
   if (!bootPromise) {
     bootPromise = doRefresh().finally(() => {
-      bootPromise = null;
-    });
+      bootPromise = null
+    })
   }
-  return bootPromise;
+  return bootPromise
 }
 
 /**
@@ -180,8 +203,8 @@ export function ensureAccessToken() {
  * @returns {string} 形如 "/auth/login"
  */
 function resolveApiPath(url) {
-  const path = url.replace(/^https?:\/\/[^/]+/, "");
-  return path.startsWith(API_PREFIX) ? path.slice(API_PREFIX.length) : path;
+  const path = url.replace(/^https?:\/\/[^/]+/, '')
+  return path.startsWith(API_PREFIX) ? path.slice(API_PREFIX.length) : path
 }
 
 /**
@@ -196,14 +219,14 @@ function resolveApiPath(url) {
  * @returns {Promise<any>} 解包后的 data
  */
 function requestOnce(opts) {
-  const url = buildUrl(opts.url);
-  const method = (opts.method || "GET").toUpperCase();
-  const header = { ...(opts.header || {}) };
+  const url = buildUrl(opts.url)
+  const method = (opts.method || 'GET').toUpperCase()
+  const header = { ...(opts.header || {}) }
 
   // 注入 Authorization（白名单跳过；正常情况下闸门已保证此处持有 access）
   if (!isWhitelisted(resolveApiPath(opts.url))) {
-    const token = getAccessToken();
-    if (token) header.Authorization = `Bearer ${token}`;
+    const token = getAccessToken()
+    if (token) header.Authorization = `Bearer ${token}`
   }
 
   return new Promise((resolve, reject) => {
@@ -213,52 +236,50 @@ function requestOnce(opts) {
       data: opts.data,
       header,
       timeout: opts.timeout || 15000,
-      success: res => {
+      success: (res) => {
         // 非 2xx：优先解析信封 body.code（401 判定依赖 40100/40101，
         // 仅凭 statusCode 会把 40101 过期误判成普通失败，静默刷新失效）
         if (res.statusCode < 200 || res.statusCode >= 300) {
-          let body = res.data;
-          if (typeof body === "string") {
+          let body = res.data
+          if (typeof body === 'string') {
             try {
-              body = JSON.parse(body || "{}");
-            } catch (e) {
-              body = {};
+              body = JSON.parse(body || '{}')
+            } catch {
+              body = {}
             }
           }
-          body = body && typeof body === "object" ? body : {};
-          reject({
-            code: typeof body.code === "number" ? body.code : res.statusCode,
-            message: body.message || `请求失败(${res.statusCode})`,
-            raw: res,
-          });
-          return;
+          body = body && typeof body === 'object' ? body : {}
+          reject(
+            new ApiError(body.message || `请求失败(${res.statusCode})`, {
+              code: typeof body.code === 'number' ? body.code : res.statusCode,
+              raw: res,
+            }),
+          )
+          return
         }
         if (opts.rawResponse) {
-          resolve(res);
-          return;
+          resolve(res)
+          return
         }
-        const body = res.data || {};
+        const body = res.data || {}
         // 成功：code === 0
         if (body.code === 0) {
-          resolve(body.data === undefined ? null : body.data);
-          return;
+          resolve(body.data === undefined ? null : body.data)
+          return
         }
         // 业务错误
-        reject({
-          code: body.code,
-          message: body.message || "请求失败",
-          raw: body,
-        });
+        reject(
+          new ApiError(body.message || '请求失败', {
+            code: body.code,
+            raw: body,
+          }),
+        )
       },
-      fail: err => {
-        reject({
-          code: -1,
-          message: "网络异常",
-          raw: err,
-        });
+      fail: (err) => {
+        reject(new ApiError('网络异常', { code: -1, raw: err }))
       },
-    });
-  });
+    })
+  })
 }
 
 /**
@@ -266,19 +287,19 @@ function requestOnce(opts) {
  * @param {{code:number,message:string}} err
  */
 function handleBusinessError(err) {
-  const code = err.code;
+  const code = err.code
   if (code === 42900 || code === 42901) {
-    toast("操作过于频繁，请稍后再试");
+    toast('操作过于频繁，请稍后再试')
   } else if (code === 40100 || code === 40102) {
     // 40100 未登录/登录失效（无法静默刷新时）、40102 refresh 失效：
     // 清登录态并跳转登录页（ensureLoggedIn 内部去重，不弹 toast）
-    ensureLoggedIn(true);
+    ensureLoggedIn(true)
   } else if (code >= 500 && code < 600) {
-    toast("服务繁忙，请稍后重试");
+    toast('服务繁忙，请稍后重试')
   } else if (code === -1) {
-    toast("网络异常，请检查网络");
+    toast('网络异常，请检查网络')
   } else if (err.message) {
-    toast(err.message);
+    toast(err.message)
   }
 }
 
@@ -296,21 +317,21 @@ function handleBusinessError(err) {
 export async function request(opts) {
   // —— 冷启动 / 鉴权引导闸门 ——
   if (!isWhitelisted(resolveApiPath(opts.url))) {
-    const status = await ensureAccessToken();
-    if (status === "invalid") {
-      ensureLoggedIn(true);
-      throw { code: 40100, message: "未登录或登录已失效" };
+    const status = await ensureAccessToken()
+    if (status === 'invalid') {
+      ensureLoggedIn(true)
+      throw new ApiError('未登录或登录已失效', { code: 40100 })
     }
-    if (status === "unavailable") {
+    if (status === 'unavailable') {
       // 刷新都没完成（断网/服务暂不可用），不发必然 401 的请求，保留 rt 待恢复
-      const err = { code: -1, message: "网络异常" };
-      handleBusinessError(err);
-      throw err;
+      const err = new ApiError('网络异常', { code: -1 })
+      handleBusinessError(err)
+      throw err
     }
   }
 
   try {
-    return await requestOnce(opts);
+    return await requestOnce(opts)
   } catch (err) {
     // 运行中 access 缺失/非法（40100）或过期（40101）：有 rt 才尝试刷新重试
     if (
@@ -318,27 +339,27 @@ export async function request(opts) {
       (err.code === 40100 || err.code === 40101) &&
       getRefreshToken()
     ) {
-      const status = await doRefresh();
-      if (status === "ok") {
+      const status = await doRefresh()
+      if (status === 'ok') {
         try {
-          return await requestOnce(opts);
+          return await requestOnce(opts)
         } catch (err2) {
           // 新 access 仍被拒（如账号已不存在/冻结边缘情况）：按错误码兜底
-          handleBusinessError(err2);
-          throw err2;
+          handleBusinessError(err2)
+          throw err2
         }
       }
-      if (status === "invalid") {
+      if (status === 'invalid') {
         // 凭证被服务端明确否决：清登录态跳登录页
-        ensureLoggedIn(true);
-        throw err;
+        ensureLoggedIn(true)
+        throw err
       }
       // unavailable：保留登录态，按普通错误提示，稍后可重试
-      handleBusinessError(err);
-      throw err;
+      handleBusinessError(err)
+      throw err
     }
-    handleBusinessError(err);
-    throw err;
+    handleBusinessError(err)
+    throw err
   }
 }
 
@@ -359,15 +380,15 @@ export async function request(opts) {
  */
 export async function upload(opts) {
   // —— 冷启动 / 鉴权引导闸门（与 request 一致）——
-  const status = await ensureAccessToken();
-  if (status === "invalid") {
-    ensureLoggedIn(true);
-    throw { code: 40100, message: "未登录或登录已失效" };
+  const status = await ensureAccessToken()
+  if (status === 'invalid') {
+    ensureLoggedIn(true)
+    throw new ApiError('未登录或登录已失效', { code: 40100 })
   }
-  if (status === "unavailable") {
-    const err = { code: -1, message: "网络异常" };
-    handleBusinessError(err);
-    throw err;
+  if (status === 'unavailable') {
+    const err = new ApiError('网络异常', { code: -1 })
+    handleBusinessError(err)
+    throw err
   }
 
   const doUpload = () =>
@@ -375,40 +396,41 @@ export async function upload(opts) {
       uni.uploadFile({
         url: buildUrl(opts.url),
         filePath: opts.filePath,
-        name: opts.name || "file",
+        name: opts.name || 'file',
         formData: opts.formData,
         header: { Authorization: `Bearer ${getAccessToken()}` },
         timeout: opts.timeout || 60000,
-        success: res => {
-          let body = res.data;
-          if (typeof body === "string") {
+        success: (res) => {
+          let body = res.data
+          if (typeof body === 'string') {
             try {
-              body = JSON.parse(body || "{}");
-            } catch (e) {
-              body = {};
+              body = JSON.parse(body || '{}')
+            } catch {
+              body = {}
             }
           }
-          body = body && typeof body === "object" ? body : {};
+          body = body && typeof body === 'object' ? body : {}
           if (
             res.statusCode >= 200 &&
             res.statusCode < 300 &&
             body.code === 0
           ) {
-            resolve(body.data === undefined ? null : body.data);
-            return;
+            resolve(body.data === undefined ? null : body.data)
+            return
           }
-          reject({
-            code: typeof body.code === "number" ? body.code : res.statusCode,
-            message: body.message || `上传失败(${res.statusCode})`,
-            raw: res,
-          });
+          reject(
+            new ApiError(body.message || `上传失败(${res.statusCode})`, {
+              code: typeof body.code === 'number' ? body.code : res.statusCode,
+              raw: res,
+            }),
+          )
         },
-        fail: err => reject({ code: -1, message: "网络异常", raw: err }),
-      });
-    });
+        fail: (err) => reject(new ApiError('网络异常', { code: -1, raw: err })),
+      })
+    })
 
   try {
-    return await doUpload();
+    return await doUpload()
   } catch (err) {
     // access 运行中失效/过期：有 rt 才刷新重试一次（与 request 语义一致）
     if (
@@ -416,15 +438,15 @@ export async function upload(opts) {
       (err.code === 40100 || err.code === 40101) &&
       getRefreshToken()
     ) {
-      const st = await doRefresh();
-      if (st === "ok") return doUpload();
-      if (st === "invalid") {
-        ensureLoggedIn(true);
-        throw err;
+      const st = await doRefresh()
+      if (st === 'ok') return doUpload()
+      if (st === 'invalid') {
+        ensureLoggedIn(true)
+        throw err
       }
     }
-    handleBusinessError(err);
-    throw err;
+    handleBusinessError(err)
+    throw err
   }
 }
 
@@ -432,11 +454,11 @@ export async function upload(opts) {
  * 便捷方法
  */
 export const http = {
-  get: (url, data, opts) => request({ ...opts, url, method: "GET", data }),
-  post: (url, data, opts) => request({ ...opts, url, method: "POST", data }),
-  put: (url, data, opts) => request({ ...opts, url, method: "PUT", data }),
-  patch: (url, data, opts) => request({ ...opts, url, method: "PATCH", data }),
-  del: (url, data, opts) => request({ ...opts, url, method: "DELETE", data }),
-};
+  get: (url, data, opts) => request({ ...opts, url, method: 'GET', data }),
+  post: (url, data, opts) => request({ ...opts, url, method: 'POST', data }),
+  put: (url, data, opts) => request({ ...opts, url, method: 'PUT', data }),
+  patch: (url, data, opts) => request({ ...opts, url, method: 'PATCH', data }),
+  del: (url, data, opts) => request({ ...opts, url, method: 'DELETE', data }),
+}
 
-export default http;
+export default http

@@ -1,109 +1,115 @@
 {
-    "name" : "小绿记账",
-    "appid" : "__UNI__195FC35",
-    "description" : "清新绿色风极简记账 APP",
-    "versionName" : "1.0.3",
-    "versionCode" : 103,
-    "transformPx" : false,
-    "app-plus" : {
-        /* 5+App特有相关 */
-        "usingComponents" : true,
-        "nvueCompiler" : "uni-app",
-        "nvueStyleCompiler" : "uni-app",
-        "splashscreen" : {
-            "alwaysShowBeforeRender" : true,
-            "waiting" : true,
-            "autoclose" : true,
-            "delay" : 0
-        },
-        "modules" : {
-            "Camera" : {}
-        },
-        /* 模块配置 */
-        "distribute" : {
-            /* 应用发布信息 */
-            "android" : {
-                /* android打包配置 */
-                /* 权限最小化：仅保留 更新安装/网络状态/拍照/相册读取 四类，
+  "name": "小绿记账",
+  "appid": "__UNI__195FC35",
+  "description": "清新绿色风极简记账 APP",
+  "versionName": "1.0.3",
+  "versionCode": 103,
+  "transformPx": false,
+  "app-plus": {
+    /* 5+App特有相关 */
+    "usingComponents": true,
+    "nvueCompiler": "uni-app",
+    "nvueStyleCompiler": "uni-app",
+    "splashscreen": {
+      "alwaysShowBeforeRender": true,
+      "waiting": true,
+      "autoclose": true,
+      "delay": 0
+    },
+    "modules": {
+      "Camera": {}
+    },
+    /* 模块配置 */
+    "distribute": {
+      /* 应用发布信息 */
+      "android": {
+        /* android打包配置 */
+        /* 权限最小化：仅保留 更新安装/网络状态/拍照/相册读取 四类，
                    避免 READ_PHONE_STATE、MANAGE_EXTERNAL_STORAGE 等敏感权限
                    触发应用市场审核与用户信任问题 */
-                "permissions" : [
-                    "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
-                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
-                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
-                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera\"/>",
-                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>"
-                ]
-            },
-            "ios" : {
-                "dSYMs" : false
-            },
-            /* ios打包配置 */
-            "sdkConfigs" : {
-                "push" : {}
-            },
-            "icons" : {
-                "android" : {
-                    "hdpi" : "unpackage/res/icons/72x72.png",
-                    "xhdpi" : "unpackage/res/icons/96x96.png",
-                    "xxhdpi" : "unpackage/res/icons/144x144.png",
-                    "xxxhdpi" : "unpackage/res/icons/192x192.png"
-                },
-                "ios" : {
-                    "appstore" : "unpackage/res/icons/1024x1024.png",
-                    "ipad" : {
-                        "app" : "unpackage/res/icons/76x76.png",
-                        "app@2x" : "unpackage/res/icons/152x152.png",
-                        "notification" : "unpackage/res/icons/20x20.png",
-                        "notification@2x" : "unpackage/res/icons/40x40.png",
-                        "proapp@2x" : "unpackage/res/icons/167x167.png",
-                        "settings" : "unpackage/res/icons/29x29.png",
-                        "settings@2x" : "unpackage/res/icons/58x58.png",
-                        "spotlight" : "unpackage/res/icons/40x40.png",
-                        "spotlight@2x" : "unpackage/res/icons/80x80.png"
-                    },
-                    "iphone" : {
-                        "app@2x" : "unpackage/res/icons/120x120.png",
-                        "app@3x" : "unpackage/res/icons/180x180.png",
-                        "notification@2x" : "unpackage/res/icons/40x40.png",
-                        "notification@3x" : "unpackage/res/icons/60x60.png",
-                        "settings@2x" : "unpackage/res/icons/58x58.png",
-                        "settings@3x" : "unpackage/res/icons/87x87.png",
-                        "spotlight@2x" : "unpackage/res/icons/80x80.png",
-                        "spotlight@3x" : "unpackage/res/icons/120x120.png"
-                    }
-                }
-            },
-            "splashscreen" : {
-                "androidStyle" : "default",
-                "android" : {
-                    "hdpi" : "static/other/09.png",
-                    "xhdpi" : "static/other/09.png",
-                    "xxhdpi" : "static/other/09.png"
-                }
-            }
-        }
-    },
-    /* SDK配置 */
-    "quickapp" : {},
-    /* 快应用特有相关 */
-    "mp-weixin" : {
-        /* 小程序特有相关 */
-        "appid" : "",
-        "setting" : {
-            "urlCheck" : false,
-            "es6" : false,
-            "minified" : false
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+          "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+          "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
+          "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\"/>",
+          "<uses-feature android:name=\"android.hardware.camera\"/>",
+          "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>"
+        ]
+      },
+      "ios": {
+        "dSYMs": false
+      },
+      /* ios打包配置 */
+      "sdkConfigs": {
+        "push": {}
+      },
+      "icons": {
+        "android": {
+          "hdpi": "unpackage/res/icons/72x72.png",
+          "xhdpi": "unpackage/res/icons/96x96.png",
+          "xxhdpi": "unpackage/res/icons/144x144.png",
+          "xxxhdpi": "unpackage/res/icons/192x192.png"
         },
-        "usingComponents" : true
-    },
-    "vueVersion" : "3",
-    "locale" : "auto",
-    "fallbackLocale" : "zh-Hans",
-    "uniStatistics" : {
-        "enable" : false,
-        "debug" : false
+        "ios": {
+          "appstore": "unpackage/res/icons/1024x1024.png",
+          "ipad": {
+            "app": "unpackage/res/icons/76x76.png",
+            "app@2x": "unpackage/res/icons/152x152.png",
+            "notification": "unpackage/res/icons/20x20.png",
+            "notification@2x": "unpackage/res/icons/40x40.png",
+            "proapp@2x": "unpackage/res/icons/167x167.png",
+            "settings": "unpackage/res/icons/29x29.png",
+            "settings@2x": "unpackage/res/icons/58x58.png",
+            "spotlight": "unpackage/res/icons/40x40.png",
+            "spotlight@2x": "unpackage/res/icons/80x80.png"
+          },
+          "iphone": {
+            "app@2x": "unpackage/res/icons/120x120.png",
+            "app@3x": "unpackage/res/icons/180x180.png",
+            "notification@2x": "unpackage/res/icons/40x40.png",
+            "notification@3x": "unpackage/res/icons/60x60.png",
+            "settings@2x": "unpackage/res/icons/58x58.png",
+            "settings@3x": "unpackage/res/icons/87x87.png",
+            "spotlight@2x": "unpackage/res/icons/80x80.png",
+            "spotlight@3x": "unpackage/res/icons/120x120.png"
+          }
+        }
+      },
+      "splashscreen": {
+        "androidStyle": "default",
+        "android": {
+          "hdpi": "static/other/09.png",
+          "xhdpi": "static/other/09.png",
+          "xxhdpi": "static/other/09.png"
+        }
+      }
     }
+  },
+  /* SDK配置 */
+  "quickapp": {},
+  /* 快应用特有相关 */
+  "mp-weixin": {
+    /* 小程序特有相关 */
+    "appid": "",
+    "setting": {
+      /* 发布配置：ES6 转 ES5、压缩代码、校验合法域名；
+               开发期临时关闭校验/压缩的设置不得带入发布，三项统一置为 true */
+      "es6": true,
+      "minified": true,
+      "urlCheck": true
+      /* 域名白名单须在微信公众平台「开发管理-开发设置-服务器域名」中配置，
+               且微信小程序只允许 HTTPS：request/uploadFile 配 xl.shixian.xyz
+               （API 与文件服务），downloadFile 配 static.shixian.xyz
+               （静态资源与在线更新包）；未配置的域名在真机/体验版/正式版会被拦截 */
+    },
+    "usingComponents": true
+  },
+  "vueVersion": "3",
+  "locale": "auto",
+  "fallbackLocale": "zh-Hans",
+  "uniStatistics": {
+    "enable": false,
+    "debug": false
+  }
 }

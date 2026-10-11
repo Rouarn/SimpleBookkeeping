@@ -8,24 +8,25 @@
  * @date 2026-09-14
  * @modify 2026-09-14
  */
-import { createPinia } from "pinia";
-import {
-  createPersistPlugin,
-  clearPersistedState,
-  STORAGE_PREFIX,
-} from "./persist";
+import { createPinia } from 'pinia'
+import { createPersistPlugin, STORAGE_PREFIX } from './persist'
 
-const pinia = createPinia();
-pinia.use(createPersistPlugin());
+const pinia = createPinia()
+pinia.use(createPersistPlugin())
 
-export default pinia;
+export default pinia
 
 // 持久化工具
-export { clearPersistedState, STORAGE_PREFIX };
+export { STORAGE_PREFIX }
 
 // 业务模块 stores
-export { useAppStore } from "./modules/app";
-export { useBookStore } from "./modules/book";
-export { useCategoryStore } from "./modules/category";
-export { useBillStore, BILL_CHANGE_EVENT, round2, fmtMoney } from "./modules/bill";
-export { useUserStore, DEFAULT_AVATAR } from "./modules/user";
+export { useAppStore } from './modules/app'
+export { useBookStore } from './modules/book'
+export { useCategoryStore } from './modules/category'
+export {
+  useBillStore,
+  BILL_CHANGE_EVENT,
+  round2,
+  fmtMoney,
+} from './modules/bill'
+export { useUserStore, DEFAULT_AVATAR } from './modules/user'

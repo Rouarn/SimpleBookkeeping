@@ -8,23 +8,23 @@
  */
 
 /** refresh token 的本地存储 key */
-const RT_KEY = "bk:rt";
+const RT_KEY = 'bk:rt'
 
 /** 登录页路由（pages.json 中非 tabBar 页，统一用 reLaunch 清空页面栈） */
-const LOGIN_PATH = "/pages/login/index";
+const LOGIN_PATH = '/pages/login/index'
 
 /** 内存中的 access token（进程级，重启即失，符合 2h 短时效策略） */
-let accessToken = "";
+let accessToken = ''
 
 /** 是否正在跳转登录页（避免并发 401 重复触发） */
-let redirectLock = false;
+let redirectLock = false
 
 /**
  * 读取当前内存中的 access token
  * @returns {string}
  */
 export function getAccessToken() {
-  return accessToken;
+  return accessToken
 }
 
 /**
@@ -32,7 +32,7 @@ export function getAccessToken() {
  * @returns {string}
  */
 export function getRefreshToken() {
-  return uni.getStorageSync(RT_KEY) || "";
+  return uni.getStorageSync(RT_KEY) || ''
 }
 
 /**
@@ -40,11 +40,11 @@ export function getRefreshToken() {
  * @param {{accessToken?: string, refreshToken?: string}} tokens
  */
 export function setTokens(tokens = {}) {
-  if (tokens.accessToken) accessToken = tokens.accessToken;
+  if (tokens.accessToken) accessToken = tokens.accessToken
   if (tokens.refreshToken) {
-    uni.setStorageSync(RT_KEY, tokens.refreshToken);
+    uni.setStorageSync(RT_KEY, tokens.refreshToken)
   } else if (tokens.refreshToken === null) {
-    uni.removeStorageSync(RT_KEY);
+    uni.removeStorageSync(RT_KEY)
   }
 }
 
@@ -52,8 +52,8 @@ export function setTokens(tokens = {}) {
  * 清空全部 token：内存 + 本地 refresh
  */
 export function clearTokens() {
-  accessToken = "";
-  uni.removeStorageSync(RT_KEY);
+  accessToken = ''
+  uni.removeStorageSync(RT_KEY)
 }
 
 /**
@@ -61,7 +61,7 @@ export function clearTokens() {
  * @returns {boolean}
  */
 export function isLoggedIn() {
-  return !!accessToken || !!uni.getStorageSync(RT_KEY);
+  return !!accessToken || !!uni.getStorageSync(RT_KEY)
 }
 
 /**
@@ -70,29 +70,29 @@ export function isLoggedIn() {
  * @returns {boolean} 本次是否实际触发了跳转
  */
 export function ensureLoggedIn(redirectLogin = true) {
-  if (!redirectLogin) return false;
+  if (!redirectLogin) return false
   // 登录态既已失效，无论是否重复触发都先清掉内存/本地 token
-  clearTokens();
-  if (redirectLock) return false;
+  clearTokens()
+  if (redirectLock) return false
   // 已在登录页时只清 token：避免并发 401 反复 reLaunch 刷新页面、打断用户输入
-  const pages = getCurrentPages();
-  const currentPage = pages[pages.length - 1];
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
   if (
     currentPage &&
     currentPage.route &&
     `/${currentPage.route}` === LOGIN_PATH
   ) {
-    return false;
+    return false
   }
-  redirectLock = true;
+  redirectLock = true
   uni.reLaunch({
     url: LOGIN_PATH,
     complete: () => {
       // 锁延迟释放，避免当前调用栈内再次触发
       setTimeout(() => {
-        redirectLock = false;
-      }, 500);
+        redirectLock = false
+      }, 500)
     },
-  });
-  return true;
+  })
+  return true
 }

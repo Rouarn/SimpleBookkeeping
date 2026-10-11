@@ -12,28 +12,28 @@
  * @date 2026-09-14
  * @modify 2026-09-16
  */
-import { defineStore } from "pinia";
-import { billsApi } from "@/api";
+import { defineStore } from 'pinia'
+import { billsApi } from '@/api'
 
-/** 账单变更全局事件名（增 / 改 / 删 / 清空均会广播，payload 含 action 与账单信息） */
-export const BILL_CHANGE_EVENT = "bill:change";
+/** 账单变更全局事件名（增 / 改 / 删均会广播，payload 含 action 与账单信息） */
+export const BILL_CHANGE_EVENT = 'bill:change'
 
 /**
  * 金额保留两位小数（先乘 100 取整再除回，避免浮点累加误差）
  * @param {number|string} n 原始数值
  * @returns {number} 两位小数数值
  */
-export const round2 = n => Math.round((Number(n) || 0) * 100) / 100;
+export const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100
 
 /**
  * 金额格式化为两位小数字符串（模板直接渲染用）
  * @param {number|string} n 原始数值
  * @returns {string} 如 '12.30'
  */
-export const fmtMoney = n => round2(n).toFixed(2);
+export const fmtMoney = (n) => round2(n).toFixed(2)
 
 export const useBillStore = defineStore(
-  "bill",
+  'bill',
   () => {
     /**
      * 新增账单（调服务端 POST /bills，成功后广播变更事件）
@@ -41,13 +41,13 @@ export const useBillStore = defineStore(
      * @returns {Promise<object>} 服务端返回的账单实体
      */
     async function addBill(input) {
-      const bill = await billsApi.create(input);
+      const bill = await billsApi.create(input)
       uni.$emit(BILL_CHANGE_EVENT, {
-        action: "add",
+        action: 'add',
         id: bill?.id,
         bill,
-      });
-      return bill;
+      })
+      return bill
     }
 
     /**
@@ -57,13 +57,13 @@ export const useBillStore = defineStore(
      * @returns {Promise<object>}
      */
     async function updateBill(id, patch) {
-      const bill = await billsApi.update(id, patch);
+      const bill = await billsApi.update(id, patch)
       uni.$emit(BILL_CHANGE_EVENT, {
-        action: "update",
+        action: 'update',
         id,
         bill,
-      });
-      return bill;
+      })
+      return bill
     }
 
     /**
@@ -72,27 +72,17 @@ export const useBillStore = defineStore(
      * @returns {Promise<boolean>}
      */
     async function removeBill(id) {
-      await billsApi.remove(id);
-      uni.$emit(BILL_CHANGE_EVENT, { action: "remove", id });
-      return true;
-    }
-
-    /**
-     * 清空全部账单（body: {confirm:true,bookId?}）
-     * @param {{bookId?:string}} [params]
-     */
-    async function clearAllBills(params = {}) {
-      await billsApi.clearAll({ confirm: true, ...params });
-      uni.$emit(BILL_CHANGE_EVENT, { action: "clear" });
+      await billsApi.remove(id)
+      uni.$emit(BILL_CHANGE_EVENT, { action: 'remove', id })
+      return true
     }
 
     return {
       addBill,
       updateBill,
       removeBill,
-      clearAllBills,
-    };
+    }
   },
   // 列表数据来源为服务端，不启用本地持久化
   { persist: false },
-);
+)

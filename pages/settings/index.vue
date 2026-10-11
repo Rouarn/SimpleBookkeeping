@@ -5,57 +5,40 @@
                   点击走在线更新流程；更新弹窗全局仅首页挂载一份，本页检查到
                   新版本时返回上一页由首页弹出）；
                2. 退出登录：二次确认后吊销服务端 token（失败不阻断），
-                  清空本地存储全部键（bk: 持久化数据、refresh token、
-                  更新模块标记等），并重置内存中的接口缓存 store，
+                  按 key 清单清理账号相关本地数据（refresh token、旧版本
+                  遗留的账单/账本/资料持久化键），并重置内存中的接口缓存 store；
+                  设备标识、更新待安装回补标记、一言缓存等与账号无关的数据保留，
                   最后 reLaunch 回登录页。
                视觉延续全站设计语言：深松绿渐变头 + 暖灰背景 + 白卡。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-16
+  @modify 2026-10-11 抽取 PageHeader / MenuItem 公共组件
 -->
 <template>
   <view class="settings">
-    <!-- 顶部导航区 -->
-    <view class="header">
-      <view class="decor decor-arc"></view>
-      <view class="decor decor-circle"></view>
-
+    <!-- 顶部导航区（渐变 / 圆角 / 双圆由 PageHeader 内聚，settings 变体无色点） -->
+    <PageHeader variant="settings">
       <view class="nav">
         <view class="back-btn" @click="onBack">
           <uni-icons type="left" size="20" color="#eaf3ee"></uni-icons>
         </view>
         <text class="nav-title">设置</text>
       </view>
-    </view>
+    </PageHeader>
 
     <view class="content">
       <!-- 关于（非 App 端菜单为空时不渲染该分组） -->
       <view v-if="aboutMenu.length" class="group">
         <text class="group-label">关于</text>
         <view class="card">
-          <view
+          <MenuItem
             v-for="item in aboutMenu"
             :key="item.title"
-            class="menu-item"
-            hover-class="row-hover"
-            :hover-stay-time="60"
+            :icon="item.icon"
+            :label="item.title"
+            :value="item.extra"
             @click="onMenuTap(item)"
-          >
-            <view class="menu-icon">
-              <uni-icons
-                :type="item.icon"
-                size="23"
-                color="#2f6b54"
-              ></uni-icons>
-            </view>
-            <text class="menu-title">{{ item.title }}</text>
-            <text v-if="item.extra" class="menu-extra">{{ item.extra }}</text>
-            <uni-icons
-              class="menu-arrow"
-              type="right"
-              size="14"
-              color="#c2c9c3"
-            ></uni-icons>
-          </view>
+          />
         </view>
       </view>
 
@@ -73,40 +56,40 @@
 /**
  * 设置页脚本
  * - 「关于」菜单（「检查更新」仅 App 端注入，其余死入口已清理，只保留真实项）；
- * - 退出登录：服务端吊销 token → 清空本地存储 → 重置内存缓存 → 回登录页。
+ * - 退出登录：服务端吊销 token → 按 key 清单清理账号数据 → 重置内存缓存 → 回登录页。
  */
-import { ref } from "vue";
-import { authApi } from "@/api";
+import { ref } from 'vue'
+import { authApi } from '@/api'
 import {
   useAppStore,
   useBookStore,
   useCategoryStore,
   useUserStore,
-} from "@/store";
-import { useAppUpdate } from "@/composables/use-app-update";
-import { getCurrentVersion } from "@/utils/app-update/device";
+} from '@/store'
+import { useAppUpdate } from '@/composables/use-app-update'
+import { getCurrentVersion } from '@/utils/app-update/device'
 
 // APP 在线更新：手动检查入口（state 为模块级单例，弹窗仅挂载在首页，
 // 本页发现新版本时返回上一页由首页弹出）
-const { state: updateState, check: checkAppUpdate } = useAppUpdate();
+const { state: updateState, check: checkAppUpdate } = useAppUpdate()
 
 // 退出登录需重置的接口缓存 store（避免换号登录后闪现上一位用户的数据）
-const userStore = useUserStore();
-const appStore = useAppStore();
-const bookStore = useBookStore();
-const categoryStore = useCategoryStore();
+const userStore = useUserStore()
+const appStore = useAppStore()
+const bookStore = useBookStore()
+const categoryStore = useCategoryStore()
 
 /** 关于菜单（App 端在下方条件编译内注入「检查更新」；非 App 端为空不渲染分组） */
-const aboutMenu = ref([]);
+const aboutMenu = ref([])
 
 // 「检查更新」入口仅 App 端展示，右侧显示当前运行时版本号
 // #ifdef APP-PLUS
-const currentVersionName = getCurrentVersion().versionName;
+const currentVersionName = getCurrentVersion().versionName
 aboutMenu.value.push({
-  title: "检查更新",
-  icon: "download",
-  extra: currentVersionName ? `v${currentVersionName}` : "",
-});
+  title: '检查更新',
+  icon: 'download',
+  extra: currentVersionName ? `v${currentVersionName}` : '',
+})
 // #endif
 
 /**
@@ -114,13 +97,13 @@ aboutMenu.value.push({
  * 其余占位反馈的死入口已随菜单项一并清理
  * @param {{title: string, icon: string, extra?: string}} item 被点击的菜单项
  */
-const onMenuTap = item => {
+const onMenuTap = (item) => {
   // #ifdef APP-PLUS
-  if (item.title === "检查更新") {
-    onManualCheck();
+  if (item.title === '检查更新') {
+    onManualCheck()
   }
   // #endif
-};
+}
 
 /**
  * 手动检查更新：带 loading，无更新/失败由更新模块给出 toast；
@@ -128,76 +111,90 @@ const onMenuTap = item => {
  * 全局唯一弹窗承接展示，本页不再重复挂载
  */
 const onManualCheck = async () => {
-  uni.showLoading({ title: "检查中…" });
+  uni.showLoading({ title: '检查中…' })
   try {
-    await checkAppUpdate({ silent: false });
+    await checkAppUpdate({ silent: false })
   } finally {
-    uni.hideLoading();
+    uni.hideLoading()
   }
   if (updateState.visible && getCurrentPages().length > 1) {
-    uni.navigateBack();
+    uni.navigateBack()
   }
-};
+}
 
 /** 返回上一页（页面栈只有当前页时兜底回首页） */
 const onBack = () => {
   if (getCurrentPages().length > 1) {
-    uni.navigateBack();
+    uni.navigateBack()
   } else {
-    uni.reLaunch({ url: "/pages/index/index" });
+    uni.reLaunch({ url: '/pages/index/index' })
   }
-};
+}
 
 /** 退出登录：二次确认后执行登出流程 */
 const onLogout = () => {
   uni.showModal({
-    title: "退出登录",
-    content: "退出后将清空本机的登录信息与本地数据",
-    confirmText: "退出",
-    confirmColor: "#e06651",
+    title: '退出登录',
+    content: '退出后将清空本机的登录信息与本地数据',
+    confirmText: '退出',
+    confirmColor: '#e06651',
     success: ({ confirm }) => {
-      if (confirm) doLogout();
+      if (confirm) doLogout()
     },
-  });
-};
+  })
+}
 
-const loggingOut = ref(false);
+const loggingOut = ref(false)
+
+/**
+ * 退出登录时需清理的「账号相关」本地存储 key 清单（精确清理，不使用 clearStorageSync）：
+ * - bk:rt：refresh token（authApi.logout 内部也会清，这里做兜底）；
+ * - bk:bills / bk:book / bk:user：旧版本持久化遗留键（现版本这些 store 已不持久化，
+ *   但老用户设备上可能残留上一位用户的数据）。
+ * 刻意保留：app_update_device_id（灰度设备标识）、
+ * app_update_pending_install_code（更新待安装回补标记）、
+ * app_update_last_check_at（静默检查节流时间戳）、hitokoto_last（一言缓存）、
+ * bk:bill_prefill（「再记一笔」一次性中转值，读取即删，与账号无关）。
+ */
+const LOGOUT_REMOVE_KEYS = ['bk:rt', 'bk:bills', 'bk:book', 'bk:user']
 
 /**
  * 登出流程：
  * 1. 调服务端吊销 refresh token（内部已吞错并清本地 token，失败不阻断）；
- * 2. 清空本地存储全部键（bk: 持久化数据、refresh token、更新模块标记等）；
- * 3. 重置内存中的接口缓存 store；
+ * 2. 按 key 清单清理账号相关本地数据（保留设备标识 / 更新标记 / 一言缓存）；
+ * 3. 重置内存中的接口缓存 store（appStore.resetUI 会以默认值重写 bk:app_ui）；
  * 4. reLaunch 回登录页（清空页面栈，杜绝返回键回到已登出的页面）。
  */
 async function doLogout() {
-  if (loggingOut.value) return;
-  loggingOut.value = true;
-  uni.showLoading({ title: "退出中…", mask: true });
+  if (loggingOut.value) return
+  loggingOut.value = true
+  uni.showLoading({ title: '退出中…', mask: true })
   try {
-    await authApi.logout();
+    await authApi.logout()
   } catch (e) {
     // 防御：logout 内部已吞错，任何异常都不阻断本地清理
   } finally {
-    // 清空本地存储（含 bk:rt / bk:app_ui / 更新模块标记等全部键）
-    try {
-      uni.clearStorageSync();
-    } catch (e) {
-      // ignore：极端环境清理失败也不阻断登出
-    }
+    // 精确清理账号相关键，单条失败不影响其余键与后续登出流程
+    LOGOUT_REMOVE_KEYS.forEach((key) => {
+      try {
+        uni.removeStorageSync(key)
+      } catch (e) {
+        // ignore：极端环境清理失败也不阻断登出
+      }
+    })
     // 重置内存缓存（book / category 的加载标记随 reset 一并复位）
-    userStore.resetProfile();
-    appStore.resetUI();
-    bookStore.reset();
-    categoryStore.reset();
-    uni.hideLoading();
+    userStore.resetProfile()
+    appStore.resetUI()
+    bookStore.reset()
+    categoryStore.reset()
+    uni.hideLoading()
     uni.reLaunch({
-      url: "/pages/login/index",
+      url: '/pages/login/index',
       complete: () => {
-        loggingOut.value = false;
-        uni.showToast({ title: "已退出登录", icon: "none" });
+        loggingOut.value = false
+        uni.showToast({ title: '已退出登录', icon: 'none' })
       },
-    });
+    })
   }
 }
 </script>
@@ -205,42 +202,11 @@ async function doLogout() {
 <style lang="scss" scoped>
 .settings {
   min-height: 100vh;
-  background: #f3f5f2;
+  background: $bg-page;
   padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部导航区
-.header {
-  position: relative;
-  padding: calc(var(--status-bar-height) + 20rpx) 32rpx 148rpx;
-  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
-  border-radius: 0 0 36rpx 36rpx;
-  overflow: hidden;
-}
-
-// 背景装饰
-.decor {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.decor-arc {
-  width: 480rpx;
-  height: 480rpx;
-  left: -210rpx;
-  top: -220rpx;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.decor-circle {
-  width: 420rpx;
-  height: 420rpx;
-  right: -150rpx;
-  top: -150rpx;
-  background: rgba(255, 255, 255, 0.05);
-}
-
+// 顶部导航区：渐变 / 圆角 / 双圆装饰由 PageHeader 组件内聚，本页只保留插槽内导航样式
 .nav {
   position: relative;
   z-index: 2;
@@ -263,7 +229,7 @@ async function doLogout() {
     margin-left: 22rpx;
     font-size: 36rpx;
     font-weight: 700;
-    color: #f1f7f3;
+    color: $text-inverse;
     letter-spacing: 1rpx;
   }
 }
@@ -284,69 +250,15 @@ async function doLogout() {
     display: block;
     margin: 0 8rpx 12rpx;
     font-size: 24rpx;
-    color: #98a099;
+    color: $text-secondary;
   }
 
+  // 菜单行本体（图标砖 / 标题 / 版本号 / 箭头 / 分割线）由 MenuItem 组件内聚
   .card {
     background: #fff;
-    border-radius: 24rpx;
+    border-radius: $radius-card;
     box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.08);
     overflow: hidden;
-
-    .row-hover {
-      background: #f6f9f6;
-    }
-  }
-}
-
-// 菜单行（与「我的」页同一套行样式）
-.menu-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 24rpx 28rpx;
-
-  &::after {
-    content: "";
-    position: absolute;
-    left: 104rpx;
-    right: 0;
-    bottom: 0;
-    height: 1rpx;
-    background: #edf0ec;
-  }
-  &:last-child::after {
-    display: none;
-  }
-
-  .menu-icon {
-    width: 64rpx;
-    height: 64rpx;
-    margin-right: 22rpx;
-    border-radius: 18rpx;
-    background: #e9f3ed;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .menu-title {
-    flex: 1;
-    font-size: 29rpx;
-    font-weight: 500;
-    color: #202622;
-  }
-
-  .menu-extra {
-    font-size: 23rpx;
-    color: #98a099;
-    margin-right: 10rpx;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .menu-arrow {
-    flex-shrink: 0;
   }
 }
 
@@ -360,7 +272,7 @@ async function doLogout() {
   font-weight: 600;
   color: #e06651;
   background: #fff;
-  border-radius: 24rpx;
+  border-radius: $radius-card;
   border: none;
   box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.08);
 

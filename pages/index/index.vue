@@ -10,7 +10,7 @@
                页面不直接操作 store，全部数据与动作来自 useHomeData / goBillDetail。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-15
+  @modify 2026-10-11 抽取 DecorRing / EmptyState / BillRow 公共组件
 -->
 <template>
   <view class="home">
@@ -32,7 +32,7 @@
       <view class="quote-seal">言</view>
       <view class="quote-body">
         <text class="quote-text">{{
-          quote ? quote.text : "轻触卡片，遇见一言"
+          quote ? quote.text : '轻触卡片，遇见一言'
         }}</text>
         <view class="quote-foot">
           <text class="quote-from">{{ quoteSource }}</text>
@@ -49,11 +49,14 @@
     <!-- 本月统计卡片 -->
     <view class="stats-card">
       <!-- 铜钱纹：右上角同心圆环，点到为止 -->
-      <view class="stats-decor">
-        <view class="decor-ring r1"></view>
-        <view class="decor-ring r2"></view>
-        <view class="decor-ring r3"></view>
-      </view>
+      <DecorRing
+        class="stats-decor"
+        :size="300"
+        :middle="208"
+        :inner="116"
+        :middle-opacity="0.1"
+        :inner-opacity="0.14"
+      />
       <view class="stats-main">
         <text class="stats-label">本月支出（元）</text>
         <view class="stats-amount">{{ stats.expense }}</view>
@@ -97,51 +100,19 @@
       </view>
 
       <view class="flow-list">
-        <view v-if="flowList.length === 0" class="empty-tip">
-          <view class="empty-coin">¥</view>
-          <text class="empty-text">今天还没有记账</text>
-          <text class="empty-sub">点下方 + 记一笔</text>
-        </view>
+        <EmptyState
+          v-if="flowList.length === 0"
+          text="今天还没有记账"
+          sub="点下方 + 记一笔"
+        />
         <template v-else>
-          <view
+          <BillRow
             v-for="item in flowList"
             :key="item.id"
-            class="flow-item"
-            hover-class="row-hover"
-            :hover-stay-time="60"
-            @click="goDetail(item)"
-          >
-            <view
-              class="flow-icon-wrap"
-              :style="{ backgroundColor: item.iconBg }"
-            >
-              <text class="flow-icon">{{ item.iconText }}</text>
-            </view>
-            <view class="flow-info">
-              <view class="flow-title-row">
-                <view class="flow-title-wrap">
-                  <text class="flow-title">{{ item.title }}</text>
-                  <text v-if="item.remark" class="flow-remark">{{
-                    item.remark
-                  }}</text>
-                </view>
-                <text class="flow-amount" :class="{ income: item.amount > 0 }">
-                  {{ item.amount > 0 ? "+" : "" }}{{ item.amount.toFixed(2) }}
-                </text>
-              </view>
-              <view class="flow-meta">
-                <text class="flow-time">{{ item.time }}</text>
-                <text class="flow-dot">·</text>
-                <text class="flow-pay">{{ item.payMethod }}</text>
-              </view>
-            </view>
-            <uni-icons
-              class="flow-arrow"
-              type="right"
-              size="14"
-              color="#c2c9c3"
-            ></uni-icons>
-          </view>
+            :bill="item"
+            @click="goDetail"
+            @photo-error="onRowPhotoError"
+          />
         </template>
       </view>
     </view>
@@ -161,13 +132,13 @@
  *   onShow 调 load() 拉取；
  * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行调接口。
  */
-import { computed } from "vue";
-import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
-import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
-import { useHitokoto } from "@/composables/useHitokoto";
+import { computed } from 'vue'
+import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
+import { useHomeData, goBillDetail } from '@/composables/useBookkeeping'
+import { useHitokoto } from '@/composables/useHitokoto'
 // 更新弹窗仅 App 端挂载（状态来自 use-app-update 模块级单例）
 // #ifdef APP-PLUS
-import UpdatePopup from "@/components/update-popup.vue";
+import UpdatePopup from '@/components/update-popup.vue'
 // #endif
 
 const {
@@ -179,44 +150,52 @@ const {
   todayDate,
   editBudget,
   load,
-} = useHomeData();
+} = useHomeData()
 
 // 一言便签：冷启动自动拉取一次，点按卡片手动换一句
-const { quote, loading: quoteLoading, refresh: refreshQuote } = useHitokoto();
+const { quote, loading: quoteLoading, refresh: refreshQuote } = useHitokoto()
 
 // 出处拼接：作者《出处》，缺一则只展示存在的部分
 const quoteSource = computed(() => {
-  const q = quote.value;
-  if (!q) return "";
-  if (q.who && q.from) return `—— ${q.who}《${q.from}》`;
-  if (q.from) return `—— 《${q.from}》`;
-  if (q.who) return `—— ${q.who}`;
-  return "";
-});
+  const q = quote.value
+  if (!q) return ''
+  if (q.who && q.from) return `—— ${q.who}《${q.from}》`
+  if (q.from) return `—— 《${q.from}》`
+  if (q.who) return `—— ${q.who}`
+  return ''
+})
 
 // 每次进入首页 / 从后台恢复时重新拉取聚合数据（失败静默，保留上次数据）
 onShow(() => {
-  load().catch(() => {});
-});
+  load().catch(() => {})
+})
 
 // 下拉刷新：重新拉取首页聚合数据，完成后关闭刷新动画
 onPullDownRefresh(async () => {
-  await load().catch(() => {});
-  uni.stopPullDownRefresh();
-});
+  await load().catch(() => {})
+  uni.stopPullDownRefresh()
+})
 
 /**
  * 点击今日流水单条 → 跳转详情页
  * @param {object} item 被点击的流水项
  */
-const goDetail = item => {
-  goBillDetail(item.id);
-};
+const goDetail = (item) => {
+  goBillDetail(item.id)
+}
+
+/**
+ * 凭证缩略图签名过期换签：首页今日流水来自聚合 computed 无法原地替换，
+ * 直接重拉首页聚合（onShow 本身也会重拉，语义安全），失败静默。
+ */
+const onRowPhotoError = () => {
+  load().catch(() => {})
+}
 
 /** 右上角更多入口：跳转设置页（应用级配置统一在设置页承载） */
 const goSettings = () => {
-  uni.navigateTo({ url: "/pages/settings/index" });
-};
+  uni.navigateTo({ url: '/pages/settings/index' })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -224,7 +203,7 @@ const goSettings = () => {
   width: 100%;
   height: 100%;
   margin-top: var(--status-bar-height);
-  background: #f3f5f2;
+  background: $bg-page;
 }
 
 // 顶部问候
@@ -237,7 +216,7 @@ const goSettings = () => {
   .greeting-text {
     font-size: 44rpx;
     font-weight: 700;
-    color: #1e2521;
+    color: $text-title;
     letter-spacing: 1rpx;
   }
 
@@ -342,12 +321,12 @@ const goSettings = () => {
   position: relative;
   margin: 22rpx 24rpx 0;
   padding: 36rpx 32rpx 30rpx;
-  border-radius: 28rpx;
+  border-radius: $radius-xl;
   overflow: hidden;
-  background: linear-gradient(150deg, #175142 0%, #0c3a2e 100%);
+  background: $gradient-header;
   box-shadow: 0 18rpx 40rpx rgba(12, 58, 46, 0.26);
 
-  // 铜钱纹：右上角同心圆环，点到为止
+  // 铜钱纹：右上角同心圆环（DecorRing 组件根节点，环体样式内聚在组件内）
   .stats-decor {
     position: absolute;
     top: -110rpx;
@@ -355,29 +334,6 @@ const goSettings = () => {
     width: 300rpx;
     height: 300rpx;
     pointer-events: none;
-
-    .decor-ring {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      border-radius: 50%;
-      border: 2rpx solid rgba(255, 255, 255, 0.08);
-      transform: translate(-50%, -50%);
-    }
-    .r1 {
-      width: 300rpx;
-      height: 300rpx;
-    }
-    .r2 {
-      width: 208rpx;
-      height: 208rpx;
-      border-color: rgba(255, 255, 255, 0.1);
-    }
-    .r3 {
-      width: 116rpx;
-      height: 116rpx;
-      border-color: rgba(255, 255, 255, 0.14);
-    }
   }
 
   .stats-main {
@@ -394,7 +350,7 @@ const goSettings = () => {
       font-size: 72rpx;
       font-weight: 700;
       line-height: 1.1;
-      color: #f1f7f3;
+      color: $text-inverse;
       letter-spacing: 1rpx;
       font-variant-numeric: tabular-nums;
     }
@@ -420,7 +376,7 @@ const goSettings = () => {
       .info-value {
         font-size: 28rpx;
         font-weight: 600;
-        color: #f1f7f3;
+        color: $text-inverse;
         font-variant-numeric: tabular-nums;
       }
       .info-edit {
@@ -428,7 +384,7 @@ const goSettings = () => {
         padding: 4rpx 16rpx;
         font-size: 20rpx;
         line-height: 1.6;
-        color: #8fe2bd;
+        color: $color-mint-soft;
         border: 1rpx solid rgba(143, 226, 189, 0.45);
         border-radius: 100rpx;
       }
@@ -453,7 +409,7 @@ const goSettings = () => {
     .balance-value {
       font-size: 28rpx;
       font-weight: 600;
-      color: #f1f7f3;
+      color: $text-inverse;
       font-variant-numeric: tabular-nums;
     }
   }
@@ -473,7 +429,7 @@ const goSettings = () => {
       .progress-fill {
         height: 100%;
         border-radius: 999rpx;
-        background: linear-gradient(90deg, #4fc794 0%, #93e7c4 100%);
+        background: $gradient-progress;
         transition: width 0.3s ease;
       }
     }
@@ -497,12 +453,12 @@ const goSettings = () => {
       .today-text {
         font-size: 34rpx;
         font-weight: 700;
-        color: #1e2521;
+        color: $text-title;
       }
       .today-date {
         margin-left: 12rpx;
         font-size: 24rpx;
-        color: #98a099;
+        color: $text-secondary;
       }
     }
 
@@ -515,7 +471,7 @@ const goSettings = () => {
         font-size: 22rpx;
         line-height: 1.4;
         border-radius: 999rpx;
-        background: #e9f0eb;
+        background: $bg-tint;
         color: #56645c;
         font-variant-numeric: tabular-nums;
 
@@ -524,8 +480,8 @@ const goSettings = () => {
         }
 
         &.income {
-          background: #fcebe8;
-          color: #d54e3c;
+          background: $color-danger-bg;
+          color: $color-danger;
         }
       }
     }
@@ -533,153 +489,9 @@ const goSettings = () => {
 
   .flow-list {
     background: #fff;
-    border-radius: 24rpx;
+    border-radius: $radius-card;
     box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
     overflow: hidden;
-
-    .row-hover {
-      background: #f6f9f6;
-    }
-
-    .flow-item {
-      position: relative;
-      display: flex;
-      align-items: center;
-      padding: 28rpx 28rpx;
-
-      // 内缩发丝分割线
-      &::after {
-        content: "";
-        position: absolute;
-        left: 130rpx;
-        right: 0;
-        bottom: 0;
-        height: 1rpx;
-        background: #edf0ec;
-      }
-      &:last-child::after {
-        display: none;
-      }
-
-      .flow-icon-wrap {
-        width: 80rpx;
-        height: 80rpx;
-        margin-right: 22rpx;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-
-        .flow-icon {
-          font-size: 38rpx;
-        }
-      }
-
-      .flow-info {
-        flex: 1;
-        min-width: 0;
-
-        .flow-title-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-
-          .flow-title-wrap {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            align-items: baseline;
-            margin-right: 16rpx;
-            overflow: hidden;
-          }
-
-          .flow-title {
-            font-size: 30rpx;
-            font-weight: 500;
-            color: #202622;
-            flex-shrink: 0;
-          }
-
-          .flow-remark {
-            margin-left: 10rpx;
-            font-size: 24rpx;
-            color: #98a099;
-            min-width: 0;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-          }
-
-          .flow-amount {
-            font-size: 32rpx;
-            font-weight: 600;
-            color: #222924;
-            flex-shrink: 0;
-            font-variant-numeric: tabular-nums;
-
-            &.income {
-              color: #df543f;
-            }
-          }
-        }
-
-        .flow-meta {
-          margin-top: 8rpx;
-
-          .flow-time,
-          .flow-pay {
-            font-size: 22rpx;
-            color: #98a099;
-          }
-          .flow-dot {
-            margin: 0 10rpx;
-            font-size: 22rpx;
-            color: #c6ccc6;
-          }
-        }
-      }
-
-      .flow-arrow {
-        flex-shrink: 0;
-        margin-left: 14rpx;
-      }
-    }
-  }
-}
-
-// 空状态
-.empty-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 72rpx 0 80rpx;
-
-  .empty-coin {
-    width: 104rpx;
-    height: 104rpx;
-    margin-bottom: 28rpx;
-    border-radius: 50%;
-    border: 2rpx solid #d6e2da;
-    background: #f8faf8;
-    box-shadow: 0 0 0 10rpx rgba(76, 175, 135, 0.08);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40rpx;
-    font-weight: 600;
-    color: #7ba48f;
-  }
-
-  .empty-text {
-    font-size: 28rpx;
-    color: #8b938d;
-  }
-
-  .empty-sub {
-    margin-top: 10rpx;
-    font-size: 22rpx;
-    color: #abb3ac;
   }
 }
 </style>

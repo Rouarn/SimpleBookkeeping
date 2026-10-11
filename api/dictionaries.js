@@ -4,7 +4,7 @@
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { http } from "./http";
+import { http } from './http'
 
 /**
  * 获取分类列表
@@ -12,7 +12,7 @@ import { http } from "./http";
  * @returns {Promise<object[]>} {id,name,type,iconText,iconColor,iconBg,sort,enabled}
  */
 export function getCategories(params) {
-  return http.get("/categories", params);
+  return http.get('/categories', params)
 }
 
 /**
@@ -20,7 +20,7 @@ export function getCategories(params) {
  * @returns {Promise<object[]>} {id,name,iconText,iconColor,iconBg,sort,enabled}
  */
 export function getPayMethods() {
-  return http.get("/pay-methods");
+  return http.get('/pay-methods')
 }
 
-export default { getCategories, getPayMethods };
+export default { getCategories, getPayMethods }

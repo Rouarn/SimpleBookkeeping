@@ -4,7 +4,7 @@
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-16
  */
-import { http } from "./http";
+import { http } from './http'
 
 /**
  * 概览卡（总额/环比/笔数/日均/结余）
@@ -14,7 +14,7 @@ import { http } from "./http";
  * @returns {Promise<object>}
  */
 export function overview(params) {
-  return http.get("/statistics/overview", params);
+  return http.get('/statistics/overview', params)
 }
 
 /**
@@ -24,7 +24,7 @@ export function overview(params) {
  * @returns {Promise<object[]>}
  */
 export function categories(params) {
-  return http.get("/statistics/categories", params);
+  return http.get('/statistics/categories', params)
 }
 
 /**
@@ -33,7 +33,7 @@ export function categories(params) {
  * @returns {Promise<object[]>}
  */
 export function payMethods(params) {
-  return http.get("/statistics/pay-methods", params);
+  return http.get('/statistics/pay-methods', params)
 }
 
 /**
@@ -43,7 +43,7 @@ export function payMethods(params) {
  * @returns {Promise<object[]>}
  */
 export function trend(params) {
-  return http.get("/statistics/trend", params);
+  return http.get('/statistics/trend', params)
 }
 
 /**
@@ -51,7 +51,7 @@ export function trend(params) {
  * @returns {Promise<object>}
  */
 export function home() {
-  return http.get("/overview/home");
+  return http.get('/overview/home')
 }
 
 export default {
@@ -60,4 +60,4 @@ export default {
   payMethods,
   trend,
   home,
-};
+}
