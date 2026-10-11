@@ -33,6 +33,7 @@
           class="avatar"
           :src="avatarSrc"
           mode="aspectFill"
+          lazy-load
           @click="onEditProfile"
           @error="onAvatarError"
         ></image>
@@ -112,10 +113,27 @@ const { profile, avatar, joinDays, stats, editName, changeAvatar } =
   useProfile();
 const userStore = useUserStore();
 
-// 进入页面时拉取用户资料与统计（App.vue 已预热，此处刷新统计）
+// 进入页面时拉取用户资料与统计：加 60s TTL 缓存，避免每次 onShow 全量重拉
+//（昵称 / 头像修改走 PATCH / POST 后直接写 store，UI 即时更新，不受缓存影响）
+const PROFILE_TTL = 60 * 1000;
+let lastMePullAt = 0;
+let lastStatsPullAt = 0;
+
 onShow(() => {
-  userStore.fetchMe().catch(() => {});
-  userStore.fetchStats().catch(() => {});
+  const now = Date.now();
+  if (now - lastMePullAt >= PROFILE_TTL) {
+    lastMePullAt = now;
+    userStore.fetchMe().catch(() => {
+      // 拉取失败不计入 TTL，下次进入立即重试
+      lastMePullAt = 0;
+    });
+  }
+  if (now - lastStatsPullAt >= PROFILE_TTL) {
+    lastStatsPullAt = now;
+    userStore.fetchStats().catch(() => {
+      lastStatsPullAt = 0;
+    });
+  }
 });
 
 // 头像加载失败（如历史持久化的临时路径重启后失效）时回退默认头像，保证头像位不留白

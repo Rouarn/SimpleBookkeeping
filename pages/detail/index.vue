@@ -75,6 +75,7 @@
               class="photo-thumb"
               :src="photo"
               mode="aspectFill"
+              lazy-load
               @click="previewPhotos(index)"
             />
           </view>

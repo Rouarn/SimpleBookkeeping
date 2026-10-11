@@ -3,13 +3,15 @@
   @description 按「月份 + 收支类型」筛选账单并按天分组展示：
                1. 顶部导航：类型选择（全部类型 / 支出 / 收入，ActionSheet）与搜索入口；
                2. 日期选择：uni-app 标准 picker（mode=date, fields=month）；
-               3. 本月总支出 / 总收入双卡；
+               3. 本月总支出 / 总收入双卡（/bills/summary 完整口径）；
                4. 按天分组的流水列表，每组显示日标签（今天/昨天/周X）、日期与
-                  当日收支合计，组内账单点击进入详情；无数据时显示空态提示。
-               月份与类型选择态持久化在 app store，分组数据由 bill store 实时派生。
+                  当日收支合计（已加载页口径），组内账单点击进入详情；
+               5. 列表按月分页加载（每页 50 条），onReachBottom 触底加载下一页
+                  并按日合并进现有分组，下拉刷新重置到第一页，末尾展示「没有更多了」。
+               月份与类型选择态持久化在 app store，分组数据由接口分页拉取。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
-  @modify 2026-09-15
+  @modify 2026-10-11
 -->
 <template>
   <view class="flowing-water">
@@ -74,9 +76,9 @@
         <text class="empty-sub">记一笔，开始追踪你的收支</text>
       </view>
       <view
-        v-for="(group, gIndex) in groups"
+        v-for="group in groups"
         v-else
-        :key="gIndex"
+        :key="group.recordDate"
         class="flow-group"
       >
         <view class="group-header">
@@ -132,6 +134,16 @@
           </view>
         </view>
       </view>
+
+      <!-- 分页底态：触底加载中 / 已加载全部（仅在有数据时展示） -->
+      <view
+        v-if="groups.length > 0 && (loadingMore || finished)"
+        class="list-footer"
+      >
+        <text class="footer-text">{{
+          loadingMore ? "加载中…" : "没有更多了"
+        }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -141,26 +153,47 @@
  * 流水页脚本模块
  * 模块说明：
  * - useFlowingData()：currentMonth / currentType 双向绑定 app store（持久化），
- *   groups / monthCard 为接口拉取的 ref，由 load() 异步填充；
- * - 本页仅负责三个交互入口：类型 ActionSheet、月份 picker、搜索占位按钮。
+ *   groups / monthCard 为接口拉取的 ref；列表按月分页加载（每页 50 条），
+ *   load() 拉取第一页并重置分页，loadMore() 触底加载下一页并按日合并进现有分组，
+ *   finished 标记已加载全部；
+ * - 本页负责：类型 ActionSheet、月份 picker、搜索占位、触底分页与下拉刷新入口。
  */
 import { watch } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onReachBottom, onPullDownRefresh } from "@dcloudio/uni-app";
 import { useFlowingData, goBillDetail } from "@/composables/useBookkeeping";
 
 // 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
 const typeOptions = ["全部类型", "支出", "收入"];
 
 // 月份 / 类型选择态持久化在 app store；分组与月汇总由 load() 异步拉取
-const { currentMonth, currentType, groups, monthCard, load } =
-  useFlowingData();
+const {
+  currentMonth,
+  currentType,
+  groups,
+  monthCard,
+  load,
+  loadMore,
+  loadingMore,
+  finished,
+} = useFlowingData();
 
-// 进入页面 / 从后台恢复时拉取；月份或类型变化时重新拉取
+// 进入页面 / 从后台恢复时拉取；月份或类型变化时重置到第一页重新拉取
 onShow(() => {
-  load();
+  load().catch(() => {});
 });
 watch([currentMonth, currentType], () => {
-  load();
+  load().catch(() => {});
+});
+
+// 触底加载下一页（内部自带 loading / finished 防抖与失败重试语义）
+onReachBottom(() => {
+  loadMore();
+});
+
+// 下拉刷新：重置到第一页重新拉取，完成后关闭刷新动画
+onPullDownRefresh(async () => {
+  await load().catch(() => {});
+  uni.stopPullDownRefresh();
 });
 
 /** 点击顶部类型文字 → 弹出 ActionSheet 切换筛选类型（写入后列表自动重算） */
@@ -348,6 +381,18 @@ const goDetail = item => {
 // 流水列表
 .flow-list-wrap {
   padding: 0 24rpx;
+}
+
+// 分页底态（触底加载中 / 没有更多了）
+.list-footer {
+  display: flex;
+  justify-content: center;
+  padding: 8rpx 0 26rpx;
+
+  .footer-text {
+    font-size: 23rpx;
+    color: #98a099;
+  }
 }
 
 .flow-group {

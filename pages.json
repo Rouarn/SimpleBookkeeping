@@ -4,21 +4,24 @@
       "path": "pages/index/index",
       "style": {
         "navigationBarTitleText": "小绿记账",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/flowing/index",
       "style": {
         "navigationBarTitleText": "流水",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
       "path": "pages/statistics/index",
       "style": {
         "navigationBarTitleText": "统计",
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {

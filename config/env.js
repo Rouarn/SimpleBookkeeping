@@ -11,7 +11,7 @@
 const isDev = !!import.meta.env?.DEV;
 
 /** API 服务基地址（真机联调用电脑局域网 IP，不能用 localhost） */
-export const API_BASE = !isDev
+export const API_BASE = isDev
   ? "http://192.168.31.115:9765"
   : "http://xl.shixian.xyz";
 

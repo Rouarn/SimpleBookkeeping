@@ -160,7 +160,7 @@
  * - goBillDetail(id)：统一的详情跳转工具，仅传 id，详情页自行调接口。
  */
 import { computed } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { useHomeData, goBillDetail } from "@/composables/useBookkeeping";
 import { useHitokoto } from "@/composables/useHitokoto";
 import UpdatePopup from "@/components/update-popup.vue";
@@ -189,9 +189,15 @@ const quoteSource = computed(() => {
   return "";
 });
 
-// 每次进入首页 / 从后台恢复时重新拉取聚合数据
+// 每次进入首页 / 从后台恢复时重新拉取聚合数据（失败静默，保留上次数据）
 onShow(() => {
-  load();
+  load().catch(() => {});
+});
+
+// 下拉刷新：重新拉取首页聚合数据，完成后关闭刷新动画
+onPullDownRefresh(async () => {
+  await load().catch(() => {});
+  uni.stopPullDownRefresh();
 });
 
 /**

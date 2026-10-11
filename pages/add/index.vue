@@ -127,6 +127,7 @@
                   class="photo-img"
                   :src="photo.url"
                   mode="aspectFill"
+                  lazy-load
                   @click="previewPhoto(index)"
                 />
                 <view class="photo-del" @click="removePhoto(index)">
@@ -181,7 +182,7 @@
 import { ref, computed } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import { useBookStore, useCategoryStore } from "@/store";
-import { useBillForm } from "@/composables/useBookkeeping";
+import { useBillForm, compressPhoto } from "@/composables/useBookkeeping";
 import { todayStr } from "@/utils/date";
 import { normalizeFileUrl } from "@/api";
 
@@ -203,16 +204,27 @@ const editId = ref("");
 const pageTitle = computed(() => (editId.value ? "编辑账单" : "个人账本"));
 
 /**
- * 生成线性 SVG 图标的 dataURL（默认白色，选中态使用分类主题色）
+ * 生成线性 SVG 图标的 dataURL（默认白色，选中态使用分类主题色）。
+ * 结果按「图标片段 + 颜色」缓存在模块级 Map 中：同一图标同一颜色只编码一次，
+ * 避免 categoryList computed 反复重算时重复 encodeURIComponent。
  * @param {string} inner SVG 内部 path 片段（见 ICON_PATHS）
  * @param {string} [color] 描边颜色，默认 '#ffffff'
  * @returns {string} 可直接绑定到 image src 的 dataURL
  */
-const icon = (inner, color = "#ffffff") =>
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`,
-  );
+const ICON_DATAURL_CACHE = new Map();
+
+const icon = (inner, color = "#ffffff") => {
+  const key = `${inner}|${color}`;
+  const cached = ICON_DATAURL_CACHE.get(key);
+  if (cached) return cached;
+  const url =
+    "data:image/svg+xml;utf8," +
+    encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`,
+    );
+  ICON_DATAURL_CACHE.set(key, url);
+  return url;
+};
 
 // 分类名 -> 线性图标路径（分类名称以 category store 为准，这里只维护展示素材）
 const ICON_PATHS = {
@@ -362,6 +374,7 @@ function choosePhoto() {
   if (remain <= 0) return;
   uni.chooseImage({
     count: remain,
+    sizeType: ["compressed"], // 选图阶段先走系统压缩
     success: async res => {
       const paths = res.tempFilePaths || [];
       uni.showLoading({ title: "上传中", mask: true });
@@ -369,7 +382,9 @@ function choosePhoto() {
         for (const p of paths) {
           if (photos.value.length >= 3) break;
           try {
-            const r = await uploadPhoto(p);
+            // 选图后二次压缩（quality 80），失败回退原图，不阻断上传
+            const src = await compressPhoto(p);
+            const r = await uploadPhoto(src);
             photos.value.push({
               key: r.key,
               url: normalizeFileUrl(r.url),

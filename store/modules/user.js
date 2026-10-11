@@ -15,7 +15,7 @@ import { usersApi, normalizeFileUrl } from "@/api";
 import { diffFromToday, todayStr, formatDate } from "@/utils/date";
 
 /** 默认头像（应用内置静态资源，任何异常头像值的最终兜底） */
-export const DEFAULT_AVATAR = "/static/other/01.png";
+export const DEFAULT_AVATAR = "/static/other/01.jpg";
 
 /**
  * 归一化头像地址：非字符串 / 空白 / "null" / "undefined" 等脏值一律回退默认头像；

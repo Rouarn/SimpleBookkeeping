@@ -65,8 +65,11 @@
       </view>
     </view>
 
-    <!-- 本期概览卡片 -->
-    <view class="overview-card" :class="billType">
+    <!-- 本期概览卡片：加载失败时展示错误态 + 点击重试（避免静默显示 ¥0 造成误读） -->
+    <view v-if="overviewError" class="overview-error" @click="retryOverview">
+      <text class="oe-text">概览加载失败，点击重试</text>
+    </view>
+    <view v-else class="overview-card" :class="billType">
       <view class="card-decor">
         <view class="decor-ring r1"></view>
         <view class="decor-ring r2"></view>
@@ -288,7 +291,7 @@
  * - 环比文案直接使用服务端 overview.mom.text / mom.up（月比上月、年比去年）。
  */
 import { ref, computed, watch } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onShow, onPullDownRefresh } from "@dcloudio/uni-app";
 import { useAppStore } from "@/store";
 import { useStatisticsData, useTrendData } from "@/composables/useBookkeeping";
 
@@ -326,10 +329,8 @@ const isYear = computed(() => scope.value === "year");
 const period = computed(() =>
   isYear.value ? { year: year.value } : { month: month.value },
 );
-const { overview, categoryStats, payStats, load } = useStatisticsData(
-  period,
-  billType,
-);
+const { overview, categoryStats, payStats, overviewError, load } =
+  useStatisticsData(period, billType);
 // 趋势：月维度近 6 个月；年维度整年 12 个月
 const trendYear = computed(() => (isYear.value ? year.value : null));
 const { trend, loadTrend } = useTrendData(6, trendYear);
@@ -450,18 +451,29 @@ const trendMax = computed(() =>
 const barHeight = v =>
   trendMax.value > 0 ? Math.max(Math.round((v / trendMax.value) * 100), 2) : 2;
 
-// 进入页面拉取；粒度 / 月份 / 年份 / 类型变化重拉概览与排行
+// 进入页面拉取（失败静默，保留上次数据）；粒度 / 月份 / 年份 / 类型变化重拉概览与排行
 onShow(() => {
-  load();
+  load().catch(() => {});
   loadTrend();
 });
 watch([period, billType], () => {
-  load();
+  load().catch(() => {});
 });
 // 趋势仅在 粒度/年份 变化时重拉（月视图近6个月与选中月份无关）
 watch(trendYear, () => {
   loadTrend();
 });
+
+// 下拉刷新：重拉概览 / 排行与趋势，全部完成后关闭刷新动画
+onPullDownRefresh(async () => {
+  await Promise.all([load().catch(() => {}), loadTrend()]);
+  uni.stopPullDownRefresh();
+});
+
+/** 概览加载失败 → 点击重试（复用 load，重拉概览与排行） */
+const retryOverview = () => {
+  load().catch(() => {});
+};
 </script>
 
 <style lang="scss" scoped>
@@ -562,6 +574,23 @@ watch(trendYear, () => {
         color: #c04a36;
       }
     }
+  }
+}
+
+// 概览加载失败错误态（点击整块重试，配色沿用空态文案体系）
+.overview-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 24rpx 24rpx;
+  padding: 72rpx 0;
+  background: #ffffff;
+  border-radius: 28rpx;
+  box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+
+  .oe-text {
+    font-size: 27rpx;
+    color: #8b938d;
   }
 }
 
