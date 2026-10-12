@@ -509,10 +509,13 @@ function scheduleRemindMessage(hhmm) {
     Math.round((next.getTime() - now.getTime()) / 1000),
   )
   try {
-    const msgId = plus.push.createMessage(
-      { title: '小绿记账', content: '今天还没记账哦，来记一笔吧' },
-      { delay: delaySec, sound: 'system' },
-    )
+    // 签名：createMessage(content, payload, options)，content 必须是字符串
+    //（传对象会被序列化成通知正文原文显示），delay/title 放第三参 options
+    const msgId = plus.push.createMessage('今天还没记账哦，来记一笔吧', '', {
+      title: '小绿记账',
+      delay: delaySec,
+      sound: 'system',
+    })
     if (msgId) uni.setStorageSync(REMIND_ID_KEY, String(msgId))
   } catch {
     // ignore：注册失败静默，设置已保存，下次开关/改时间会重试

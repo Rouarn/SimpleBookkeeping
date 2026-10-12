@@ -175,10 +175,54 @@ function isXiaomiDevice() {
 }
 
 /**
+ * JS 直连调起系统安装器：FileProvider URI + ACTION_VIEW。
+ * 兜底场景：plus.runtime.install 的 APK 分支内部硬依赖
+ * io.dcloud.feature.pack.FileUtils（反射调用其 addFileToSystem），
+ * 离线打包 SDK 5.26.82680 全部 aar 与部分云包运行时均不含该类，
+ * 此时 plus.runtime.install 会静默失败：错误标志置位但不写错误消息，
+ * JS 侧只收到空 message，且系统安装器从未被调起。
+ * 本函数复刻其唯一实际动作（FileProvider.getUriForFile +
+ * ACTION_VIEW + application/vnd.android.package-archive），
+ * 不依赖该类，任何运行时可用。
+ * @param {string} filePath APK 本地路径（_doc/、file:// 或绝对路径均可）
+ * @returns {string} 成功调起返回空串；失败返回错误描述
+ */
+function installApkByNative(filePath) {
+  // #ifdef APP-PLUS
+  try {
+    let absPath = plus.io.convertLocalFileSystemURL(filePath)
+    if (!absPath.startsWith('/')) absPath = absPath.replace(/^file:\/\//, '')
+    const File = plus.android.importClass('java.io.File')
+    const apkFile = new File(absPath)
+    if (!apkFile.exists()) return `安装包不存在（${absPath}）`
+    const main = plus.android.runtimeMainActivity()
+    plus.android.importClass(main)
+    const FileProvider = plus.android.importClass(
+      'androidx.core.content.FileProvider',
+    )
+    const Intent = plus.android.importClass('android.content.Intent')
+    const authority = `${main.getPackageName()}.dc.fileprovider`
+    const uri = FileProvider.getUriForFile(main, authority, apkFile)
+    const intent = new Intent(Intent.ACTION_VIEW)
+    intent.setDataAndType(uri, 'application/vnd.android.package-archive')
+    intent.addFlags(
+      Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION,
+    )
+    main.startActivity(intent)
+    return ''
+  } catch (e) {
+    return String(e?.message || e || 'native-install-failed').slice(0, 64)
+  }
+  // #endif
+}
+
+/**
  * 调起系统安装器（用户需手动确认，无法静默）；安装前写回补标记。
  * Android 8.0+ 需用户为「本应用」授予安装未知应用权限（系统设置→应用
  * 管理→本应用→安装未知应用，App 内无该开关），未授权时安装调起失败，
  * 引导用户跳转系统授权页后重试安装（APK 已缓存，无需重新下载）。
+ * Android 统一走 installApkByNative 直连调起（见其注释的运行时缺陷）；
+ * 非 Android 平台保留 plus.runtime.install。
  * @param {string} filePath 下载完成的 APK 临时路径
  * @param {{isRetry?: boolean}} [opts] isRetry=true 表示授权后的重试安装
  */
@@ -186,35 +230,49 @@ function installApk(filePath, { isRetry = false } = {}) {
   // #ifdef APP-PLUS
   lastApkPath = filePath
   uni.setStorageSync(PENDING_INSTALL_KEY, state.info.versionCode)
+
+  const fail = (raw) => {
+    state.downloading = false
+    // 重试安装仍失败且疑似安装包失效（缓存文件被清理等），退回重新下载
+    if (isRetry && /不存在|找不到|not\s*found|解析|corrupt/i.test(raw)) {
+      lastApkPath = ''
+      state.failedType = 'download'
+      state.failedMsg = '安装包已失效，请重新下载'
+    } else {
+      state.failedType = 'install'
+      // 小米/Redmi：MIUI 未开「开发者选项→USB 安装」时授权页开关置灰，
+      // 文案需先引导开启 USB 安装；尾部附带原始错误码便于排查
+      // （权限已授仍失败多为 targetSdk 30+ 包可见性 queries 缺失等）
+      const hint = isXiaomiDevice()
+        ? '请先在「开发者选项」开启 USB 安装，再允许安装未知应用'
+        : '需开启「安装未知应用」权限后才能安装更新'
+      state.failedMsg = `安装失败：${hint}（${raw.slice(0, 24)}）`
+    }
+    reportEvent('install_fail', {
+      toVersionCode: state.info.versionCode,
+      failCode: raw.slice(0, 64),
+    })
+  }
+
+  if (String(plus.os.name || '').toLowerCase() === 'android') {
+    const err = installApkByNative(filePath)
+    if (!err) {
+      // 仅代表成功调起系统安装器，APK 场景不要调 plus.runtime.restart()
+      state.downloading = false
+      return
+    }
+    fail(err)
+    return
+  }
+
   plus.runtime.install(
     filePath,
     { force: false },
     () => {
-      // 仅代表成功调起系统安装器，APK 场景不要调 plus.runtime.restart()
       state.downloading = false
     },
     (err) => {
-      state.downloading = false
-      const raw = String(err?.message || err?.code || 'install_error')
-      // 重试安装仍失败且疑似安装包失效（缓存文件被清理等），退回重新下载
-      if (isRetry && /不存在|找不到|not\s*found|解析|corrupt/i.test(raw)) {
-        lastApkPath = ''
-        state.failedType = 'download'
-        state.failedMsg = '安装包已失效，请重新下载'
-      } else {
-        state.failedType = 'install'
-        // 小米/Redmi：MIUI 未开「开发者选项→USB 安装」时授权页开关置灰，
-        // 文案需先引导开启 USB 安装；尾部附带原始错误码便于排查
-        // （权限已授仍失败多为 targetSdk 30+ 包可见性 queries 缺失等）
-        const hint = isXiaomiDevice()
-          ? '请先在「开发者选项」开启 USB 安装，再允许安装未知应用'
-          : '需开启「安装未知应用」权限后才能安装更新'
-        state.failedMsg = `安装失败：${hint}（${raw.slice(0, 24)}）`
-      }
-      reportEvent('install_fail', {
-        toVersionCode: state.info.versionCode,
-        failCode: raw.slice(0, 64),
-      })
+      fail(String(err?.message || err?.code || 'install_error'))
     },
   )
   // #endif
