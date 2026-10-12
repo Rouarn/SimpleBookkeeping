@@ -1,113 +1,113 @@
 {
-  "name": "小绿记账",
-  "appid": "__UNI__195FC35",
-  "description": "清新绿色风极简记账 APP",
-  "versionName": "1.0.4",
-  "versionCode": 104,
-  "transformPx": false,
-  "app-plus": {
-    /* 5+App特有相关 */
-    "usingComponents": true,
-    /* 深色模式：使 getSystemInfoSync().theme / uni.onThemeChange 生效，
+    "name" : "小绿记账",
+    "appid" : "__UNI__195FC35",
+    "description" : "清新绿色风极简记账 APP",
+    "versionName" : "1.0.4",
+    "versionCode" : 104,
+    "transformPx" : false,
+    "app-plus" : {
+        /* 5+App特有相关 */
+        "usingComponents" : true,
+        /* 深色模式：使 getSystemInfoSync().theme / uni.onThemeChange 生效，
            theme.json 同步切换原生导航与 tabBar 颜色（变量被 pages.json @ 引用） */
-    "darkmode": true,
-    "themeLocation": "theme.json",
-    "nvueCompiler": "uni-app",
-    "nvueStyleCompiler": "uni-app",
-    "splashscreen": {
-      "alwaysShowBeforeRender": true,
-      "waiting": true,
-      "autoclose": true,
-      "delay": 0
-    },
-    "modules": {
-      "Camera": {},
-      "Push": {}
-    },
-    /* 模块配置 */
-    "distribute": {
-      /* 应用发布信息 */
-      "android": {
-        "permissions": [
-          "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
-          "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
-          "<uses-permission android:name=\"android.permission.CAMERA\"/>",
-          "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
-          "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\"/>",
-          "<uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\"/>",
-          "<uses-feature android:name=\"android.hardware.camera\"/>",
-          "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>"
-        ]
-      },
-      "ios": {
-        "dSYMs": false
-      },
-      /* ios打包配置 */
-      "sdkConfigs": {
-        "push": {}
-      },
-      "icons": {
-        "android": {
-          "hdpi": "unpackage/res/icons/72x72.png",
-          "xhdpi": "unpackage/res/icons/96x96.png",
-          "xxhdpi": "unpackage/res/icons/144x144.png",
-          "xxxhdpi": "unpackage/res/icons/192x192.png"
+        "darkmode" : true,
+        "themeLocation" : "theme.json",
+        "nvueCompiler" : "uni-app",
+        "nvueStyleCompiler" : "uni-app",
+        "splashscreen" : {
+            "alwaysShowBeforeRender" : true,
+            "waiting" : true,
+            "autoclose" : true,
+            "delay" : 0
         },
-        "ios": {
-          "appstore": "unpackage/res/icons/1024x1024.png",
-          "ipad": {
-            "app": "unpackage/res/icons/76x76.png",
-            "app@2x": "unpackage/res/icons/152x152.png",
-            "notification": "unpackage/res/icons/20x20.png",
-            "notification@2x": "unpackage/res/icons/40x40.png",
-            "proapp@2x": "unpackage/res/icons/167x167.png",
-            "settings": "unpackage/res/icons/29x29.png",
-            "settings@2x": "unpackage/res/icons/58x58.png",
-            "spotlight": "unpackage/res/icons/40x40.png",
-            "spotlight@2x": "unpackage/res/icons/80x80.png"
-          },
-          "iphone": {
-            "app@2x": "unpackage/res/icons/120x120.png",
-            "app@3x": "unpackage/res/icons/180x180.png",
-            "notification@2x": "unpackage/res/icons/40x40.png",
-            "notification@3x": "unpackage/res/icons/60x60.png",
-            "settings@2x": "unpackage/res/icons/58x58.png",
-            "settings@3x": "unpackage/res/icons/87x87.png",
-            "spotlight@2x": "unpackage/res/icons/80x80.png",
-            "spotlight@3x": "unpackage/res/icons/120x120.png"
-          }
+        "modules" : {
+            "Camera" : {},
+            "Push" : {}
+        },
+        /* 模块配置 */
+        "distribute" : {
+            /* 应用发布信息 */
+            "android" : {
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" android:maxSdkVersion=\"32\"/>",
+                    "<uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera\"/>",
+                    "<uses-feature android:name=\"android.hardware.camera.autofocus\"/>"
+                ]
+            },
+            "ios" : {
+                "dSYMs" : false
+            },
+            /* ios打包配置 */
+            "sdkConfigs" : {
+                "push" : {}
+            },
+            "icons" : {
+                "android" : {
+                    "hdpi" : "unpackage/res/icons/72x72.png",
+                    "xhdpi" : "unpackage/res/icons/96x96.png",
+                    "xxhdpi" : "unpackage/res/icons/144x144.png",
+                    "xxxhdpi" : "unpackage/res/icons/192x192.png"
+                },
+                "ios" : {
+                    "appstore" : "unpackage/res/icons/1024x1024.png",
+                    "ipad" : {
+                        "app" : "unpackage/res/icons/76x76.png",
+                        "app@2x" : "unpackage/res/icons/152x152.png",
+                        "notification" : "unpackage/res/icons/20x20.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "proapp@2x" : "unpackage/res/icons/167x167.png",
+                        "settings" : "unpackage/res/icons/29x29.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "spotlight" : "unpackage/res/icons/40x40.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png"
+                    },
+                    "iphone" : {
+                        "app@2x" : "unpackage/res/icons/120x120.png",
+                        "app@3x" : "unpackage/res/icons/180x180.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "notification@3x" : "unpackage/res/icons/60x60.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "settings@3x" : "unpackage/res/icons/87x87.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png",
+                        "spotlight@3x" : "unpackage/res/icons/120x120.png"
+                    }
+                }
+            },
+            "splashscreen" : {
+                "androidStyle" : "default",
+                "android" : {
+                    "hdpi" : "static/other/09.png",
+                    "xhdpi" : "static/other/09.png",
+                    "xxhdpi" : "static/other/09.png"
+                }
+            }
         }
-      },
-      "splashscreen": {
-        "androidStyle": "default",
-        "android": {
-          "hdpi": "static/other/09.png",
-          "xhdpi": "static/other/09.png",
-          "xxhdpi": "static/other/09.png"
-        }
-      }
+    },
+    /* SDK配置 */
+    "quickapp" : {},
+    /* 快应用特有相关 */
+    "mp-weixin" : {
+        /* 小程序特有相关 */
+        "appid" : "",
+        /* 深色模式：使小程序端 theme API 生效 */
+        "darkmode" : true,
+        "themeLocation" : "theme.json"
+    },
+    "h5" : {
+        /* H5 特有相关：使 getSystemInfoSync().theme 与 uni.onThemeChange 生效 */
+        "darkmode" : true,
+        "themeLocation" : "theme.json"
+    },
+    "vueVersion" : "3",
+    "locale" : "auto",
+    "fallbackLocale" : "zh-Hans",
+    "uniStatistics" : {
+        "enable" : false,
+        "debug" : false
     }
-  },
-  /* SDK配置 */
-  "quickapp": {},
-  /* 快应用特有相关 */
-  "mp-weixin": {
-    /* 小程序特有相关 */
-    "appid": "",
-    /* 深色模式：使小程序端 theme API 生效 */
-    "darkmode": true,
-    "themeLocation": "theme.json"
-  },
-  "h5": {
-    /* H5 特有相关：使 getSystemInfoSync().theme 与 uni.onThemeChange 生效 */
-    "darkmode": true,
-    "themeLocation": "theme.json"
-  },
-  "vueVersion": "3",
-  "locale": "auto",
-  "fallbackLocale": "zh-Hans",
-  "uniStatistics": {
-    "enable": false,
-    "debug": false
-  }
 }

@@ -18,6 +18,8 @@
   @modify 2026-10-11 抽取 PageHeader / MenuItem 公共组件
   @modify 2026-10-12 新增「主题外观」分组（深色模式三段选择器），根节点接 themeClass
   @modify 2026-10-12 新增导出数据 / 记账提醒 / 注销账号；登出与注销共用本地清理
+  @modify 2026-10-12 修复检查更新无弹窗：本页挂载 UpdatePopup 就地展示，
+               移除「发现新版本自动返回上一页」的跳转逻辑
 -->
 <template>
   <view class="settings" :class="themeClass">
@@ -147,6 +149,10 @@
 
       <text class="slogan">小绿记账 · 记一笔，知一月</text>
     </view>
+
+    <!-- 全局更新弹窗：检查到新版本时就地展示（弹窗为模块级单例状态，
+         与首页挂载的实例共享，当前页可见时仅本页实例渲染） -->
+    <UpdatePopup />
   </view>
 </template>
 
@@ -171,13 +177,14 @@ import {
   useUserStore,
 } from '@/store'
 import { useAppUpdate } from '@/composables/use-app-update'
+import UpdatePopup from '@/components/update-popup.vue'
 import { useTheme } from '@/composables/useTheme'
 import { currentMonth } from '@/utils/date'
 import { getCurrentVersion } from '@/utils/app-update/device'
 
-// APP 在线更新：手动检查入口（state 为模块级单例，弹窗仅挂载在首页，
-// 本页发现新版本时返回上一页由首页弹出）
-const { state: updateState, check: checkAppUpdate } = useAppUpdate()
+// APP 在线更新：手动检查入口（弹窗组件已在本页挂载，发现新版本就地弹出；
+// 弹窗状态为模块级单例，与首页挂载的实例共享）
+const { check: checkAppUpdate } = useAppUpdate()
 
 // 深色模式：根节点主题类 + JS 取色（switch / uni-icons color 走不了 CSS 变量）
 const {
@@ -241,8 +248,7 @@ const onMenuTap = (item) => {
 
 /**
  * 手动检查更新：带 loading，无更新/失败由更新模块给出 toast；
- * 检查到新版本（弹窗状态已置 visible）时返回上一页，由首页挂载的
- * 全局唯一弹窗承接展示，本页不再重复挂载
+ * 检查到新版本时就地弹出更新弹窗（本页已挂载 UpdatePopup，不再跳转）
  */
 const onManualCheck = async () => {
   uni.showLoading({ title: '检查中…' })
@@ -250,9 +256,6 @@ const onManualCheck = async () => {
     await checkAppUpdate({ silent: false })
   } finally {
     uni.hideLoading()
-  }
-  if (updateState.visible && getCurrentPages().length > 1) {
-    uni.navigateBack()
   }
 }
 

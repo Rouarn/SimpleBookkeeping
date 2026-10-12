@@ -71,10 +71,12 @@ export default [
   },
   {
     // uni-app 条件编译（// #ifdef ... // #endif）由构建预处理裁剪，
-    // ESLint 看到的是"return 之后还有语句"的假阳性，降级为告警
+    // ESLint 看到的是"return 之后还有语句"的假阳性，直接关闭；
+    // catch (e) 静默吞错也是该模块约定，忽略未使用的 catch 形参
     files: ['composables/use-app-update.js', 'utils/app-update/**/*.js'],
     rules: {
-      'no-unreachable': 'warn',
+      'no-unreachable': 'off',
+      'no-unused-vars': ['warn', { caughtErrors: 'none' }],
     },
   },
 ]

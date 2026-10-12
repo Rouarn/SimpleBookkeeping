@@ -17,6 +17,9 @@
   @date 2026-09-20
   @modify 2026-10-12 深色模式：弹窗卡 / 日志卡 / 进度轨 / 文案色收敛至主题 token，
                主按钮改用实底主色 token 保证白字对比度（引导头渐变与白字保持）
+  @modify 2026-10-12 安装失败引导：「安装未知应用」开关在 Android 系统按应用
+               授权页（App 内无此开关），安装失败态主按钮改「去开启安装权限」
+               直跳系统授权页，辅以「重试安装」复用已下载 APK 免重复下载
 -->
 <template>
   <view v-if="state.visible" class="upd-mask" @touchmove.stop.prevent>
@@ -109,7 +112,15 @@
 
         <!-- 按钮区 -->
         <view class="upd-actions">
-          <button v-if="state.failedMsg" class="upd-btn" @click="retry">
+          <!-- 安装失败：主按钮直跳系统「安装未知应用」授权页 -->
+          <button
+            v-if="state.failedType === 'install'"
+            class="upd-btn"
+            @click="openInstallPermissionSettings"
+          >
+            去开启安装权限
+          </button>
+          <button v-else-if="state.failedMsg" class="upd-btn" @click="retry">
             重新下载
           </button>
           <button
@@ -119,6 +130,15 @@
           >
             立即更新
           </button>
+
+          <!-- 安装失败：授权后重试安装（复用已下载 APK，不重新下载） -->
+          <view
+            v-if="state.failedType === 'install'"
+            class="upd-text-btn"
+            @click="retryInstall"
+          >
+            已开启权限，重试安装
+          </view>
 
           <view
             v-if="!state.info?.forceUpdate && !state.downloading"
@@ -144,7 +164,15 @@
 <script setup>
 import { useAppUpdate } from '@/composables/use-app-update'
 
-const { state, startDownload, retry, dismiss, exitApp } = useAppUpdate()
+const {
+  state,
+  startDownload,
+  retry,
+  retryInstall,
+  openInstallPermissionSettings,
+  dismiss,
+  exitApp,
+} = useAppUpdate()
 
 /** 字节数格式化为 MB 展示 */
 function formatSize(bytes) {

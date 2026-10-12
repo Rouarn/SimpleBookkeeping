@@ -14,6 +14,12 @@
  *              6. 安装前写待安装版本标记，由 install-result 模块在新包
  *                 首启时回补 install_success 事件。
  * @date 2026-09-15
+ * @modify 2026-10-12 安装失败引导修复：「安装未知应用」开关在 Android
+ *              系统的按应用授权页（系统设置→应用管理→本应用），App 内无此
+ *              开关。安装失败时缓存已下载 APK，直接调起系统授权页
+ *              （MANAGE_UNKNOWN_APP_SOURCES），授权后可重试安装免重复下载。
+ *              小米/Redmi 机型：MIUI 在「开发者选项→USB 安装」未开启时
+ *              会把该授权页开关置灰，失败文案针对小米追加 USB 安装引导。
  */
 
 import { reactive } from 'vue'
@@ -34,9 +40,13 @@ const state = reactive({
   downloadedBytes: 0,
   totalBytes: 0,
   failedMsg: '',
+  // 失败类型：'' 无 | 'download' 下载失败（重下） | 'install' 调起安装失败（去授权+重试安装）
+  failedType: '',
 })
 
 let downloadTask = null
+// 最近一次已下载完成且校验通过的 APK 本地路径：授权后重试安装时免重复下载
+let lastApkPath = ''
 
 /**
  * 请求检查接口，有更新返回更新信息，无更新返回 null
@@ -108,6 +118,7 @@ async function startDownload() {
   if (state.downloading) return
   state.downloading = true
   state.failedMsg = ''
+  state.failedType = ''
   state.progress = 0
   reportEvent('download_start', {
     toVersionCode: state.info.versionCode,
@@ -136,6 +147,7 @@ async function startDownload() {
   }
 
   state.downloading = false
+  state.failedType = 'download'
   state.failedMsg = lastErr?.message || '下载失败，请稍后重试'
   reportEvent('download_fail', {
     toVersionCode: state.info.versionCode,
@@ -144,11 +156,35 @@ async function startDownload() {
 }
 
 /**
- * 调起系统安装器（用户需手动确认，无法静默）；安装前写回补标记
- * @param {string} filePath 下载完成的 APK 临时路径
+ * 当前设备是否为小米/Redmi 机型（MIUI 在未开启「USB 安装」时会把
+ * 「安装未知应用」授权页开关置灰，需要针对性的引导文案）
+ * @returns {boolean}
  */
-function installApk(filePath) {
+function isXiaomiDevice() {
   // #ifdef APP-PLUS
+  try {
+    const info =
+      typeof uni.getDeviceInfo === 'function'
+        ? uni.getDeviceInfo()
+        : uni.getSystemInfoSync()
+    return /xiaomi|redmi/i.test(String(info.deviceBrand || ''))
+  } catch (e) {
+    return false
+  }
+  // #endif
+}
+
+/**
+ * 调起系统安装器（用户需手动确认，无法静默）；安装前写回补标记。
+ * Android 8.0+ 需用户为「本应用」授予安装未知应用权限（系统设置→应用
+ * 管理→本应用→安装未知应用，App 内无该开关），未授权时安装调起失败，
+ * 引导用户跳转系统授权页后重试安装（APK 已缓存，无需重新下载）。
+ * @param {string} filePath 下载完成的 APK 临时路径
+ * @param {{isRetry?: boolean}} [opts] isRetry=true 表示授权后的重试安装
+ */
+function installApk(filePath, { isRetry = false } = {}) {
+  // #ifdef APP-PLUS
+  lastApkPath = filePath
   uni.setStorageSync(PENDING_INSTALL_KEY, state.info.versionCode)
   plus.runtime.install(
     filePath,
@@ -159,16 +195,72 @@ function installApk(filePath) {
     },
     (err) => {
       state.downloading = false
-      state.failedMsg = '调起安装失败，请在系统设置中允许安装未知应用后重试'
+      const raw = String(err?.message || err?.code || 'install_error')
+      // 重试安装仍失败且疑似安装包失效（缓存文件被清理等），退回重新下载
+      if (isRetry && /不存在|找不到|not\s*found|解析|corrupt/i.test(raw)) {
+        lastApkPath = ''
+        state.failedType = 'download'
+        state.failedMsg = '安装包已失效，请重新下载'
+      } else {
+        state.failedType = 'install'
+        // 小米/Redmi：MIUI 未开「开发者选项→USB 安装」时授权页开关置灰，
+        // 文案需先引导开启 USB 安装；尾部附带原始错误码便于排查
+        // （权限已授仍失败多为 targetSdk 30+ 包可见性 queries 缺失等）
+        const hint = isXiaomiDevice()
+          ? '请先在「开发者选项」开启 USB 安装，再允许安装未知应用'
+          : '需开启「安装未知应用」权限后才能安装更新'
+        state.failedMsg = `安装失败：${hint}（${raw.slice(0, 24)}）`
+      }
       reportEvent('install_fail', {
         toVersionCode: state.info.versionCode,
-        failCode: String(err.message || err.code || 'install_error').slice(
-          0,
-          64,
-        ),
+        failCode: raw.slice(0, 64),
       })
     },
   )
+  // #endif
+}
+
+/**
+ * 跳转 Android 系统「安装未知应用」按应用授权页；低版本系统（<8.0）
+ * 无该 Action 时退回应用详情页，再失败兜底 toast 指引。
+ */
+function openInstallPermissionSettings() {
+  // #ifdef APP-PLUS
+  if (String(plus.os.name || '').toLowerCase() !== 'android') return
+  try {
+    const Intent = plus.android.importClass('android.content.Intent')
+    const Uri = plus.android.importClass('android.net.Uri')
+    const main = plus.android.runtimeMainActivity()
+    plus.android.importClass(main)
+    const uri = Uri.fromParts('package', main.getPackageName(), null)
+    const intent = new Intent('android.settings.MANAGE_UNKNOWN_APP_SOURCES')
+    intent.setData(uri)
+    main.startActivity(intent)
+  } catch (e) {
+    try {
+      const Intent = plus.android.importClass('android.content.Intent')
+      const Uri = plus.android.importClass('android.net.Uri')
+      const main = plus.android.runtimeMainActivity()
+      plus.android.importClass(main)
+      const uri = Uri.fromParts('package', main.getPackageName(), null)
+      const intent = new Intent('android.settings.APPLICATION_DETAILS_SETTINGS')
+      intent.setData(uri)
+      main.startActivity(intent)
+    } catch (e2) {
+      uni.showToast({
+        title: '请到系统设置-应用管理中，允许本应用安装未知应用',
+        icon: 'none',
+      })
+    }
+  }
+  // #endif
+}
+
+/** 授权后重试安装：复用已下载并校验通过的 APK，不再重新下载 */
+function retryInstall() {
+  // #ifdef APP-PLUS
+  if (!lastApkPath) return
+  installApk(lastApkPath, { isRetry: true })
   // #endif
 }
 
@@ -210,6 +302,7 @@ export function useAppUpdate() {
       state.visible = true
       state.progress = 0
       state.failedMsg = ''
+      state.failedType = ''
       reportEvent('prompt_show', { toVersionCode: info.versionCode })
     } catch (e) {
       if (!silent) {
@@ -232,6 +325,8 @@ export function useAppUpdate() {
     check,
     startDownload,
     retry: startDownload,
+    retryInstall,
+    openInstallPermissionSettings,
     dismiss,
     exitApp,
   }
