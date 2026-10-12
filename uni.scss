@@ -1,18 +1,28 @@
 @import '@/uni_modules/uni-scss/variables.scss';
 
 /* ======================================================================
- * 小绿记账 Design Token（阶段四 P2-14）
+ * 小绿记账 Design Token（阶段四 P2-14 / 深色模式）
  * uni.scss 由 uni-app 编译期自动注入每个组件的 <style lang="scss">，
  * 故本文件只放 SCSS 变量 / mixin（不产生实际 CSS 输出）。
  * 所有色值均从重构前页面硬编码中逐一收集，命名不改设计、只收敛重复。
+ *
+ * 深色模式约定：
+ * - 主题相关颜色 token 均为 CSS 自定义属性形式 var(--c-xxx, 浅色值)，
+ *   SCSS 变量只是「变量名 → 浅色回退值」的别名，引用点照常使用 $token；
+ * - 变量在 App.vue 的 page 选择器上声明浅色整套默认值，
+ *   @media (prefers-color-scheme: dark) 覆写为深色整套，
+ *   .theme-dark / .theme-light 两个工具类供手动切换时在页面根节点覆盖。
+ * - 与品牌渐变 / 头部绑定的颜色（深松绿渐变、深底白字、装饰白）不随主题变化，
+ *   仅渐变表达式本身走 --g-* 变量做深色下的微调亮变体。
  * ==================================================================== */
 
 /* ---------- 品牌色：深松绿系 ---------- */
-$color-primary-deepest: #0c3a2e; // 渐变深端 / 最深底色
-$color-primary-deep: #175142; // 主色（头部渐变浅端、主按钮、选中文字）
-$color-primary: #1c6450; // 勾选 / 次级主按钮
-$color-primary-mid: #2f6b54; // 主题强调（图标、日期胶囊、图例）
-$color-accent: #4caf87; // 输入聚焦边框
+$color-primary-deepest: #0c3a2e; // 渐变深端 / 最深底色（渐变整体走 --g-* 变量，保留局部引用）
+$color-primary-deep: var(--c-primary, #175142); // 主色（头部渐变浅端、选中文字、强调）
+$color-primary: var(--c-primary-strong, #1c6450); // 勾选 / 次级主按钮
+$color-primary-mid: var(--c-primary-mid, #2f6b54); // 主题强调（图标、日期胶囊、图例）
+$color-primary-btn: var(--c-primary-btn, #175142); // 实底主按钮背景（深色下取中间调绿，保证白字可读）
+$color-accent: #4caf87; // 输入聚焦边框（两套主题下均可读，不随主题切换）
 $color-mint: #4fc794; // 渐变亮端（进度条、支出柱）
 $color-mint-light: #93e7c4; // 渐变亮端 2
 $color-mint-soft: #8fe2bd; // 深底上的薄荷点缀（胶囊描边、编辑图标）
@@ -21,27 +31,55 @@ $color-mint-soft: #8fe2bd; // 深底上的薄荷点缀（胶囊描边、编辑�
 $color-clay: #b5523e; // 收入渐变浅端
 $color-clay-deep: #913527; // 收入渐变深端
 $color-clay-bar: #d97a66; // 收入柱渐变亮端
-$color-danger: #d54e3c; // 错误 / 删除 / 收入红
-$color-danger-soft: #df543f; // 流水行收入金额
-$color-danger-bg: #fcebe8; // 浅红底
+$color-danger: var(--c-danger, #d54e3c); // 错误 / 删除 / 收入红
+$color-danger-soft: var(--c-danger-soft, #df543f); // 流水行收入金额
+$color-danger-bg: var(--c-danger-bg, #fcebe8); // 浅红底
+$color-danger-btn: var(--c-danger-btn, #e06651); // 退出登录等警示按钮
 $color-terracotta: #a8543f; // 米纸卡上的朱砂（印章、强更标签）
+$color-income: var(--c-income, #c04a36); // 收入强调（tab 选中 / 图例 / 提示金额）
+$color-error-text: var(--c-error-text, #c24a39); // 错误提示文案
+$color-gold: var(--c-gold, #c08a3e); // 排行榜前三名序号
+$color-tint-text: var(--c-tint-text, #56645c); // 支出小结胶囊文字
 
 /* ---------- 暖灰背景 ---------- */
-$bg-page: #f3f5f2; // 全站页面暖灰底
-$bg-warm: #f6f8f5; // 输入框浅暖底
-$bg-card: #ffffff; // 卡片白
-$bg-hover: #f6f9f6; // 列表行按压缩放
-$bg-tint: #e9f0eb; // 支出小结胶囊底
-$bg-tint-icon: #e9f3ed; // 菜单图标底
+$bg-page: var(--c-bg, #f3f5f2); // 全站页面暖灰底
+$bg-warm: var(--c-input-bg, #f6f8f5); // 输入框浅暖底
+$bg-card: var(--c-card, #ffffff); // 卡片白
+$bg-hover: var(--c-hover, #f6f9f6); // 列表行按压缩放
+$bg-tint: var(--c-tint, #e9f0eb); // 支出小结胶囊底
+$bg-tint-icon: var(--c-tint-icon, #e9f3ed); // 菜单图标底
+$bg-toggle: var(--c-toggle, #e4eae4); // 分段选择器轨道
+$bg-fallback: var(--c-fallback, #eef1ec); // 图片加载失败灰底占位
 
 /* ---------- 文本 ---------- */
-$text-title: #1e2521; // 页面 / 区块大标题
-$text-primary: #202622; // 主文本
-$text-strong: #222924; // 金额等强文本
-$text-regular: #6c736b; // 常规次级文本
-$text-secondary: #98a099; // 辅助说明文本
-$text-placeholder: #8b938d; // 空态文本
-$text-inverse: #f1f7f3; // 深底上的主文本
+$text-title: var(--c-text-title, #1e2521); // 页面 / 区块大标题
+$text-primary: var(--c-text, #202622); // 主文本
+$text-strong: var(--c-text-strong, #222924); // 金额等强文本
+$text-regular: var(--c-text-2, #6c736b); // 常规次级文本
+$text-secondary: var(--c-text-3, #98a099); // 辅助说明文本
+$text-placeholder: var(--c-text-placeholder, #8b938d); // 空态文本
+$text-body: var(--c-text-body, #4b534c); // 正文段落（协议正文、弹窗说明标题）
+$text-inverse: #f1f7f3; // 深底上的主文本（头部渐变深色下仍为白，不随主题切换）
+
+/* ---------- 描边与分割线 ---------- */
+$border: var(--c-border, #e6ebe6); // 输入框描边
+$border-strong: var(--c-border-strong, #c3ccc4); // 勾选框等高对比描边
+$divider: var(--c-divider, #edf0ec); // 列表发丝分割线
+$divider-strong: var(--c-divider-strong, #dbe1db); // 票据虚线分隔
+
+/* ---------- 米纸便签（首页一言卡） ---------- */
+$bg-paper: var(--c-paper, #f8f4ea); // 便签底
+$bg-paper-hover: var(--c-paper-hover, #f4eede); // 便签按压底
+$border-paper: var(--c-paper-border, #ece4d3); // 便签描边
+$text-paper: var(--c-paper-text, #4a443c); // 便签正文
+$text-paper-sub: var(--c-paper-sub, #a3947b); // 便签次级文字（出处 / 换一句）
+
+/* ---------- 阴影（深色下降透明度换黑色投影） ---------- */
+$shadow-float: var(--shadow-float, 0 4rpx 16rpx rgba(28, 54, 45, 0.08)); // 圆形小按钮 / 胶囊
+$shadow-card: var(--shadow-card, 0 8rpx 28rpx rgba(28, 54, 45, 0.06)); // 列表 / 面板白卡
+$shadow-card-lg: var(--shadow-card-lg, 0 8rpx 28rpx rgba(28, 54, 45, 0.08)); // 菜单卡
+$shadow-raised: var(--shadow-raised, 0 12rpx 36rpx rgba(28, 54, 45, 0.08)); // 上浮大卡
+$shadow-paper: var(--shadow-paper, 0 6rpx 20rpx rgba(94, 74, 40, 0.05)); // 便签投影
 
 /* ---------- 圆角（rpx） ---------- */
 $radius-xxl: 44rpx; // 登录页头部底边
@@ -58,19 +96,21 @@ $space-page-x: 24rpx; // 页面左右常规边距
 $space-card-y: 28rpx; // 卡片纵向节奏
 $space-section: 32rpx; // 区块边距
 
-/* ---------- 渐变（现状共两套角度，均原样保留） ---------- */
+/* ---------- 渐变（现状共两套角度，均原样保留；品牌渐变深色下用稍亮变体） ---------- */
 // 150deg：页面头部 / 卡片主渐变
-$gradient-header: linear-gradient(
-  150deg,
-  #175142 0%,
-  #0c3a2e 100%
+$gradient-header: var(
+  --g-header,
+  linear-gradient(150deg, #175142 0%, #0c3a2e 100%)
 );
 // 160deg：详情 / 记账整页底色与票据缺口
-$gradient-page: linear-gradient(160deg, #175142 0%, #0c3a2e 100%);
+$gradient-page: var(--g-page, linear-gradient(160deg, #175142 0%, #0c3a2e 100%));
 // 登录主按钮（浅端为 #1c6450）
-$gradient-submit: linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%);
+$gradient-submit: var(
+  --g-submit,
+  linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%)
+);
 // 记账页保存按钮（90deg）
-$gradient-save: linear-gradient(90deg, #175142 0%, #246b56 100%);
+$gradient-save: var(--g-save, linear-gradient(90deg, #175142 0%, #246b56 100%));
 // 收入卡（150deg 陶土）
 $gradient-income: linear-gradient(150deg, #b5523e 0%, #913527 100%);
 // 柱状图

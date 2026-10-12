@@ -15,6 +15,8 @@
                注意：本组件为扁平路径（components/update-popup.vue），不满足
                easycom 默认规则，使用页面必须显式 import（首页 / 我的页均已引入）。
   @date 2026-09-20
+  @modify 2026-10-12 深色模式：弹窗卡 / 日志卡 / 进度轨 / 文案色收敛至主题 token，
+               主按钮改用实底主色 token 保证白字对比度（引导头渐变与白字保持）
 -->
 <template>
   <view v-if="state.visible" class="upd-mask" @touchmove.stop.prevent>
@@ -171,7 +173,7 @@ function formatSize(bytes) {
 .upd-box {
   width: 620rpx;
   max-height: 88vh;
-  background: #ffffff;
+  background: $bg-card;
   border-radius: 28rpx;
   overflow: hidden;
   box-shadow: 0 24rpx 64rpx rgba(14, 40, 31, 0.24);
@@ -272,8 +274,8 @@ function formatSize(bytes) {
 
 // 更新日志
 .upd-log {
-  background: #f6f8f4;
-  border: 1rpx solid #eef1ec;
+  background: $bg-warm;
+  border: 1rpx solid $divider;
   border-radius: 20rpx;
   padding: 22rpx 24rpx 18rpx;
 }
@@ -284,7 +286,7 @@ function formatSize(bytes) {
   margin-bottom: 12rpx;
   font-size: 26rpx;
   font-weight: 600;
-  color: #3a423d;
+  color: $text-body;
 }
 
 .upd-log-bar {
@@ -302,7 +304,7 @@ function formatSize(bytes) {
 .upd-log-text {
   display: block;
   font-size: 26rpx;
-  color: #6b736c;
+  color: $text-regular;
   line-height: 1.75;
   white-space: pre-wrap;
 }
@@ -314,7 +316,7 @@ function formatSize(bytes) {
   align-items: center;
   margin-top: 22rpx;
   font-size: 24rpx;
-  color: #98a099;
+  color: $text-secondary;
 }
 
 .upd-size-dot {
@@ -340,7 +342,7 @@ function formatSize(bytes) {
 .upd-progress-label {
   font-size: 26rpx;
   font-weight: 600;
-  color: #3a423d;
+  color: $text-body;
 }
 
 .upd-progress-pct {
@@ -353,7 +355,7 @@ function formatSize(bytes) {
 .upd-progress-track {
   height: 14rpx;
   border-radius: 8rpx;
-  background: #edf0ec;
+  background: $divider;
   overflow: hidden;
 }
 
@@ -369,7 +371,7 @@ function formatSize(bytes) {
   margin-top: 10rpx;
   text-align: center;
   font-size: 22rpx;
-  color: #98a099;
+  color: $text-secondary;
   font-variant-numeric: tabular-nums;
 }
 
@@ -378,7 +380,7 @@ function formatSize(bytes) {
   margin-top: 8rpx;
   text-align: center;
   font-size: 22rpx;
-  color: #abb3ac;
+  color: $text-secondary;
 }
 
 // 失败提示
@@ -409,7 +411,7 @@ function formatSize(bytes) {
 .upd-error-text {
   flex: 1;
   font-size: 24rpx;
-  color: #c24a39;
+  color: $color-error-text;
   line-height: 1.5;
 }
 
@@ -449,7 +451,7 @@ function formatSize(bytes) {
   margin: 0;
   padding: 0;
   border-radius: 20rpx;
-  background: $color-primary-deep;
+  background: $color-primary-btn;
   color: #ffffff;
   font-size: 32rpx;
   font-weight: 700;
@@ -472,7 +474,7 @@ function formatSize(bytes) {
   line-height: 72rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #98a099;
+  color: $text-secondary;
   transition: opacity 0.15s ease;
 
   &:active {
@@ -481,7 +483,7 @@ function formatSize(bytes) {
 }
 
 .upd-text-btn--danger {
-  color: #c24a39;
+  color: $color-error-text;
 }
 
 // 动画

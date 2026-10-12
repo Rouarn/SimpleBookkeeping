@@ -9,6 +9,8 @@
                编辑回填经 expose 的 setPhotos(rawList) 归一化注入。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：标题 / 添加格 / 失败占位收敛至主题 token，
+               添加加号图标色随主题取值
 -->
 <template>
   <!-- 凭证照片 -->
@@ -41,7 +43,7 @@
         </view>
       </view>
       <view v-if="photos.length < 3" class="photo-add" @click="choosePhoto">
-        <uni-icons type="plus" size="40" color="#2f6b54"></uni-icons>
+        <uni-icons type="plus" size="40" :color="addIcon"></uni-icons>
       </view>
     </view>
   </view>
@@ -52,10 +54,16 @@
  * 凭证照片：props 传入父组件持有的照片数组（原地增删，保持响应式与提交口径）；
  * setPhotos 供编辑模式回填，归一化详情 photos 并截断 3 张。
  */
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { normalizeFileUrl } from '@/api'
 import { compressPhoto } from '@/composables/_shared'
 import { useBillForm } from '@/composables/useBillEdit'
+import { useTheme } from '@/composables/useTheme'
+
+// uni-icons 的 color 为内联样式走不了 CSS 变量，添加加号按 isDark 在 JS 侧取值
+// （浅 #2f6b54 / 深 #58b992，与 token 深浅两盘同色值）
+const { isDark } = useTheme()
+const addIcon = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
 
 const props = defineProps({
   /** 凭证图片 [{ key, url, _uid }]，最多 3 张（父组件持有，原地增删） */
@@ -174,7 +182,7 @@ defineExpose({ setPhotos })
   .section-title {
     font-size: 32rpx;
     font-weight: 600;
-    color: #1e2521;
+    color: $text-title;
     margin: 36rpx 0 24rpx;
   }
 }
@@ -193,7 +201,7 @@ defineExpose({ setPhotos })
   }
 
   .photo-add {
-    background: #f2f7f4;
+    background: $bg-tint;
     border: 2rpx dashed #b9d4c7;
     box-sizing: border-box;
     display: flex;
@@ -215,11 +223,11 @@ defineExpose({ setPhotos })
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #eef1ec;
+      background: $bg-fallback;
 
       .photo-fallback-text {
         font-size: 20rpx;
-        color: #98a099;
+        color: $text-secondary;
       }
     }
 

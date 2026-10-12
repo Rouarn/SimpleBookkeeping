@@ -12,6 +12,8 @@ export {
   http,
   request,
   upload,
+  download,
+  bufferToText,
   BASE_URL,
   normalizeFileUrl,
   ApiError,
@@ -25,6 +27,7 @@ export { default as booksApi } from './books'
 export { default as dictionariesApi } from './dictionaries'
 export { default as statisticsApi } from './statistics'
 export { default as uploadsApi } from './uploads'
+export { default as messagesApi } from './messages'
 
 // —— 无同名冲突的具名导出（显式登记，禁止改回 export *）——
 export { register, login, logout } from './auth'
@@ -32,3 +35,4 @@ export { getMe, updateMe, uploadAvatar, getStats } from './users'
 export { getCategories, getPayMethods } from './dictionaries'
 export { overview, categories, payMethods, trend, home } from './statistics'
 export { uploadImage } from './uploads'
+export { list as listMessages, unreadCount, markRead } from './messages'

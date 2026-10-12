@@ -14,23 +14,24 @@
   @date 2026-09-14
   @modify 2026-10-11 抽取 DecorRing / EmptyState / BillRow 公共组件，
                凭证缩略图签名过期支持页面侧换签
+  @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
 -->
 <template>
-  <view class="flowing-water">
+  <view class="flowing-water" :class="themeClass">
     <!-- 顶部导航 -->
     <view class="top-bar">
       <view class="type-selector" @click="handleTypeClick">
         <text class="type-text">{{ currentType }}</text>
-        <uni-icons type="bottom" size="20" color="#1e2521"></uni-icons>
+        <uni-icons type="bottom" size="20" :color="titleInk"></uni-icons>
       </view>
       <view class="search-btn" @click="handleSearch">
-        <uni-icons type="search" size="28" color="#3c4a42"></uni-icons>
+        <uni-icons type="search" size="28" :color="inkColor"></uni-icons>
       </view>
     </view>
 
     <!-- 搜索框：点右上角搜索图标展开，输入关键字防抖触发检索 -->
     <view v-if="searchVisible" class="search-bar">
-      <uni-icons type="search" size="22" color="#98a099"></uni-icons>
+      <uni-icons type="search" size="22" :color="secondaryIcon"></uni-icons>
       <input
         class="search-input"
         :value="searchText"
@@ -60,9 +61,9 @@
       @change="handleDateChange"
     >
       <view class="date-filter">
-        <uni-icons type="calendar" size="26" color="#2f6b54"></uni-icons>
+        <uni-icons type="calendar" size="26" :color="primaryIcon"></uni-icons>
         <text class="date-text">{{ currentMonth }}</text>
-        <uni-icons type="bottom" size="16" color="#2f6b54"></uni-icons>
+        <uni-icons type="bottom" size="16" :color="primaryIcon"></uni-icons>
       </view>
     </picker>
 
@@ -160,7 +161,7 @@
  * - 本页负责：类型 ActionSheet、月份 picker、搜索（展开输入框 + 300ms 防抖触发
  *   load() 从第一页重查，清空恢复全量）、触底分页与下拉刷新入口。
  */
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   onShow,
   onUnload,
@@ -168,7 +169,19 @@ import {
   onPullDownRefresh,
 } from '@dcloudio/uni-app'
 import { useFlowingData, goBillDetail } from '@/composables/useBookkeeping'
+import { useTheme } from '@/composables/useTheme'
 import { billsApi, normalizeFileUrl } from '@/api'
+
+// 深色模式：根节点主题类 + JS 取色（uni-icons color 走不了 CSS 变量）
+const { themeClass, isDark } = useTheme()
+// 标题旁下拉箭头（随主标题墨色）
+const titleInk = computed(() => (isDark.value ? '#e8efe9' : '#1e2521'))
+// 圆形按钮底上的搜索图标（浅色 #3c4a42 / 深色调亮）
+const inkColor = computed(() => (isDark.value ? '#c9d3cb' : '#3c4a42'))
+// 搜索框占位图标（辅助文字色）
+const secondaryIcon = computed(() => (isDark.value ? '#79837c' : '#98a099'))
+// 日期胶囊图标（主题强调色）
+const primaryIcon = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
 
 // 类型选项（顺序即 ActionSheet 中的展示顺序，tapIndex 直接映射）
 const typeOptions = ['全部类型', '支出', '收入']
@@ -341,11 +354,11 @@ const resignBillPhoto = async (item) => {
     width: 64rpx;
     height: 64rpx;
     border-radius: 50%;
-    background: #fff;
+    background: $bg-card;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.08);
+    box-shadow: $shadow-float;
   }
 }
 
@@ -356,9 +369,9 @@ const resignBillPhoto = async (item) => {
   margin: 0 28rpx 20rpx;
   padding: 0 26rpx;
   height: 76rpx;
-  background: #fff;
+  background: $bg-card;
   border-radius: 999rpx;
-  box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
+  box-shadow: $shadow-float;
 
   .search-input {
     flex: 1;
@@ -386,9 +399,9 @@ const resignBillPhoto = async (item) => {
   align-items: center;
   margin: 10rpx 0 28rpx 28rpx;
   padding: 12rpx 24rpx;
-  background: #fff;
+  background: $bg-card;
   border-radius: 999rpx;
-  box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
+  box-shadow: $shadow-float;
 
   .date-text {
     margin: 0 10rpx 0 12rpx;
@@ -520,7 +533,7 @@ const resignBillPhoto = async (item) => {
         line-height: 1.4;
         border-radius: 999rpx;
         background: $bg-tint;
-        color: #56645c;
+        color: $color-tint-text;
         font-variant-numeric: tabular-nums;
 
         & + & {
@@ -536,9 +549,9 @@ const resignBillPhoto = async (item) => {
   }
 
   .flow-list {
-    background: #fff;
+    background: $bg-card;
     border-radius: $radius-card;
-    box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+    box-shadow: $shadow-card;
     overflow: hidden;
   }
 }

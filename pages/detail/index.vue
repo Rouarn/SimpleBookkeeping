@@ -17,9 +17,11 @@
   @date 2026-09-14
   @modify 2026-10-11 金额格式化收敛至 utils/rmb；凭证 key 去 index；
                页面底色渐变改走 design token
+  @modify 2026-10-12 深色模式：根节点接 themeClass，票据卡 / 操作圆钮底色与
+               分隔线收敛至主题 token，删除 / 编辑图标色随主题取值
 -->
 <template>
-  <view class="detail-page">
+  <view class="detail-page" :class="themeClass">
     <!-- 导航栏 -->
     <uni-nav-bar
       title="账单详情"
@@ -123,13 +125,13 @@
     <view v-if="detail" class="action-bar">
       <view class="action-item" @click="handleDelete">
         <view class="action-btn">
-          <uni-icons type="trash" size="26" color="#d54e3c"></uni-icons>
+          <uni-icons type="trash" size="26" :color="dangerIcon"></uni-icons>
         </view>
         <text class="action-text">删除</text>
       </view>
       <view class="action-item" @click="handleEdit">
         <view class="action-btn">
-          <uni-icons type="compose" size="26" color="#2f6b54"></uni-icons>
+          <uni-icons type="compose" size="26" :color="primaryIcon"></uni-icons>
         </view>
         <text class="action-text">编辑</text>
       </view>
@@ -147,11 +149,18 @@
  * - 本页负责导航返回、删除二次确认、错误态重试、跳转编辑与图片预览交互，
  *   凭证图加载失败时展示占位并触发一次换签刷新（重拉详情取新签名 URL）。
  */
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { useBillDetail, BILL_PREFILL_KEY } from '@/composables/useBookkeeping'
 // 金额格式全应用统一收敛到 utils/rmb（四舍五入两位 + 固定两位小数）
 import { formatMoney } from '@/utils/rmb'
+import { useTheme } from '@/composables/useTheme'
+
+// 主题外观：根节点挂 themeClass；uni-icons 的 color 为内联样式走不了 CSS 变量，
+// 删除 / 编辑图标色需按 isDark 在 JS 侧取值（与 token 深浅两盘同色值）
+const { themeClass, isDark } = useTheme()
+const dangerIcon = computed(() => (isDark.value ? '#ef6f5c' : '#d54e3c'))
+const primaryIcon = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
 
 // 详情数据按 id 从 bill store 读取，删除后通过 store 广播变更，各页面自动联动
 const {
@@ -343,7 +352,7 @@ watch(detail, () => {
   position: relative;
   margin: 120rpx 32rpx 0;
   padding: 0 40rpx 44rpx;
-  background-color: #fff;
+  background-color: $bg-card;
   border-radius: 28rpx;
   box-shadow: 0 18rpx 44rpx rgba(4, 24, 18, 0.28);
 
@@ -356,7 +365,7 @@ watch(detail, () => {
     width: 144rpx;
     height: 144rpx;
     border-radius: 50%;
-    background-color: #fff;
+    background-color: $bg-card;
     border: 5rpx solid $color-primary-deep;
     display: flex;
     align-items: center;
@@ -390,7 +399,7 @@ watch(detail, () => {
     position: relative;
     margin: 48rpx 0;
     height: 0;
-    border-top: 2rpx dashed #dbe1db;
+    border-top: 2rpx dashed $divider-strong;
 
     .notch {
       position: absolute;
@@ -462,7 +471,7 @@ watch(detail, () => {
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #eef1ec;
+            background-color: $bg-fallback;
 
             .photo-fallback-text {
               font-size: 20rpx;
@@ -477,7 +486,7 @@ watch(detail, () => {
   .month-summary {
     margin-top: 56rpx;
     padding-top: 30rpx;
-    border-top: 2rpx dashed #dbe1db;
+    border-top: 2rpx dashed $divider-strong;
     text-align: center;
     font-size: 24rpx;
     color: $text-secondary;
@@ -499,7 +508,7 @@ watch(detail, () => {
       width: 108rpx;
       height: 108rpx;
       border-radius: 50%;
-      background-color: #fff;
+      background-color: $bg-card;
       display: flex;
       align-items: center;
       justify-content: center;

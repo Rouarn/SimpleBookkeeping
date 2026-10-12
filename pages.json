@@ -53,6 +53,13 @@
       }
     },
     {
+      "path": "pages/messages/index",
+      "style": {
+        "navigationBarTitleText": "消息中心",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录",
@@ -67,10 +74,10 @@
     }
   ],
   "tabBar": {
-    "color": "#494d4f",
-    "selectedColor": "#4CAF87",
-    "borderStyle": "black",
-    "backgroundColor": "#ffffff",
+    "color": "@tabColor",
+    "selectedColor": "@tabSelectedColor",
+    "borderStyle": "@tabBorderStyle",
+    "backgroundColor": "@tabBgColor",
     "list": [
       {
         "pagePath": "pages/index/index",
@@ -105,10 +112,10 @@
     }
   },
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "@navTxtStyle",
     "navigationBarTitleText": "小绿记账",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8",
+    "navigationBarBackgroundColor": "@navBgColor",
+    "backgroundColor": "@bgColor",
     "app-plus": {
       "background": "#efeff4"
     }

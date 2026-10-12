@@ -1,17 +1,21 @@
 /**
  * @file 用户 store（user 模块，接口数据缓存）
- * @description 用户资料（昵称 / 头像 / 加入日期）与记账统计均由服务端接口提供：
- *              GET /users/me、PATCH /users/me、POST /users/me/avatar、GET /users/me/stats。
+ * @description 用户资料（昵称 / 头像 / 加入日期）、记账统计与未读消息数均由
+ *              服务端接口提供：GET /users/me、PATCH /users/me、
+ *              POST /users/me/avatar、GET /users/me/stats、
+ *              GET /users/me/messages/unread-count（首页聚合 /overview/home
+ *              的 unreadCount 也写入此处）。
  *              本 store 作为缓存层：登录后由 App.vue onLaunch 触发 fetchMe。
  *              persist: false —— 数据来源为服务端，本地不再持久化。
- *              主要导出：useUserStore，暴露 profile、派生统计与 fetchMe / updateProfile / changeAvatar。
+ *              主要导出：useUserStore，暴露 profile、派生统计与
+ *              fetchMe / updateProfile / changeAvatar / fetchUnread。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-09-14
- * @modify 2026-09-16
+ * @modify 2026-10-12 新增未读消息数缓存（我的页角标 + 消息页乐观更新）
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { usersApi, normalizeFileUrl } from '@/api'
+import { usersApi, messagesApi, normalizeFileUrl } from '@/api'
 import { diffFromToday, todayStr, formatDate } from '@/utils/date'
 
 /** 默认头像（应用内置静态资源，任何异常头像值的最终兜底） */
@@ -52,6 +56,9 @@ export const useUserStore = defineStore(
 
     /** @type {import('vue').Ref<{records:number,days:number,books:number}>} */
     const stats = ref({ records: 0, days: 0, books: 0 })
+
+    /** 未读消息数（我的页角标；消息页标已读后本地同步递减） */
+    const unreadCount = ref(0)
 
     const name = computed(() => profile.value.name || '')
     // 出口处再归一化一次：脏值自动回退默认头像
@@ -95,6 +102,23 @@ export const useUserStore = defineStore(
     }
 
     /**
+     * 拉取未读消息数（GET /users/me/messages/unread-count）
+     */
+    async function fetchUnread() {
+      const res = await messagesApi.unreadCount()
+      unreadCount.value = Math.max(0, Number(res?.count) || 0)
+      return unreadCount.value
+    }
+
+    /**
+     * 本地写入未读数（消息页标已读乐观更新 / 首页聚合 unreadCount 回填）
+     * @param {number} n
+     */
+    function setUnreadCount(n) {
+      unreadCount.value = Math.max(0, Number(n) || 0)
+    }
+
+    /**
      * 更新资料（白名单字段，调服务端 PATCH /users/me）
      * @param {{name?:string}} patch
      */
@@ -125,17 +149,21 @@ export const useUserStore = defineStore(
     function resetProfile() {
       profile.value = createDefaultProfile()
       stats.value = { records: 0, days: 0, books: 0 }
+      unreadCount.value = 0
     }
 
     return {
       profile,
       stats,
+      unreadCount,
       name,
       avatar,
       joinDays,
       bookkeepingStats,
       fetchMe,
       fetchStats,
+      fetchUnread,
+      setUnreadCount,
       updateProfile,
       changeAvatar,
       resetProfile,

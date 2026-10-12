@@ -11,9 +11,10 @@
   @modify 2026-10-11 凭证 v-for key 去 index（key + 自增 _uid 兜底）；
                页面底色渐变 / 保存按钮渐变改走 design token；
                P2-15 金额 / 照片 / 分类 / 支付方式拆为子组件，本页瘦身为编排层
+  @modify 2026-10-12 深色模式：根节点接 themeClass，白色内容区 / 文字色收敛至主题 token
 -->
 <template>
-  <view class="add-page">
+  <view class="add-page" :class="themeClass">
     <!-- 导航栏 -->
     <uni-nav-bar
       :title="pageTitle"
@@ -130,6 +131,7 @@ import { useBookStore, useCategoryStore } from '@/store'
 import { useBillForm } from '@/composables/useBillEdit'
 import { BILL_PREFILL_KEY } from '@/composables/useBillDetail'
 import { todayStr, nowTime } from '@/utils/date'
+import { useTheme } from '@/composables/useTheme'
 // 页面目录子组件不走 easycom，需显式 import
 import AmountField from './components/AmountField.vue'
 import CategoryPicker from './components/CategoryPicker.vue'
@@ -138,6 +140,8 @@ import PhotoUploader from './components/PhotoUploader.vue'
 
 const categoryStore = useCategoryStore()
 const bookStore = useBookStore()
+// 主题外观：根节点挂 themeClass（theme-light / theme-dark），联动全局 CSS 变量
+const { themeClass } = useTheme()
 // 表单记忆 + 保存动作（调服务端 POST/PATCH /bills）
 const { remembered, saveBill, loadBillForEdit } = useBillForm()
 
@@ -440,7 +444,7 @@ async function handleSave() {
   flex: 1;
   min-height: 0;
   position: relative;
-  background: #ffffff;
+  background: $bg-card;
   border-radius: 32rpx 32rpx 0 0;
   overflow: hidden;
 }
@@ -455,7 +459,7 @@ async function handleSave() {
   bottom: 0;
   // scroll-view 在小程序/App 端是独立原生渲染层，父级圆角裁不到它，
   // 白底与顶部圆角必须设在它自己身上，否则顶部会显示成方角
-  background: #ffffff;
+  background: $bg-card;
   border-radius: 32rpx 32rpx 0 0;
 }
 
@@ -470,7 +474,7 @@ async function handleSave() {
   .section-title {
     font-size: 32rpx;
     font-weight: 600;
-    color: #1e2521;
+    color: $text-title;
     margin: 36rpx 0 24rpx;
   }
 }
@@ -479,9 +483,9 @@ async function handleSave() {
 .remark-input {
   width: 100%;
   height: 96rpx;
-  border-bottom: 2rpx solid #edf0ec;
+  border-bottom: 2rpx solid $divider;
   font-size: 29rpx;
-  color: #1e2521;
+  color: $text-title;
 }
 
 // ===== 底部保存 =====
@@ -489,7 +493,7 @@ async function handleSave() {
   flex-shrink: 0;
   position: relative;
   z-index: 2;
-  background: #ffffff;
+  background: $bg-card;
   padding: 14rpx 32rpx;
   padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));

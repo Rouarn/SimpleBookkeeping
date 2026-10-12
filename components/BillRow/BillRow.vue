@@ -10,6 +10,7 @@
                GET /bills/:id 重拉换新签名 URL；URL 变化后自动清失败标记重试。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：分割线 / 凭证失败占位底色收敛至主题 token
 -->
 <template>
   <view
@@ -128,7 +129,7 @@ watch(
     right: 0;
     bottom: 0;
     height: 1rpx;
-    background: #edf0ec;
+    background: $divider;
   }
   &:last-child::after {
     display: none;
@@ -231,7 +232,7 @@ watch(
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #eef1ec;
+    background: $bg-fallback;
   }
 
   .flow-arrow {

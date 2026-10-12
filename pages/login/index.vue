@@ -6,9 +6,11 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-16
   @modify 2026-10-11 抽取 PageHeader 公共渐变页头
+  @modify 2026-10-12 深色模式：根节点接 themeClass，表单卡 / 输入框 / 勾选框
+               底色边框收敛至主题 token（头部深绿渐变与品牌区保持）
 -->
 <template>
-  <view class="login">
+  <view class="login" :class="themeClass">
     <!-- 顶部装饰区（渐变 / 圆角 / 双圆 + 双点由 PageHeader 内聚） -->
     <PageHeader variant="login">
       <view class="brand">
@@ -130,6 +132,10 @@
  */
 import { ref } from 'vue'
 import { authApi } from '@/api'
+import { useTheme } from '@/composables/useTheme'
+
+// 主题外观：根节点挂 themeClass（theme-light / theme-dark），联动全局 CSS 变量
+const { themeClass } = useTheme()
 
 const mode = ref('login')
 const loading = ref(false)
@@ -289,10 +295,10 @@ async function onSubmit() {
   margin: -64rpx 32rpx 0;
   position: relative;
   z-index: 2;
-  background: #fff;
+  background: $bg-card;
   border-radius: $radius-xl;
   padding: 36rpx 36rpx 44rpx;
-  box-shadow: 0 12rpx 36rpx rgba(28, 54, 45, 0.08);
+  box-shadow: $shadow-raised;
 }
 
 .tabs {
@@ -325,9 +331,9 @@ async function onSubmit() {
     left: 6rpx;
     width: calc(50% - 6rpx);
     height: calc(100% - 12rpx);
-    background: #fff;
+    background: $bg-card;
     border-radius: $radius-xs;
-    box-shadow: 0 4rpx 12rpx rgba(28, 54, 45, 0.08);
+    box-shadow: $shadow-float;
     transition: transform 0.25s;
 
     &.right {
@@ -352,9 +358,9 @@ async function onSubmit() {
     height: 88rpx;
     padding: 0 24rpx;
     font-size: 30rpx;
-    color: #202622;
+    color: $text-primary;
     background: $bg-warm;
-    border: 1rpx solid #e6ebe6;
+    border: 1rpx solid $border;
     border-radius: $radius-md;
     box-sizing: border-box;
     transition: border-color 0.2s;
@@ -375,8 +381,8 @@ async function onSubmit() {
     width: 32rpx;
     height: 32rpx;
     border-radius: 8rpx;
-    border: 2rpx solid #c3ccc4;
-    background: #fff;
+    border: 2rpx solid $border-strong;
+    background: $bg-card;
     display: flex;
     align-items: center;
     justify-content: center;

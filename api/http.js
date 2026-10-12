@@ -14,6 +14,8 @@
  *                 401 单飞重试语义；
  *              7) 失败一律 reject ApiError（Error 子类，保留 code/raw 属性，
  *                 与历史裸对象 {code,message,raw} 形状兼容）。
+ *              8) arraybuffer 下载统一走 download()：面向 CSV 流式响应，
+ *                 同一鉴权闸门与 401 单飞重试语义，成功直接 resolve 二进制；
  *              注意：服务端 refresh token「轮换 + 重放即连坐吊销」，故同进程内
  *              必须严格单飞（refreshing 锁 + 启动引导 Promise），避免重复使用旧 rt。
  *              与 utils/app-update/* 内的 http 模块完全独立，互不耦合。
@@ -446,6 +448,114 @@ export async function upload(opts) {
       }
     }
     handleBusinessError(err)
+    throw err
+  }
+}
+
+/**
+ * ArrayBuffer → UTF-8 字符串（下载错误信封解析 / App 端写文本文件用）
+ * 优先 TextDecoder；缺失时走 fromCharCode + escape 解码兜底（App v8 无 TextDecoder）。
+ * @param {ArrayBuffer} buffer 二进制内容
+ * @returns {string}
+ */
+export function bufferToText(buffer) {
+  if (!buffer) return ''
+  if (typeof TextDecoder === 'function') {
+    try {
+      return new TextDecoder('utf-8').decode(buffer)
+    } catch {
+      // ignore：降级到手工解码
+    }
+  }
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK))
+  }
+  try {
+    return decodeURIComponent(escape(binary))
+  } catch {
+    return binary
+  }
+}
+
+/**
+ * 统一 arraybuffer 下载封装（uni.request responseType=arraybuffer）
+ * 面向 CSV 等流式响应：成功响应无 {code,data} 信封，直接 resolve 原始
+ * ArrayBuffer；错误响应仍是 JSON 信封，按 request 同规则解析为 ApiError。
+ * 与 request/upload 同一套鉴权语义：
+ * 1) 冷启动闸门：下载前必须持有 access token（ensureAccessToken 单飞）；
+ * 2) 运行中 access 失效（40100）或过期（40101）：有 rt 则刷新后重试一次；
+ * 3) invalid：清登录态跳登录页；unavailable / 其余错误：抛 ApiError 交调用方
+ *    处理（下载场景的限流文案与端侧动作各异，不在此统一 toast）。
+ * @param {object} opts
+ * @param {string} opts.url 接口路径（如 "/users/me/export"）
+ * @param {object} [opts.data] query 参数（GET 时拼到 query）
+ * @param {"GET"|"POST"} [opts.method="GET"]
+ * @param {number} [opts.timeout=60000]
+ * @returns {Promise<ArrayBuffer>} 响应二进制
+ */
+export async function download(opts) {
+  // —— 冷启动 / 鉴权引导闸门（与 request/upload 一致）——
+  const status = await ensureAccessToken()
+  if (status === 'invalid') {
+    ensureLoggedIn(true)
+    throw new ApiError('未登录或登录已失效', { code: 40100 })
+  }
+  if (status === 'unavailable') {
+    throw new ApiError('网络异常', { code: -1 })
+  }
+
+  const doDownload = () =>
+    new Promise((resolve, reject) => {
+      uni.request({
+        url: buildUrl(opts.url),
+        method: (opts.method || 'GET').toUpperCase(),
+        data: opts.data,
+        responseType: 'arraybuffer',
+        header: { Authorization: `Bearer ${getAccessToken()}` },
+        timeout: opts.timeout || 60000,
+        success: (res) => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(res.data)
+            return
+          }
+          // 错误体按 {code,message} 信封解析（arraybuffer → string → JSON）
+          let body = {}
+          try {
+            body = JSON.parse(bufferToText(res.data) || '{}')
+          } catch {
+            body = {}
+          }
+          body = body && typeof body === 'object' ? body : {}
+          reject(
+            new ApiError(body.message || `下载失败(${res.statusCode})`, {
+              code: typeof body.code === 'number' ? body.code : res.statusCode,
+              raw: res,
+            }),
+          )
+        },
+        fail: (err) => reject(new ApiError('网络异常', { code: -1, raw: err })),
+      })
+    })
+
+  try {
+    return await doDownload()
+  } catch (err) {
+    // access 运行中失效/过期：有 rt 才刷新重试一次（与 request/upload 语义一致）
+    if (
+      err &&
+      (err.code === 40100 || err.code === 40101) &&
+      getRefreshToken()
+    ) {
+      const st = await doRefresh()
+      if (st === 'ok') return doDownload()
+      if (st === 'invalid') {
+        ensureLoggedIn(true)
+        throw err
+      }
+    }
     throw err
   }
 }

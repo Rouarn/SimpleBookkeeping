@@ -5,6 +5,7 @@
                - 样式数值与原两页 .empty-tip 完全一致。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：¥ 圆圈底边框 / 文案色收敛至主题 token
 -->
 <template>
   <view class="empty-tip">
@@ -35,8 +36,8 @@ defineProps({
     height: 104rpx;
     margin-bottom: 28rpx;
     border-radius: 50%;
-    border: 2rpx solid #d6e2da;
-    background: #f8faf8;
+    border: 2rpx solid $border;
+    background: $bg-warm;
     box-shadow: 0 0 0 10rpx rgba(76, 175, 135, 0.08);
     display: flex;
     align-items: center;
@@ -48,13 +49,13 @@ defineProps({
 
   .empty-text {
     font-size: 28rpx;
-    color: #8b938d;
+    color: $text-placeholder;
   }
 
   .empty-sub {
     margin-top: 10rpx;
     font-size: 22rpx;
-    color: #abb3ac;
+    color: $text-secondary;
   }
 }
 </style>

@@ -13,9 +13,10 @@
   @modify 2026-10-11 无环比隐藏胶囊；年→月跳转在近 6 月窗口内精确高亮；
                年视图 12 柱错峰动画；抽取 DecorRing，金额收敛至 utils/rmb；
                P2-15 概览卡 / 趋势图 / 排行拆为子组件，本页瘦身为编排层
+  @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
 -->
 <template>
-  <view class="statistics">
+  <view class="statistics" :class="themeClass">
     <!-- 顶部标题 + 粒度切换 + 月份/年份选择 -->
     <view class="top-bar">
       <text class="top-title">统计</text>
@@ -42,7 +43,7 @@
         >
           <view class="month-pill">
             <text class="month-text">{{ periodText }}</text>
-            <uni-icons type="bottom" size="14" color="#2f6b54"></uni-icons>
+            <uni-icons type="bottom" size="14" :color="primaryIcon"></uni-icons>
           </view>
         </picker>
       </view>
@@ -126,12 +127,18 @@ import { ref, computed, watch } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useAppStore } from '@/store'
 import { useStatisticsData, useTrendData } from '@/composables/useStatistics'
+import { useTheme } from '@/composables/useTheme'
 // 页面目录子组件不走 easycom，需显式 import
 import MonthSummary from './components/MonthSummary.vue'
 import TrendChart from './components/TrendChart.vue'
 import CategoryRank from './components/CategoryRank.vue'
 
 const appStore = useAppStore()
+
+// 深色模式：根节点主题类 + JS 取色（uni-icons color 走不了 CSS 变量）
+const { themeClass, isDark } = useTheme()
+// 月份胶囊下拉图标（主题强调色）
+const primaryIcon = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
 
 // 粒度 / 月份 / 年份 / 收支类型：双向绑定 app store（切换后持久化记忆）
 const scope = computed({
@@ -359,21 +366,21 @@ const retryOverview = () => {
     display: flex;
     margin-right: 14rpx;
     padding: 4rpx;
-    background: #e4eae4;
+    background: $bg-toggle;
     border-radius: 999rpx;
 
     .scope-item {
       padding: 8rpx 22rpx;
       font-size: 23rpx;
       font-weight: 600;
-      color: #767e78;
+      color: $text-regular;
       border-radius: 999rpx;
       transition: all 0.25s ease;
 
       &.on {
-        background: #ffffff;
+        background: $bg-card;
         color: $color-primary-mid;
-        box-shadow: 0 4rpx 12rpx rgba(28, 54, 45, 0.1);
+        box-shadow: $shadow-float;
       }
     }
   }
@@ -382,9 +389,9 @@ const retryOverview = () => {
     display: flex;
     align-items: center;
     padding: 11rpx 22rpx;
-    background: #fff;
+    background: $bg-card;
     border-radius: 999rpx;
-    box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.07);
+    box-shadow: $shadow-float;
 
     .month-text {
       font-size: 25rpx;
@@ -400,7 +407,7 @@ const retryOverview = () => {
   display: flex;
   margin: 8rpx 24rpx 26rpx;
   padding: 6rpx;
-  background: #e4eae4;
+  background: $bg-toggle;
   border-radius: 999rpx;
 
   .tab-item {
@@ -409,19 +416,19 @@ const retryOverview = () => {
     padding: 15rpx 0;
     font-size: 28rpx;
     font-weight: 600;
-    color: #767e78;
+    color: $text-regular;
     border-radius: 999rpx;
     transition: all 0.25s ease;
 
     &.on {
-      background: #ffffff;
-      box-shadow: 0 5rpx 16rpx rgba(28, 54, 45, 0.1);
+      background: $bg-card;
+      box-shadow: $shadow-float;
 
       &.expense {
         color: $color-primary-deep;
       }
       &.income {
-        color: #c04a36;
+        color: $color-income;
       }
     }
   }

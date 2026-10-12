@@ -6,6 +6,7 @@
                卡片配色随 billType 切换；环比胶囊由父组件按 mom.hasData 决定显隐。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：错误态卡底色收敛至主题 token（概览卡渐变与白字保持）
 -->
 <template>
   <!-- 概览加载失败错误态（点击整块重试，配色沿用空态文案体系） -->
@@ -106,9 +107,9 @@ const emit = defineEmits([
   justify-content: center;
   margin: 0 24rpx 24rpx;
   padding: 72rpx 0;
-  background: #ffffff;
+  background: $bg-card;
   border-radius: $radius-xl;
-  box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+  box-shadow: $shadow-card;
 
   .oe-text {
     font-size: 27rpx;

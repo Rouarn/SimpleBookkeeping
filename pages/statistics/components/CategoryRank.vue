@@ -6,6 +6,7 @@
                由父组件通过 title / emptyText props 下发。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：面板底 / 行分割线 / 进度轨道 / 榜首金色收敛至主题 token
 -->
 <template>
   <view class="panel">
@@ -94,9 +95,9 @@ defineProps({
 .panel {
   margin: 0 24rpx 24rpx;
   padding: 30rpx 28rpx 26rpx;
-  background: #ffffff;
+  background: $bg-card;
   border-radius: $radius-lg;
-  box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+  box-shadow: $shadow-card;
 
   .panel-header {
     display: flex;
@@ -124,7 +125,7 @@ defineProps({
     display: flex;
     align-items: center;
     padding: 26rpx 0;
-    border-bottom: 1rpx solid #edf0ec;
+    border-bottom: 1rpx solid $divider;
 
     &:last-child {
       border-bottom: none;
@@ -140,7 +141,7 @@ defineProps({
     flex-shrink: 0;
 
     &.top {
-      color: #c08a3e;
+      color: $color-gold;
     }
   }
 
@@ -208,7 +209,7 @@ defineProps({
     .rank-track {
       height: 10rpx;
       margin: 13rpx 0 9rpx;
-      background: #edf1ed;
+      background: $divider;
       border-radius: 999rpx;
       overflow: hidden;
 

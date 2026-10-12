@@ -11,14 +11,16 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
   @modify 2026-10-11 抽取 DecorRing / EmptyState / BillRow 公共组件
+  @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
+  @modify 2026-10-12 预算卡改进度条样式（支出/预算 + 百分比 + 三档配色），点击弹编辑
 -->
 <template>
-  <view class="home">
+  <view class="home" :class="themeClass">
     <!-- 顶部问候 -->
     <view class="greeting">
       <text class="greeting-text">Hi, {{ userName }}</text>
       <view class="more-btn" @click="goSettings">
-        <uni-icons type="more-filled" size="26" color="#3c4a42"></uni-icons>
+        <uni-icons type="more-filled" size="26" :color="inkColor"></uni-icons>
       </view>
     </view>
 
@@ -38,7 +40,7 @@
           <text class="quote-from">{{ quoteSource }}</text>
           <view class="quote-refresh">
             <view class="refresh-icon" :class="{ spinning: quoteLoading }">
-              <uni-icons type="refresh" size="13" color="#a3947b" />
+              <uni-icons type="refresh" size="13" :color="paperSubColor" />
             </view>
             <text class="refresh-text">换一句</text>
           </view>
@@ -76,7 +78,20 @@
         <text class="balance-label">本月结余（元）</text>
         <text class="balance-value">{{ stats.balance }}</text>
       </view>
-      <view class="stats-progress">
+      <!-- 预算进度条：支出/预算 + 百分比，≤80% 绿、80~100% 橙、超支红，点击编辑 -->
+      <view class="stats-progress" :class="progressTone" @click="editBudget">
+        <view class="progress-meta">
+          <text class="progress-label">
+            {{
+              budgetSet
+                ? `本月支出 ${stats.expense} / 预算 ${stats.budget}`
+                : `本月支出 ${stats.expense}`
+            }}
+          </text>
+          <text class="progress-percent">
+            {{ budgetSet ? `${stats.progress}%` : '' }}
+          </text>
+        </view>
         <view class="progress-bar">
           <view
             class="progress-fill"
@@ -136,10 +151,18 @@ import { computed } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { useHomeData, goBillDetail } from '@/composables/useBookkeeping'
 import { useHitokoto } from '@/composables/useHitokoto'
+import { useTheme } from '@/composables/useTheme'
 // 更新弹窗仅 App 端挂载（状态来自 use-app-update 模块级单例）
 // #ifdef APP-PLUS
 import UpdatePopup from '@/components/update-popup.vue'
 // #endif
+
+// 深色模式：根节点主题类 + JS 取色（uni-icons color 走不了 CSS 变量）
+const { themeClass, isDark } = useTheme()
+// 「更多」按钮圆底上的图标墨色（浅色 #3c4a42 / 深色调亮）
+const inkColor = computed(() => (isDark.value ? '#c9d3cb' : '#3c4a42'))
+// 一言便签次级文字（出处 / 换一句）与刷新图标色（随米纸便签主题变化）
+const paperSubColor = computed(() => (isDark.value ? '#8f8878' : '#a3947b'))
 
 const {
   stats,
@@ -151,6 +174,15 @@ const {
   editBudget,
   load,
 } = useHomeData()
+
+// 预算卡进度条档位：超支红 / 80~100% 橙 / ≤80% 绿（颜色用主题 token）
+const progressTone = computed(() => {
+  if (stats.value.overBudget) return 'over'
+  if (stats.value.progress > 80) return 'warn'
+  return 'ok'
+})
+// 是否已设置预算（未设置时进度区显示引导文案）
+const budgetSet = computed(() => Number(stats.value.budget) > 0)
 
 // 一言便签：冷启动自动拉取一次，点按卡片手动换一句
 const { quote, loading: quoteLoading, refresh: refreshQuote } = useHitokoto()
@@ -224,11 +256,11 @@ const goSettings = () => {
     width: 64rpx;
     height: 64rpx;
     border-radius: 50%;
-    background: #fff;
+    background: $bg-card;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4rpx 16rpx rgba(28, 54, 45, 0.08);
+    box-shadow: $shadow-float;
   }
 }
 
@@ -239,12 +271,12 @@ const goSettings = () => {
   margin: 0 24rpx;
   padding: 26rpx 28rpx 20rpx;
   border-radius: 20rpx;
-  background: #f8f4ea;
-  border: 1rpx solid #ece4d3;
-  box-shadow: 0 6rpx 20rpx rgba(94, 74, 40, 0.05);
+  background: $bg-paper;
+  border: 1rpx solid $border-paper;
+  box-shadow: $shadow-paper;
 
   &.quote-hover {
-    background: #f4eede;
+    background: $bg-paper-hover;
   }
 
   .quote-seal {
@@ -252,7 +284,7 @@ const goSettings = () => {
     height: 48rpx;
     margin: 4rpx 20rpx 0 0;
     border-radius: 10rpx;
-    background: #a8543f;
+    background: $color-terracotta;
     color: #f7f0e4;
     font-size: 28rpx;
     line-height: 48rpx;
@@ -267,7 +299,7 @@ const goSettings = () => {
     .quote-text {
       font-size: 27rpx;
       line-height: 1.75;
-      color: #4a443c;
+      color: $text-paper;
       letter-spacing: 0.5rpx;
     }
 
@@ -279,7 +311,7 @@ const goSettings = () => {
 
       .quote-from {
         font-size: 22rpx;
-        color: #a3947b;
+        color: $text-paper-sub;
         flex: 1;
         min-width: 0;
         overflow: hidden;
@@ -296,7 +328,7 @@ const goSettings = () => {
         .refresh-text {
           margin-left: 6rpx;
           font-size: 22rpx;
-          color: #a3947b;
+          color: $text-paper-sub;
         }
 
         .refresh-icon.spinning {
@@ -419,6 +451,26 @@ const goSettings = () => {
     z-index: 1;
     margin-top: 24rpx;
 
+    .progress-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14rpx;
+
+      .progress-label {
+        font-size: 24rpx;
+        color: rgba(237, 245, 240, 0.6);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .progress-percent {
+        font-size: 26rpx;
+        font-weight: 700;
+        color: $color-mint-soft;
+        font-variant-numeric: tabular-nums;
+      }
+    }
+
     .progress-bar {
       width: 100%;
       height: 12rpx;
@@ -431,6 +483,26 @@ const goSettings = () => {
         border-radius: 999rpx;
         background: $gradient-progress;
         transition: width 0.3s ease;
+      }
+    }
+
+    // 档位配色（卡片底为固定品牌渐变，取亮端 token 保证可读）：
+    // ≤80% 绿（默认 $gradient-progress）/ 80~100% 橙 / 超支红
+    &.warn {
+      .progress-fill {
+        background: $color-gold;
+      }
+      .progress-percent {
+        color: $color-gold;
+      }
+    }
+
+    &.over {
+      .progress-fill {
+        background: $color-danger-soft;
+      }
+      .progress-percent {
+        color: $color-danger-soft;
       }
     }
   }
@@ -472,7 +544,7 @@ const goSettings = () => {
         line-height: 1.4;
         border-radius: 999rpx;
         background: $bg-tint;
-        color: #56645c;
+        color: $color-tint-text;
         font-variant-numeric: tabular-nums;
 
         & + & {
@@ -488,9 +560,9 @@ const goSettings = () => {
   }
 
   .flow-list {
-    background: #fff;
+    background: $bg-card;
     border-radius: $radius-card;
-    box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+    box-shadow: $shadow-card;
     overflow: hidden;
   }
 }

@@ -5,6 +5,7 @@
                区块标题随收支方向切换（支出→支付方式，收入→收款方式）。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：标题 / 胶囊边框底色文字收敛至主题 token
 -->
 <template>
   <!-- 收/付款方式 -->
@@ -56,7 +57,7 @@ const paySectionTitle = computed(() =>
   .section-title {
     font-size: 32rpx;
     font-weight: 600;
-    color: #1e2521;
+    color: $text-title;
     margin: 36rpx 0 24rpx;
   }
 }
@@ -69,17 +70,17 @@ const paySectionTitle = computed(() =>
 
   .pay-pill {
     padding: 13rpx 30rpx;
-    border: 2rpx solid #e3e8e3;
+    border: 2rpx solid $border;
     border-radius: 999rpx;
     font-size: 27rpx;
-    color: #767e78;
-    background: #ffffff;
+    color: $text-regular;
+    background: $bg-card;
     box-sizing: border-box;
     text-align: center;
 
     &.on {
       border-color: transparent;
-      background: #e6f3ec;
+      background: $bg-tint;
       color: $color-primary-deep;
       font-weight: 600;
     }

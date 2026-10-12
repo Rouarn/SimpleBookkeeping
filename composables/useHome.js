@@ -3,6 +3,7 @@
  * @description 首页本月统计卡 + 今日流水（GET /overview/home 一次聚合）。
  * @author 夏季 <2937375029@qq.com>
  * @date 2026-10-11（自 useBookkeeping.js 按域拆分，逻辑零改动）
+ * @modify 2026-10-12 聚合返回的 unreadCount 回写 user store（我的页角标共用）
  */
 import { computed, ref } from 'vue'
 import { useBookStore, useUserStore, fmtMoney, round2 } from '@/store'
@@ -29,6 +30,10 @@ export function useHomeData() {
       const data = await statisticsApi.home()
       if (!isLatestReq(reqId)) return // 已有更新的请求，丢弃本次旧响应
       home.value = data
+      // 聚合携带的未读消息数回写 user store（我的页角标共用同一份）
+      if (data && typeof data.unreadCount === 'number') {
+        userStore.setUnreadCount(data.unreadCount)
+      }
     } finally {
       // 仅当仍是最新请求时才收 loading，避免提前关闭新请求的加载态
       if (isLatestReq(reqId)) loading.value = false

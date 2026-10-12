@@ -6,6 +6,7 @@
                点柱 / 点「查看该月」分别上抛 bar-tap / jump，由父组件决策。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-10-12 深色模式：面板底色收敛至主题 token，收入红调亮一档
 -->
 <template>
   <view class="panel">
@@ -110,9 +111,9 @@ const barHeight = (v) =>
 .panel {
   margin: 0 24rpx 24rpx;
   padding: 30rpx 28rpx 26rpx;
-  background: #ffffff;
+  background: $bg-card;
   border-radius: $radius-lg;
-  box-shadow: 0 8rpx 28rpx rgba(28, 54, 45, 0.06);
+  box-shadow: $shadow-card;
 
   .panel-header {
     display: flex;
@@ -139,7 +140,7 @@ const barHeight = (v) =>
           background: $color-primary-mid;
         }
         &.income-dot {
-          background: #c04a36;
+          background: $color-income;
           margin-left: 0;
         }
       }
@@ -197,7 +198,7 @@ const barHeight = (v) =>
       color: $color-primary-mid;
     }
     .tip-income {
-      color: #c04a36;
+      color: $color-income;
     }
     .tip-link {
       font-size: 18rpx;
