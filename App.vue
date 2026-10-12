@@ -91,7 +91,8 @@ export default {
  * 主题变量 mixin（浅色 / 深色整套 CSS 自定义属性声明）。
  * uni.scss 中的主题 token 均为 var(--c-xxx, 浅色回退值) 形式，
  * 这里在 page 上声明浅色默认值，深色由 media query / .theme-dark 覆写；
- * .theme-light / .theme-dark 供「手动切换」时挂在页面根 view 上，
+ * .theme-light / .theme-dark 挂在页面根 view 上覆盖（手动切换与 auto
+ * 跟随系统均走此机制，useTheme 按当前模式/系统主题解析返回），
  * 重新声明整套变量即可覆盖 page 继承（并抵消系统深色的 media query）。
  * 深色盘：页面底 #0f1512、卡片 #18201b、主文字 #e8efe9、
  * 头部渐变 #0f2f26→#081f18（稍亮变体，头部内文字保持白）、主色 #4caf87。
