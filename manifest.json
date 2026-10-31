@@ -2,8 +2,8 @@
     "name" : "小绿记账",
     "appid" : "__UNI__195FC35",
     "description" : "清新绿色风极简记账 APP",
-    "versionName" : "1.0.5",
-    "versionCode" : 105,
+    "versionName" : "1.0.6",
+    "versionCode" : 106,
     "transformPx" : false,
     "app-plus" : {
         /* 5+App特有相关 */
