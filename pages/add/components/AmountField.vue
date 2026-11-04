@@ -6,6 +6,9 @@
                （编辑回填 / 再记一笔预填）经 watcher 统一规范化并同步展示格式。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-11-04 Liquid Glass 重构：金额改为「凹陷玻璃输入格」
+                （--c-glass-inner 底 + 内高光 + 发丝描边），白色金额收敛至 $text-title，
+                空态占位色由内联样式改由 CSS 类控制（判定条件与数据流不变）
 -->
 <template>
   <!-- 金额：仅数字与一位小数点、最多 2 位小数、上限 99999999.99；
@@ -17,7 +20,7 @@
     <text
       v-if="!focused"
       class="amount-input amount-text"
-      :style="amountDisplay ? '' : 'color: rgba(255,255,255,0.55)'"
+      :class="{ 'is-empty': !amountDisplay }"
       @click="onDisplayClick"
       >{{ amountDisplay || '0.0' }}</text
     >
@@ -27,7 +30,7 @@
       class="amount-input"
       type="digit"
       placeholder="0.0"
-      placeholder-style="color: rgba(255,255,255,0.55)"
+      placeholder-style="color: var(--c-text-placeholder, #8b938d)"
       :focus="focused"
       @input="onAmountInput"
       @blur="onAmountBlur"
@@ -126,24 +129,40 @@ function onAmountBlur() {
 </script>
 
 <style lang="scss" scoped>
-// 金额
+// 金额：凹陷玻璃输入格（内底 + 内高光 + 发丝描边），大字走 $text-title + 等宽数字
 .amount-row {
-  margin-top: 34rpx;
-  border-bottom: 2rpx solid rgba(255, 255, 255, 0.28);
+  margin-top: 24rpx;
+  padding: 0 20rpx;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+  border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
+  box-shadow:
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
 
+  // 82rpx：上限金额 99,999,999.99 在 375pt 宽的凹陷格内仍单行完整展示
+  // （原 92rpx 无内边距时可容纳，加玻璃格内边距后需按实测收敛字阶）
   .amount-input {
+    display: block;
     width: 100%;
-    height: 120rpx;
-    font-size: 92rpx;
+    height: 124rpx;
+    box-sizing: border-box;
+    font-size: 82rpx;
     font-weight: 700;
-    color: #ffffff;
-    line-height: 120rpx;
+    line-height: 124rpx;
+    color: $text-title;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
-  // 失焦态千分位展示覆盖层：与输入框同字号，占位色由内联 style 控制
+  // 失焦态千分位展示覆盖层：与输入框同字号，空态占位色由下方类控制
   .amount-text {
     display: block;
+  }
+
+  .amount-text.is-empty {
+    color: $text-placeholder;
   }
 }
 </style>

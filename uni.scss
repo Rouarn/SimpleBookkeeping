@@ -98,17 +98,13 @@ $space-section: 32rpx; // 区块边距
 
 /* ---------- 渐变（现状共两套角度，均原样保留；品牌渐变深色下用稍亮变体） ---------- */
 // 150deg：页面头部 / 卡片主渐变
-$gradient-header: var(
-  --g-header,
-  linear-gradient(150deg, #175142 0%, #0c3a2e 100%)
-);
+$gradient-header: var(--g-header,
+    linear-gradient(150deg, #175142 0%, #0c3a2e 100%));
 // 160deg：详情 / 记账整页底色与票据缺口
 $gradient-page: var(--g-page, linear-gradient(160deg, #175142 0%, #0c3a2e 100%));
 // 登录主按钮（浅端为 #1c6450）
-$gradient-submit: var(
-  --g-submit,
-  linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%)
-);
+$gradient-submit: var(--g-submit,
+    linear-gradient(150deg, #1c6450 0%, #0c3a2e 100%));
 // 记账页保存按钮（90deg）
 $gradient-save: var(--g-save, linear-gradient(90deg, #175142 0%, #246b56 100%));
 // 收入卡（150deg 陶土）
@@ -118,6 +114,95 @@ $gradient-bar-expense: linear-gradient(180deg, #4fc794 0%, #2f6b54 100%);
 $gradient-bar-income: linear-gradient(180deg, #d97a66 0%, #b5523e 100%);
 // 进度条
 $gradient-progress: linear-gradient(90deg, #4fc794 0%, #93e7c4 100%);
+
+/* ======================================================================
+ * Liquid Glass 设计层（macOS 26 / iOS 26 玻璃语言）
+ * ----------------------------------------------------------------------
+ * 玻璃 = 「背景折射 + 色调叠加 + 高光边 + 投影」四件事：
+ * 1. 折射：backdrop-filter: blur() saturate() brightness()，对应 Backdrop
+ *    官方效果链 colorFilter(saturation) ⇒ blur ⇒ lens 的前两步（webview
+ *    无法做逐像素透镜位移，边缘折射用高光描边 + 内阴影近似，见 rim）；
+ * 2. 色调：半透明玻璃底色 + 极淡的斜向高光渐变（sheen）；
+ * 3. 高光边：1rpx 亮边 + 顶部内高光（specular rim），是「玻璃感」的关键；
+ * 4. 投影：大范围、低透明度、带色相的投影，让玻璃「浮」在壁纸上。
+ * 所有颜色 token 走 CSS 变量，由 App.vue 按浅色 / 深色两套声明。
+ * ==================================================================== */
+
+/* ---------- 玻璃参数 ---------- */
+$glass-blur: 26px; // 标准玻璃模糊半径
+$glass-blur-thin: 14px; // 薄玻璃（导航 / 小胶囊）
+$glass-blur-thick: 44px; // 厚玻璃（浮层 / 弹窗）
+$glass-saturate: 180%; // 饱和度提升（Backdrop vibrancy ≈ ×1.5）
+$glass-brightness-light: 1.06; // 浅色下轻微提亮，模拟玻璃透光
+$glass-brightness-dark: 0.96;
+
+/* ---------- 玻璃颜色 ---------- */
+$glass-bg: var(--c-glass-bg, rgba(255, 255, 255, 0.5));
+$glass-bg-strong: var(--c-glass-strong, rgba(255, 255, 255, 0.72));
+$glass-bg-subtle: var(--c-glass-subtle, rgba(255, 255, 255, 0.32));
+$glass-border: var(--c-glass-border, rgba(255, 255, 255, 0.72));
+$glass-border-soft: var(--c-glass-border-soft, rgba(255, 255, 255, 0.42));
+$glass-highlight: var(--c-glass-hi, rgba(255, 255, 255, 0.9));
+$glass-shade: var(--c-glass-shade, rgba(12, 58, 46, 0.06));
+$glass-inner-glow: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+
+/* ---------- 玻璃投影 ---------- */
+$glass-shadow: var(--shadow-glass, 0 20rpx 56rpx rgba(22, 48, 38, 0.14));
+$glass-shadow-soft: var(--shadow-glass-soft, 0 10rpx 28rpx rgba(22, 48, 38, 0.08));
+$glass-shadow-lift: var(--shadow-glass-lift, 0 30rpx 80rpx rgba(22, 48, 38, 0.2));
+
+/* ---------- 玻璃圆角（连续大圆角是 macOS 26 的标志） ---------- */
+$glass-radius-sm: 24rpx;
+$glass-radius: 36rpx;
+$glass-radius-lg: 48rpx;
+$glass-radius-xl: 56rpx;
+$glass-radius-pill: 999rpx;
+
+/* ---------- 玻璃表面 mixin ---------- */
+// 标准玻璃面：模糊折射 + 斜向高光 + 亮边 + 内外投影
+@mixin glass-surface($blur: $glass-blur,
+  $bg: $glass-bg,
+  $radius: $glass-radius) {
+  position: relative;
+  border-radius: $radius;
+  background-color: $bg;
+  background-image: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.26) 0%,
+      rgba(255, 255, 255, 0.04) 34%,
+      rgba(255, 255, 255, 0) 62%);
+  -webkit-backdrop-filter: blur($blur) saturate($glass-saturate);
+  backdrop-filter: blur($blur) saturate($glass-saturate);
+  border: 1rpx solid $glass-border;
+  box-shadow:
+    $glass-shadow-soft,
+    inset 0 1rpx 0 $glass-highlight,
+    inset 0 -1rpx 0 $glass-shade;
+}
+
+// 玻璃高光边（贴在已有圆角容器上的内描边，避免再加一层 border 改变尺寸）
+@mixin glass-rim($radius: $glass-radius) {
+  border-radius: $radius;
+  box-shadow:
+    inset 0 1rpx 0 $glass-highlight,
+    inset 0 -1rpx 0 $glass-shade;
+}
+
+// 按压反馈：轻微下沉 + 提亮（对应 Backdrop 的 interactive 反馈）
+@mixin glass-pressable {
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+
+  &:active {
+    transform: scale(0.985);
+  }
+}
+
+// 玻璃胶囊
+@mixin glass-pill($blur: $glass-blur-thin) {
+  @include glass-surface($blur, $glass-bg-subtle, $glass-radius-pill);
+}
 
 /* ---------- 常用 mixin ---------- */
 // 深松绿渐变圆角页头背景（各页几何尺寸仍在各自组件 / 页面内声明）

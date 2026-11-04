@@ -5,8 +5,13 @@
                - 根节点定位（top/right/宽高）仍由调用方 class 控制，保持各页几何数值不变；
                - size 为外环（容器）直径 rpx，middle/inner 为中内环直径，传 0 不渲染；
                - 各环透明度可按各页原值覆盖（outerOpacity/middleOpacity/innerOpacity）。
+               视觉层为 Liquid Glass：低透明度白描边透出玻璃底，再叠一圈极淡主色
+               细线与顶部镜面高光，使其落在玻璃卡上仍有可读的环纹细节。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
+  @modify 2026-11-04 Liquid Glass 重构：环色改为可透玻璃的低透明度白 + 主色细线
+               （rgba 白走原透明度 props，主色与高光取 var(--c-primary) /
+               var(--c-glass-hi)），props、几何计算与排列方式完全未改。
 -->
 <template>
   <view class="decor-ring-box" :style="boxStyle">
@@ -70,7 +75,9 @@ const ringStyle = (diameter, opacity) => ({
   pointer-events: none;
 }
 
-/* 单环：相对容器绝对居中（与原各页 transform 居中写法一致） */
+/* 单环：相对容器绝对居中（与原各页 transform 居中写法一致）
+   玻璃环：白描边（透明度仍由 props 内联决定，叠在玻璃面上透光不压色）
+   + 顶部 1rpx 镜面高光（主题玻璃高光 token，深色下自动降到 0.22）。 */
 .decor-ring {
   position: absolute;
   top: 50%;
@@ -78,5 +85,21 @@ const ringStyle = (diameter, opacity) => ({
   border-radius: 50%;
   border: 2rpx solid rgba(255, 255, 255, 0.08);
   transform: translate(-50%, -50%);
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
+}
+
+/* 主色玻璃细线：与外环白描边同心叠在同一条边上，浅色玻璃卡上靠这圈
+   极淡主色读出环纹，深色主题自动换成亮绿主色（不改 props 透明度语义）。 */
+.decor-ring::after {
+  content: '';
+  position: absolute;
+  top: -2rpx;
+  right: -2rpx;
+  bottom: -2rpx;
+  left: -2rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--c-primary, #175142);
+  opacity: 0.14;
+  pointer-events: none;
 }
 </style>

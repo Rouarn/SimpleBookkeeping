@@ -15,138 +15,158 @@
   @modify 2026-10-11 抽取 DecorRing / EmptyState / BillRow 公共组件，
                凭证缩略图签名过期支持页面侧换签
   @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 玻璃卡 + 玻璃浮层
 -->
 <template>
   <view class="flowing-water" :class="themeClass">
-    <!-- 顶部导航 -->
-    <view class="top-bar">
-      <view class="type-selector" @click="handleTypeClick">
-        <text class="type-text">{{ currentType }}</text>
-        <uni-icons type="bottom" size="20" :color="titleInk"></uni-icons>
-      </view>
-      <view class="search-btn" @click="handleSearch">
-        <uni-icons type="search" size="28" :color="inkColor"></uni-icons>
-      </view>
-    </view>
+    <!-- 桌面壁纸：玻璃面的折射来源 -->
+    <GlassBackground />
 
-    <!-- 搜索框：点右上角搜索图标展开，输入关键字防抖触发检索 -->
-    <view v-if="searchVisible" class="search-bar">
-      <uni-icons type="search" size="22" :color="secondaryIcon"></uni-icons>
-      <input
-        class="search-input"
-        :value="searchText"
-        placeholder="搜索备注 / 分类"
-        placeholder-style="color: #b3b9c7"
-        confirm-type="search"
-        focus
-        @input="onSearchInput"
-        @confirm="flushSearch"
-      />
-      <view
-        v-if="searchText"
-        class="search-clear"
-        hover-class="clear-hover"
-        :hover-stay-time="60"
-        @click="clearSearch"
-      >
-        <uni-icons type="clear" size="18" color="#c2c9c3"></uni-icons>
-      </view>
-    </view>
-
-    <!-- 日期选择 -->
-    <picker
-      mode="date"
-      :value="currentMonth"
-      fields="month"
-      @change="handleDateChange"
-    >
-      <view class="date-filter">
-        <uni-icons type="calendar" size="26" :color="primaryIcon"></uni-icons>
-        <text class="date-text">{{ currentMonth }}</text>
-        <uni-icons type="bottom" size="16" :color="primaryIcon"></uni-icons>
-      </view>
-    </picker>
-
-    <!-- 本月收支卡片 -->
-    <view class="summary-cards">
-      <view class="summary-card expense-card">
-        <DecorRing
-          class="card-decor"
-          :size="240"
-          :middle="166"
-          :inner="92"
-          :middle-opacity="0.11"
-          :inner-opacity="0.15"
-        />
-        <view class="card-icon-wrap">
-          <uni-icons type="bars" size="26" color="#fff"></uni-icons>
+    <!-- 悬浮玻璃条：类型筛选 / 搜索 / 月份切换，内容从其下方滚过 -->
+    <view class="flow-head">
+      <view class="flow-head__bar g-glass g-glass--bar g-float">
+        <view class="flow-head__row">
+          <view class="type-selector g-pill g-press" @click="handleTypeClick">
+            <text class="type-text">{{ currentType }}</text>
+            <uni-icons type="bottom" size="20" :color="titleInk"></uni-icons>
+          </view>
+          <view class="search-btn g-press" @click="handleSearch">
+            <uni-icons type="search" size="28" :color="inkColor"></uni-icons>
+          </view>
         </view>
-        <view class="card-amount">{{ monthCard.expense }}</view>
-        <view class="card-label">本月总支出（元）</view>
-      </view>
-      <view class="summary-card income-card">
-        <DecorRing
-          class="card-decor"
-          :size="240"
-          :middle="166"
-          :inner="92"
-          :middle-opacity="0.11"
-          :inner-opacity="0.15"
-        />
-        <view class="card-icon-wrap">
-          <uni-icons type="redo" size="26" color="#fff"></uni-icons>
-        </view>
-        <view class="card-amount">{{ monthCard.income }}</view>
-        <view class="card-label">本月总收入（元）</view>
-      </view>
-    </view>
 
-    <!-- 流水列表 -->
-    <view class="flow-list-wrap">
-      <EmptyState
-        v-if="groups.length === 0"
-        :text="keyword ? '未找到相关账单' : '本月暂无流水'"
-        :sub="keyword ? '换个关键词试试' : '记一笔，开始追踪你的收支'"
-      />
-      <template v-else>
-        <view
-          v-for="group in groups"
-          :key="group.recordDate"
-          class="flow-group"
+        <!-- 搜索框：点右上角搜索图标展开，输入关键字防抖触发检索 -->
+        <view v-if="searchVisible" class="search-bar g-pill">
+          <uni-icons type="search" size="22" :color="secondaryIcon"></uni-icons>
+          <input
+            class="search-input"
+            :value="searchText"
+            placeholder="搜索备注 / 分类"
+            placeholder-style="color: #b3b9c7"
+            confirm-type="search"
+            focus
+            @input="onSearchInput"
+            @confirm="flushSearch"
+          />
+          <view
+            v-if="searchText"
+            class="search-clear"
+            hover-class="clear-hover"
+            :hover-stay-time="60"
+            @click="clearSearch"
+          >
+            <uni-icons type="clear" size="18" color="#c2c9c3"></uni-icons>
+          </view>
+        </view>
+
+        <!-- 日期选择 -->
+        <picker
+          class="month-picker"
+          mode="date"
+          :value="currentMonth"
+          fields="month"
+          @change="handleDateChange"
         >
-          <view class="group-header">
-            <view class="group-title">
-              <text class="group-day">{{ group.day }}</text>
-              <text class="group-date">{{ group.date }}</text>
-            </view>
-            <view class="group-summary">
-              <text class="summary-chip">支 {{ group.expense }}</text>
-              <text class="summary-chip income">收 {{ group.income }}</text>
-            </view>
+          <view class="date-filter g-pill g-press">
+            <uni-icons
+              type="calendar"
+              size="26"
+              :color="primaryIcon"
+            ></uni-icons>
+            <text class="date-text">{{ currentMonth }}</text>
+            <uni-icons type="bottom" size="16" :color="primaryIcon"></uni-icons>
           </view>
-
-          <view class="flow-list">
-            <BillRow
-              v-for="item in group.items"
-              :key="item.id"
-              :bill="item"
-              @click="goDetail"
-              @photo-error="resignBillPhoto"
-            />
-          </view>
-        </view>
-      </template>
-
-      <!-- 分页底态：触底加载中 / 已加载全部（仅在有数据时展示） -->
-      <view
-        v-if="groups.length > 0 && (loadingMore || finished)"
-        class="list-footer"
-      >
-        <text class="footer-text">{{
-          loadingMore ? '加载中…' : '没有更多了'
-        }}</text>
+        </picker>
       </view>
     </view>
+
+    <!-- 内容层：抬到壁纸之上 -->
+    <view class="flowing-water__content">
+      <!-- 本月收支玻璃汇总卡 -->
+      <view class="summary-cards">
+        <view class="summary-card expense-card g-glass">
+          <DecorRing
+            class="card-decor"
+            :size="240"
+            :middle="166"
+            :inner="92"
+            :middle-opacity="0.11"
+            :inner-opacity="0.15"
+          />
+          <view class="card-icon-wrap">
+            <uni-icons type="arrow-up" size="26" color="#fff"></uni-icons>
+          </view>
+          <view class="card-amount">{{ monthCard.expense }}</view>
+          <view class="card-label">本月总支出（元）</view>
+        </view>
+        <view class="summary-card income-card g-glass">
+          <DecorRing
+            class="card-decor"
+            :size="240"
+            :middle="166"
+            :inner="92"
+            :middle-opacity="0.11"
+            :inner-opacity="0.15"
+          />
+          <view class="card-icon-wrap">
+            <uni-icons type="arrow-down" size="26" color="#fff"></uni-icons>
+          </view>
+          <view class="card-amount">{{ monthCard.income }}</view>
+          <view class="card-label">本月总收入（元）</view>
+        </view>
+      </view>
+
+      <!-- 流水列表 -->
+      <view class="flow-list-wrap">
+        <EmptyState
+          v-if="groups.length === 0"
+          class="flow-empty g-glass"
+          :text="keyword ? '未找到相关账单' : '本月暂无流水'"
+          :sub="keyword ? '换个关键词试试' : '记一笔，开始追踪你的收支'"
+        />
+        <template v-else>
+          <view
+            v-for="group in groups"
+            :key="group.recordDate"
+            class="flow-group g-glass"
+          >
+            <view class="group-header">
+              <view class="group-title">
+                <text class="group-day">{{ group.day }}</text>
+                <text class="group-date">{{ group.date }}</text>
+              </view>
+              <view class="group-summary">
+                <text class="summary-chip">支 {{ group.expense }}</text>
+                <text class="summary-chip income">收 {{ group.income }}</text>
+              </view>
+            </view>
+
+            <view class="flow-list">
+              <BillRow
+                v-for="item in group.items"
+                :key="item.id"
+                :bill="item"
+                @click="goDetail"
+                @photo-error="resignBillPhoto"
+              />
+            </view>
+          </view>
+        </template>
+
+        <!-- 分页底态：触底加载中 / 已加载全部（仅在有数据时展示） -->
+        <view
+          v-if="groups.length > 0 && (loadingMore || finished)"
+          class="list-footer"
+        >
+          <text class="footer-text">{{
+            loadingMore ? '加载中…' : '没有更多了'
+          }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部悬浮玻璃导航（pages.json tabBar.custom = true，需 tab 页自行挂载） -->
+    <GlassTabBar current="flowing" />
   </view>
 </template>
 
@@ -250,6 +270,13 @@ onUnload(() => {
 
 // 进入页面 / 从后台恢复时拉取；月份或类型变化时重置到第一页重新拉取
 onShow(() => {
+  // App 端 tabBar.custom 不会隐藏原生条（H5 由 App.vue 的 CSS 兜底），
+  // 这里每次显示都再隐藏一次，避免切换页面时原生条重新出现。
+  try {
+    uni.hideTabBar({ animation: false })
+  } catch (e) {
+    // ignore：无原生 tabBar 的环境（H5 已用 CSS 隐藏）
+  }
   load().catch(() => {})
 })
 watch([currentMonth, currentType], () => {
@@ -323,61 +350,87 @@ const resignBillPhoto = async (item) => {
 
 <style lang="scss" scoped>
 .flowing-water {
+  position: relative;
   width: 100%;
+  box-sizing: border-box;
   min-height: 100vh;
-  margin-top: var(--status-bar-height);
-  background: $bg-page;
-  padding-bottom: 160rpx;
+  /* 页面底色交给壁纸，页面自身透明 */
+  background: transparent;
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部导航
-.top-bar {
+/* ==================================================================
+ * 悬浮玻璃条（类型筛选 / 搜索 / 月份切换）
+ * 固定定位：列表滚动时从玻璃下方穿过，形成折射
+ * 折叠高度 = 上下内边距 32 + 类型行 64 + 间距 14 + 月份行 68 = 178rpx
+ * 内容层 padding-top 按此预留（见 .flowing-water__content）
+ * ================================================================== */
+.flow-head {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  top: calc(var(--status-bar-height) + 12rpx);
+  z-index: 20;
+}
+
+.flow-head__bar {
+  display: flex;
+  flex-direction: column;
+  padding: 16rpx 18rpx;
+  border-radius: 44rpx;
+}
+
+.flow-head__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 28rpx 20rpx;
+}
 
-  .type-selector {
-    display: flex;
-    align-items: center;
+/* 类型筛选：玻璃条内的凹陷胶囊 */
+.type-selector {
+  display: flex;
+  align-items: center;
+  height: 64rpx;
+  padding: 0 20rpx 0 24rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
-    .type-text {
-      font-size: 42rpx;
-      font-weight: 700;
-      color: $text-title;
-      letter-spacing: 1rpx;
-      margin-right: 8rpx;
-    }
-  }
-
-  .search-btn {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 50%;
-    background: $bg-card;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: $shadow-float;
+  .type-text {
+    margin-right: 8rpx;
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $text-title;
+    letter-spacing: 0.5rpx;
   }
 }
 
-// 搜索框（与日期 pill 同视觉语言：白底胶囊 + 轻阴影）
+/* 搜索入口：圆形玻璃钮 */
+.search-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
+}
+
+/* 搜索框：玻璃条内的凹陷胶囊（展开时玻璃条随之下延，内容从其下穿过） */
 .search-bar {
   display: flex;
   align-items: center;
-  margin: 0 28rpx 20rpx;
-  padding: 0 26rpx;
-  height: 76rpx;
-  background: $bg-card;
-  border-radius: 999rpx;
-  box-shadow: $shadow-float;
+  height: 72rpx;
+  margin-top: 14rpx;
+  padding: 0 22rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
   .search-input {
     flex: 1;
     min-width: 0;
     height: 100%;
-    margin-left: 16rpx;
+    margin-left: 14rpx;
     font-size: 27rpx;
     color: $text-title;
   }
@@ -393,39 +446,50 @@ const resignBillPhoto = async (item) => {
   }
 }
 
-// 日期选择
+/* 月份切换：picker 内的玻璃胶囊（flex 避免行盒基线多余高度，保证条高可算） */
+.month-picker {
+  display: flex;
+  margin-top: 14rpx;
+}
+
 .date-filter {
   display: inline-flex;
   align-items: center;
-  margin: 10rpx 0 28rpx 28rpx;
-  padding: 12rpx 24rpx;
-  background: $bg-card;
-  border-radius: 999rpx;
-  box-shadow: $shadow-float;
+  height: 68rpx;
+  padding: 0 22rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
   .date-text {
-    margin: 0 10rpx 0 12rpx;
-    font-size: 26rpx;
+    margin: 0 8rpx 0 10rpx;
+    font-size: 25rpx;
     font-weight: 600;
     color: $color-primary-mid;
     font-variant-numeric: tabular-nums;
   }
 }
 
-// 收支卡片
+/* 内容层：抬到壁纸 / 悬浮玻璃条之上 */
+.flowing-water__content {
+  position: relative;
+  z-index: 1;
+  padding: calc(var(--status-bar-height) + 214rpx) 24rpx 0;
+}
+
+/* ---------- 收支玻璃汇总卡 ---------- */
 .summary-cards {
   display: flex;
-  padding: 0 24rpx;
   gap: 20rpx;
-  margin-bottom: 30rpx;
+  margin-bottom: 28rpx;
 }
 
 .summary-card {
   flex: 1;
+  min-width: 0;
   position: relative;
-  border-radius: $radius-card;
-  padding: 30rpx 26rpx;
   overflow: hidden;
+  padding: 26rpx 24rpx 24rpx;
+  border-radius: 40rpx;
 
   // 同心圆环暗纹（DecorRing 组件根节点，环体样式内聚在组件内）
   .card-decor {
@@ -437,87 +501,100 @@ const resignBillPhoto = async (item) => {
     pointer-events: none;
   }
 
+  // 小面积品牌色玻璃图标砖（保证内嵌白色图标可读）
   .card-icon-wrap {
     position: relative;
     z-index: 1;
-    width: 58rpx;
-    height: 58rpx;
-    border-radius: 16rpx;
-    background: rgba(255, 255, 255, 0.18);
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 18rpx;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 18rpx;
+    margin-bottom: 16rpx;
+    box-shadow:
+      inset 0 1rpx 0 rgba(255, 255, 255, 0.45),
+      0 6rpx 14rpx rgba(22, 48, 38, 0.16);
   }
 
   .card-amount {
     position: relative;
     z-index: 1;
-    font-size: 48rpx;
+    font-size: 44rpx;
     font-weight: 700;
-    color: #fff;
-    line-height: 1.1;
+    line-height: 1.12;
+    color: $text-title;
     font-variant-numeric: tabular-nums;
   }
 
   .card-label {
     position: relative;
     z-index: 1;
-    font-size: 23rpx;
-    color: rgba(255, 255, 255, 0.72);
-    margin-top: 10rpx;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: $text-regular;
   }
 }
 
-.expense-card {
-  background: $gradient-header;
-  box-shadow: 0 14rpx 32rpx rgba(12, 58, 46, 0.24);
+.expense-card .card-icon-wrap {
+  background: linear-gradient(
+    150deg,
+    rgba(23, 81, 66, 0.92) 0%,
+    rgba(12, 58, 46, 0.96) 100%
+  );
 }
 
 .income-card {
-  background: $gradient-income;
-  box-shadow: 0 14rpx 32rpx rgba(145, 53, 39, 0.24);
-}
+  .card-icon-wrap {
+    background: linear-gradient(
+      150deg,
+      rgba(181, 82, 62, 0.92) 0%,
+      rgba(145, 53, 39, 0.96) 100%
+    );
+  }
 
-// 流水列表
-.flow-list-wrap {
-  padding: 0 24rpx;
-}
-
-// 分页底态（触底加载中 / 没有更多了）
-.list-footer {
-  display: flex;
-  justify-content: center;
-  padding: 8rpx 0 26rpx;
-
-  .footer-text {
-    font-size: 23rpx;
-    color: $text-secondary;
+  // 本应用收入为红：金额沿用语义色，支出用标题墨色
+  .card-amount {
+    color: $color-income;
   }
 }
 
+/* ---------- 玻璃分组卡 ---------- */
+.flow-list-wrap {
+  padding: 0;
+}
+
+/* 空态：整块玻璃面，避免文字直接浮在壁纸上 */
+.flow-empty {
+  border-radius: 40rpx;
+  overflow: hidden;
+}
+
 .flow-group {
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
+  border-radius: 40rpx;
+  overflow: hidden;
 
   .group-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14rpx 8rpx 14rpx;
+    padding: 22rpx 26rpx 18rpx;
+    border-bottom: 1rpx solid $divider;
 
     .group-title {
       display: flex;
       align-items: baseline;
 
       .group-day {
-        font-size: 32rpx;
+        font-size: 30rpx;
         font-weight: 700;
         color: $text-title;
       }
 
       .group-date {
         margin-left: 12rpx;
-        font-size: 22rpx;
+        font-size: 21rpx;
         color: $text-secondary;
         font-variant-numeric: tabular-nums;
       }
@@ -528,12 +605,13 @@ const resignBillPhoto = async (item) => {
       align-items: center;
 
       .summary-chip {
-        padding: 7rpx 16rpx;
-        font-size: 21rpx;
+        padding: 6rpx 16rpx;
+        font-size: 20rpx;
         line-height: 1.4;
         border-radius: 999rpx;
-        background: $bg-tint;
         color: $color-tint-text;
+        background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+        box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
         font-variant-numeric: tabular-nums;
 
         & + & {
@@ -541,18 +619,32 @@ const resignBillPhoto = async (item) => {
         }
 
         &.income {
-          background: $color-danger-bg;
-          color: $color-danger;
+          color: $color-income;
+          background: var(--c-danger-soft-glass, rgba(223, 84, 63, 0.12));
         }
       }
     }
   }
 
+  // 行内透明：折射由外层玻璃分组卡统一提供
   .flow-list {
-    background: $bg-card;
-    border-radius: $radius-card;
-    box-shadow: $shadow-card;
-    overflow: hidden;
+    background: transparent;
+  }
+}
+
+/* 分页底态（触底加载中 / 没有更多了） */
+.list-footer {
+  display: flex;
+  justify-content: center;
+  padding: 6rpx 0 26rpx;
+
+  .footer-text {
+    padding: 8rpx 24rpx;
+    border-radius: 999rpx;
+    font-size: 22rpx;
+    color: $text-secondary;
+    background: var(--c-glass-subtle, rgba(255, 255, 255, 0.3));
+    border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
   }
 }
 </style>

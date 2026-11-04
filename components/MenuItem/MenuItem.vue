@@ -79,9 +79,9 @@ const iconColor = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
     display: none;
   }
 
-  // hover-class 会把 row-hover 加到本节点自身
+  // hover-class 会把 row-hover 加到本节点自身（玻璃内透明高光）
   &.row-hover {
-    background: $bg-hover;
+    background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
   }
 
   .menu-icon {
@@ -89,7 +89,8 @@ const iconColor = computed(() => (isDark.value ? '#58b992' : '#2f6b54'))
     height: 64rpx;
     margin-right: 22rpx;
     border-radius: $radius-md;
-    background: $bg-tint-icon;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
     display: flex;
     align-items: center;
     justify-content: center;

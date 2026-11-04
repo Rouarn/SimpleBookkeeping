@@ -7,12 +7,15 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
   @modify 2026-10-12 深色模式：面板底色收敛至主题 token，收入红调亮一档
+  @modify 2026-11-04 Liquid Glass 重构：面板改玻璃卡（.g-glass），图例改玻璃胶囊；
+                每根柱子加玻璃凹陷轨道（--c-glass-inner + 顶部内高光），
+                柱体渐变（$gradient-bar-expense/income）原样保留。
 -->
 <template>
-  <view class="panel">
+  <view class="panel g-glass">
     <view class="panel-header">
       <text class="panel-title">{{ title }}</text>
-      <view class="legend">
+      <view class="legend g-pill">
         <view class="legend-dot expense-dot"></view>
         <text class="legend-text">支出</text>
         <view class="legend-dot income-dot"></view>
@@ -27,7 +30,7 @@
       <view
         v-for="(item, index) in trend"
         :key="item.month"
-        class="bar-group"
+        class="bar-group g-press"
         :class="{ cur: activeIndex === index }"
         @click="emit('bar-tap', index)"
       >
@@ -44,23 +47,27 @@
           </block>
         </view>
         <view class="bars">
-          <view
-            class="bar bar-expense"
-            :class="{ active: activeIndex === index }"
-            :style="{
-              height: barHeight(item.expense) + '%',
-              // 年视图 12 柱错峰动画（每柱延后 30ms）；月视图 6 柱不延迟
-              transitionDelay: (isYear ? index * 30 : 0) + 'ms',
-            }"
-          ></view>
-          <view
-            class="bar bar-income"
-            :class="{ active: activeIndex === index }"
-            :style="{
-              height: barHeight(item.income) + '%',
-              transitionDelay: (isYear ? index * 30 : 0) + 'ms',
-            }"
-          ></view>
+          <view class="bar-track">
+            <view
+              class="bar bar-expense"
+              :class="{ active: activeIndex === index }"
+              :style="{
+                height: barHeight(item.expense) + '%',
+                // 年视图 12 柱错峰动画（每柱延后 30ms）；月视图 6 柱不延迟
+                transitionDelay: (isYear ? index * 30 : 0) + 'ms',
+              }"
+            ></view>
+          </view>
+          <view class="bar-track">
+            <view
+              class="bar bar-income"
+              :class="{ active: activeIndex === index }"
+              :style="{
+                height: barHeight(item.income) + '%',
+                transitionDelay: (isYear ? index * 30 : 0) + 'ms',
+              }"
+            ></view>
+          </view>
         </view>
         <text class="bar-month" :class="{ on: activeIndex === index }">{{
           isYear ? index + 1 : item.label
@@ -107,13 +114,11 @@ const barHeight = (v) =>
 </script>
 
 <style lang="scss" scoped>
-// 通用白色面板
+// 通用玻璃面板
 .panel {
   margin: 0 24rpx 24rpx;
   padding: 30rpx 28rpx 26rpx;
-  background: $bg-card;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-card;
+  border-radius: 40rpx;
 
   .panel-header {
     display: flex;
@@ -126,22 +131,28 @@ const barHeight = (v) =>
       color: $text-title;
     }
 
+    // 图例：玻璃胶囊（内凹底 + 顶部内高光）
     .legend {
       display: flex;
       align-items: center;
+      flex-shrink: 0;
+      padding: 4rpx 14rpx 4rpx 10rpx;
+      background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+      box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
       .legend-dot {
         width: 14rpx;
         height: 14rpx;
         border-radius: 50%;
-        margin: 0 7rpx 0 18rpx;
+        flex-shrink: 0;
 
         &.expense-dot {
           background: $color-primary-mid;
+          margin-right: 7rpx;
         }
         &.income-dot {
           background: $color-income;
-          margin-left: 0;
+          margin: 0 7rpx 0 16rpx;
         }
       }
 
@@ -169,9 +180,12 @@ const barHeight = (v) =>
   .bar-group {
     position: relative;
     flex: 1;
+    /* 年视图 12 列时，浮层金额文字不得撑开列宽（min-content 会顶破面板） */
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
+    border-radius: 20rpx;
 
     // 高亮柱的浮层不被相邻柱遮挡（年视图 12 组更拥挤）
     &.cur {
@@ -214,8 +228,23 @@ const barHeight = (v) =>
     justify-content: center;
     gap: 8rpx;
 
-    .bar {
+    // 柱子的玻璃凹陷轨道：内凹底 + 顶部内高光（柱体仍用品牌渐变）
+    .bar-track {
       width: 22rpx;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      border-radius: 999rpx 999rpx 6rpx 6rpx;
+      /* 轨道只做极淡的“量尺”底，不能盖过柱体 */
+      background: rgba(255, 255, 255, 0.14);
+      box-shadow:
+        inset 0 0 0 1rpx rgba(255, 255, 255, 0.28),
+        inset 0 -2rpx 6rpx rgba(12, 58, 46, 0.05);
+      overflow: hidden;
+    }
+
+    .bar {
+      width: 100%;
       border-radius: 999rpx 999rpx 6rpx 6rpx;
       opacity: 0.38;
       transition:
@@ -239,6 +268,7 @@ const barHeight = (v) =>
     margin-top: 12rpx;
     font-size: 21rpx;
     color: $text-secondary;
+    font-variant-numeric: tabular-nums;
 
     &.on {
       color: $color-primary-deep;

@@ -7,6 +7,9 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
   @modify 2026-10-12 深色模式：选中圆底收敛至主题 token（未选中半透明白与白色线性图标保持）
+  @modify 2026-11-04 Liquid Glass 重构：分类图标改为 squircle 玻璃块
+               （未选中薄玻璃，选中主色描边 + --c-glass-strong 底）；
+               未选中白色线性 SVG 在浅色玻璃上用 filter 压成墨色剪影，深色下保持白色
 -->
 <template>
   <!-- 分类图标 -->
@@ -18,7 +21,10 @@
         class="category-item"
         @click="emit('update:modelValue', item.id)"
       >
-        <view class="category-icon" :class="{ on: selectedName === item.name }">
+        <view
+          class="category-icon g-glass g-glass--thin"
+          :class="{ on: selectedName === item.name }"
+        >
           <image
             class="category-img"
             :src="selectedName === item.name ? item.activeIcon : item.icon"
@@ -41,6 +47,7 @@
  * 渲染高亮沿用原页面的「按名称比较」口径（字典名唯一，与按 id 等价）。
  */
 import { computed } from 'vue'
+import { useTheme } from '@/composables/useTheme'
 import { useCategoryStore } from '@/store'
 
 const props = defineProps({
@@ -53,6 +60,9 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const categoryStore = useCategoryStore()
+// 未选中图标按主题给色：浅色墨色 / 深色白色（直接生成对应颜色的 SVG，
+// 避免再用 filter: brightness(0)，真机横向滚动时滤镜层会丢图变空白）
+const { isDark } = useTheme()
 
 /**
  * 生成线性 SVG 图标的 dataURL（默认白色，选中态使用分类主题色）。
@@ -112,7 +122,7 @@ const makeCategory = (meta) => {
     id: meta.id,
     name: meta.name,
     color: meta.color,
-    icon: icon(inner),
+    icon: icon(inner, isDark.value ? '#ffffff' : '#171512'),
     activeIcon: icon(inner, meta.color),
   }
 }
@@ -129,51 +139,69 @@ const selectedName = computed(
 </script>
 
 <style lang="scss" scoped>
-// 分类图标
+// 分类图标：横向滚动，单项 = squircle 玻璃块 + 名称
 .category-scroll {
-  margin-top: 38rpx;
+  margin-top: 26rpx;
   white-space: nowrap;
 
   .category-list {
     display: flex;
-    padding: 4rpx 4rpx 0;
+    // 留出选中态描边（2rpx 环 + 上浮 2rpx）与外发光的位置，避免被 scroll-view 边缘裁掉
+    padding: 8rpx 6rpx 6rpx;
   }
 
   .category-item {
     flex-shrink: 0;
-    width: 128rpx;
+    width: 118rpx;
     display: flex;
     flex-direction: column;
     align-items: center;
 
+    // 小面积玻璃：模糊半径收小，控制横向滚动时的重绘成本
     .category-icon {
-      width: 106rpx;
-      height: 106rpx;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.13);
+      width: 96rpx;
+      height: 96rpx;
+      border-radius: 30rpx;
       display: flex;
       align-items: center;
       justify-content: center;
       box-sizing: border-box;
+      transition:
+        background-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 
       .category-img {
-        width: 52rpx;
-        height: 52rpx;
+        width: 46rpx;
+        height: 46rpx;
+        flex-shrink: 0;
+        opacity: 0.62;
+        transition: opacity 0.2s ease;
       }
 
+      // 选中：主色描边（box-shadow 环，不改变布局盒尺寸）+ 强玻璃底 + 上浮
       &.on {
-        background: $bg-card;
-        box-shadow: 0 8rpx 20rpx rgba(4, 24, 18, 0.28);
+        background-color: var(--c-glass-strong, rgba(255, 255, 255, 0.74));
+        box-shadow:
+          0 0 0 2rpx var(--c-primary, #175142),
+          0 12rpx 24rpx rgba(22, 48, 38, 0.18),
+          inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95));
+        transform: translateY(-2rpx);
+
+        .category-img {
+          opacity: 1;
+        }
       }
     }
 
     .category-name {
-      margin-top: 14rpx;
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.55);
+      margin-top: 12rpx;
+      font-size: 22rpx;
+      line-height: 1.3;
+      color: $text-secondary;
 
       &.on {
-        color: #ffffff;
+        color: $text-title;
         font-weight: 600;
       }
     }

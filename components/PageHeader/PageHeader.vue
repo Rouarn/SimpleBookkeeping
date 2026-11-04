@@ -59,7 +59,7 @@ const PRESETS = {
   },
   my: {
     height: 'auto',
-    padding: 'calc(var(--status-bar-height) + 44rpx) 32rpx 96rpx',
+    padding: 'calc(var(--status-bar-height) + 44rpx) 32rpx 48rpx',
     radius: '0 0 36rpx 36rpx',
     arc: { width: 460, height: 460, left: -200, top: -210, opacity: 0.06 },
     circle: { width: 400, height: 400, right: -130, top: -140, opacity: 0.05 },
@@ -69,7 +69,7 @@ const PRESETS = {
   },
   settings: {
     height: 'auto',
-    padding: 'calc(var(--status-bar-height) + 20rpx) 32rpx 148rpx',
+    padding: 'calc(var(--status-bar-height) + 20rpx) 32rpx 36rpx',
     radius: '0 0 36rpx 36rpx',
     arc: { width: 480, height: 480, left: -210, top: -220, opacity: 0.06 },
     circle: { width: 420, height: 420, right: -150, top: -150, opacity: 0.05 },
@@ -131,14 +131,29 @@ const clayDotStyle = computed(() =>
 </script>
 
 <style lang="scss" scoped>
-/* 深松绿渐变圆角页头（各页几何尺寸由 variant 内联样式决定） */
+/* 液态玻璃页头（几何尺寸仍由 variant 内联样式决定）：
+   原来的深松绿实色渐变改为玻璃面——壁纸透过它产生折射，靠
+   1rpx 亮边 + 顶部内高光 + 底部内暗边形成玻璃厚度感。 */
 .page-header {
   position: relative;
-  background: $gradient-header;
+  z-index: 1;
   overflow: hidden;
+  background-color: var(--c-glass-subtle, rgba(255, 255, 255, 0.3));
+  background-image: linear-gradient(
+    150deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.08) 42%,
+    rgba(255, 255, 255, 0) 72%
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
+  box-shadow:
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.08)),
+    0 18rpx 44rpx rgba(22, 48, 38, 0.1);
 }
 
-/* 背景装饰圆（位置 / 尺寸由内联样式决定） */
+/* 背景装饰圆（位置 / 尺寸由内联样式决定）：玻璃上的柔光轮廓 */
 .decor {
   position: absolute;
   border-radius: 50%;

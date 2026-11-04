@@ -14,22 +14,28 @@
                年视图 12 柱错峰动画；抽取 DecorRing，金额收敛至 utils/rmb；
                P2-15 概览卡 / 趋势图 / 排行拆为子组件，本页瘦身为编排层
   @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 悬浮玻璃标题栏 + 玻璃分段控件 +
+               底部玻璃导航；页面底色转 transparent，内容层抬到 z-index 1，
+               各卡片交由子组件的 .g-glass 承载。
 -->
 <template>
   <view class="statistics" :class="themeClass">
-    <!-- 顶部标题 + 粒度切换 + 月份/年份选择 -->
-    <view class="top-bar">
+    <!-- 桌面壁纸：玻璃面的折射来源 -->
+    <GlassBackground />
+
+    <!-- 悬浮玻璃标题栏：标题 + 月/年粒度 + 月份/年份选择 -->
+    <view class="top-bar g-glass g-glass--thin g-pill">
       <text class="top-title">统计</text>
       <view class="top-actions">
-        <view class="scope-toggle">
+        <view class="scope-toggle g-pill">
           <text
-            class="scope-item"
+            class="scope-item g-press"
             :class="{ on: !isYear }"
             @click="switchScope('month')"
             >月</text
           >
           <text
-            class="scope-item"
+            class="scope-item g-press"
             :class="{ on: isYear }"
             @click="switchScope('year')"
             >年</text
@@ -41,7 +47,7 @@
           :value="pickerValue"
           @change="onPeriodChange"
         >
-          <view class="month-pill">
+          <view class="month-pill g-pill g-press">
             <text class="month-text">{{ periodText }}</text>
             <uni-icons type="bottom" size="14" :color="primaryIcon"></uni-icons>
           </view>
@@ -49,67 +55,73 @@
       </view>
     </view>
 
-    <!-- 收支切换 -->
-    <view class="type-tabs">
-      <view
-        class="tab-item expense"
-        :class="{ on: billType === 'expense' }"
-        @click="switchType('expense')"
-      >
-        支出
+    <!-- 内容层：抬到壁纸之上 -->
+    <view class="statistics__content">
+      <!-- 收支切换 -->
+      <view class="type-tabs g-glass g-glass--thin g-pill">
+        <view
+          class="tab-item expense g-press"
+          :class="{ on: billType === 'expense' }"
+          @click="switchType('expense')"
+        >
+          支出
+        </view>
+        <view
+          class="tab-item income g-press"
+          :class="{ on: billType === 'income' }"
+          @click="switchType('income')"
+        >
+          收入
+        </view>
       </view>
-      <view
-        class="tab-item income"
-        :class="{ on: billType === 'income' }"
-        @click="switchType('income')"
-      >
-        收入
-      </view>
+
+      <!-- 本期概览卡片（加载失败错误态内聚在组件中，点击重试上抛 retry） -->
+      <MonthSummary
+        :error="overviewError"
+        :bill-type="billType"
+        :is-year="isYear"
+        :scope-text="scopeText"
+        :mom="mom"
+        :current-total="currentTotal"
+        :opposite-total="oppositeTotal"
+        :count="currentCount"
+        :avg="avgValue"
+        :balance="balance"
+        @retry="retryOverview"
+      />
+
+      <!-- 收支趋势：月视图近6个月 / 年视图全年12个月；高亮与跳转由本页控制 -->
+      <TrendChart
+        :title="trendTitle"
+        :trend="trend"
+        :is-year="isYear"
+        :active-index="activeTrend"
+        @bar-tap="onTrendTap"
+        @jump="jumpToMonth"
+      />
+
+      <!-- 分类排行 -->
+      <CategoryRank
+        :title="billType === 'expense' ? '支出分类' : '收入分类'"
+        unit="类"
+        :items="categoryStats"
+        kind="category"
+        :empty-text="categoryEmptyText"
+      />
+
+      <!-- 支付方式分布（仅支出） -->
+      <CategoryRank
+        v-if="billType === 'expense'"
+        title="支付方式"
+        unit="种"
+        :items="payStats"
+        kind="pay"
+        empty-text="暂无支付方式数据"
+      />
     </view>
 
-    <!-- 本期概览卡片（加载失败错误态内聚在组件中，点击重试上抛 retry） -->
-    <MonthSummary
-      :error="overviewError"
-      :bill-type="billType"
-      :is-year="isYear"
-      :scope-text="scopeText"
-      :mom="mom"
-      :current-total="currentTotal"
-      :opposite-total="oppositeTotal"
-      :count="currentCount"
-      :avg="avgValue"
-      :balance="balance"
-      @retry="retryOverview"
-    />
-
-    <!-- 收支趋势：月视图近6个月 / 年视图全年12个月；高亮与跳转由本页控制 -->
-    <TrendChart
-      :title="trendTitle"
-      :trend="trend"
-      :is-year="isYear"
-      :active-index="activeTrend"
-      @bar-tap="onTrendTap"
-      @jump="jumpToMonth"
-    />
-
-    <!-- 分类排行 -->
-    <CategoryRank
-      :title="billType === 'expense' ? '支出分类' : '收入分类'"
-      unit="类"
-      :items="categoryStats"
-      kind="category"
-      :empty-text="categoryEmptyText"
-    />
-
-    <!-- 支付方式分布（仅支出） -->
-    <CategoryRank
-      v-if="billType === 'expense'"
-      title="支付方式"
-      unit="种"
-      :items="payStats"
-      kind="pay"
-      empty-text="暂无支付方式数据"
-    />
+    <!-- 底部悬浮玻璃导航 -->
+    <GlassTabBar current="statistics" />
   </view>
 </template>
 
@@ -308,6 +320,13 @@ const mom = computed(() => {
 
 // 进入页面拉取（失败静默，保留上次数据）；粒度 / 月份 / 年份 / 类型变化重拉概览与排行
 onShow(() => {
+  // App 端 tabBar.custom 不会隐藏原生条（H5 由 App.vue 的 CSS 兜底），
+  // 这里每次显示都再隐藏一次，避免切换页面时原生条重新出现。
+  try {
+    uni.hideTabBar({ animation: false })
+  } catch (e) {
+    // ignore：无原生 tabBar 的环境（H5 已用 CSS 隐藏）
+  }
   load().catch(() => {})
   loadTrend()
 })
@@ -335,23 +354,32 @@ const retryOverview = () => {
 
 <style lang="scss" scoped>
 .statistics {
+  position: relative;
   width: 100%;
-  min-height: 100vh;
-  margin-top: var(--status-bar-height);
-  background: $bg-page;
-  padding-bottom: 180rpx;
   box-sizing: border-box;
+  min-height: 100vh;
+  background: transparent;
+  /* 给悬浮玻璃导航留出安全距离 */
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部标题 + 粒度切换 + 月份/年份选择
+/* ---------- 悬浮玻璃标题栏 ---------- */
 .top-bar {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  top: calc(var(--status-bar-height) + 12rpx);
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28rpx 28rpx 20rpx;
+  height: 96rpx;
+  padding: 0 14rpx 0 30rpx;
+  box-sizing: border-box;
 
   .top-title {
-    font-size: 42rpx;
+    flex-shrink: 0;
+    font-size: 40rpx;
     font-weight: 700;
     color: $text-title;
     letter-spacing: 1rpx;
@@ -360,54 +388,72 @@ const retryOverview = () => {
   .top-actions {
     display: flex;
     align-items: center;
+    min-width: 0;
   }
 
+  /* 月/年分段控件：玻璃轨道 + 选中项浮起玻璃片 */
   .scope-toggle {
     display: flex;
-    margin-right: 14rpx;
+    align-items: center;
+    flex-shrink: 0;
+    margin-right: 10rpx;
     padding: 4rpx;
-    background: $bg-toggle;
-    border-radius: 999rpx;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
     .scope-item {
-      padding: 8rpx 22rpx;
+      padding: 6rpx 20rpx;
       font-size: 23rpx;
       font-weight: 600;
+      line-height: 1.4;
       color: $text-regular;
       border-radius: 999rpx;
-      transition: all 0.25s ease;
+      transition:
+        background-color 0.22s ease,
+        color 0.22s ease,
+        box-shadow 0.22s ease;
 
       &.on {
-        background: $bg-card;
         color: $color-primary-mid;
-        box-shadow: $shadow-float;
+        background: var(--c-glass-strong, rgba(255, 255, 255, 0.72));
+        box-shadow:
+          $glass-shadow-soft,
+          inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
       }
     }
   }
 
+  /* 期间胶囊：内凹玻璃底，可点按 */
   .month-pill {
     display: flex;
     align-items: center;
-    padding: 11rpx 22rpx;
-    background: $bg-card;
-    border-radius: 999rpx;
-    box-shadow: $shadow-float;
+    padding: 9rpx 18rpx;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
     .month-text {
-      font-size: 25rpx;
+      margin-right: 8rpx;
+      font-size: 24rpx;
       font-weight: 600;
       color: $color-primary-mid;
-      margin-right: 8rpx;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
   }
 }
 
-// 收支切换
+/* ---------- 内容层 ---------- */
+.statistics__content {
+  position: relative;
+  z-index: 1;
+  padding-top: calc(var(--status-bar-height) + 128rpx);
+}
+
+/* ---------- 收支切换（玻璃分段控件） ---------- */
 .type-tabs {
   display: flex;
-  margin: 8rpx 24rpx 26rpx;
+  margin: 0 24rpx 26rpx;
   padding: 6rpx;
-  background: $bg-toggle;
   border-radius: 999rpx;
 
   .tab-item {
@@ -418,11 +464,16 @@ const retryOverview = () => {
     font-weight: 600;
     color: $text-regular;
     border-radius: 999rpx;
-    transition: all 0.25s ease;
+    transition:
+      background-color 0.25s ease,
+      color 0.25s ease,
+      box-shadow 0.25s ease;
 
     &.on {
-      background: $bg-card;
-      box-shadow: $shadow-float;
+      background: var(--c-glass-strong, rgba(255, 255, 255, 0.72));
+      box-shadow:
+        $glass-shadow-soft,
+        inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
       &.expense {
         color: $color-primary-deep;

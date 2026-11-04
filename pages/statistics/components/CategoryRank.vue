@@ -7,9 +7,11 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
   @modify 2026-10-12 深色模式：面板底 / 行分割线 / 进度轨道 / 榜首金色收敛至主题 token
+  @modify 2026-11-04 Liquid Glass 重构：面板改玻璃卡（.g-glass），排行榜行进卡内玻璃层，
+                行按压用 --c-glass-hover，进度轨道改玻璃凹陷分区，空态改内凹玻璃块。
 -->
 <template>
-  <view class="panel">
+  <view class="panel g-glass">
     <view class="panel-header">
       <text class="panel-title">{{ title }}</text>
       <text class="panel-extra">共 {{ items.length }} {{ unit }}</text>
@@ -91,13 +93,11 @@ defineProps({
 </script>
 
 <style lang="scss" scoped>
-// 通用白色面板
+// 通用玻璃面板
 .panel {
   margin: 0 24rpx 24rpx;
   padding: 30rpx 28rpx 26rpx;
-  background: $bg-card;
-  border-radius: $radius-lg;
-  box-shadow: $shadow-card;
+  border-radius: 40rpx;
 
   .panel-header {
     display: flex;
@@ -121,14 +121,22 @@ defineProps({
 .rank-list {
   margin-top: 6rpx;
 
+  // 排行行：玻璃卡内的一行，按压以 --c-glass-hover 提亮
   .rank-row {
     display: flex;
     align-items: center;
-    padding: 26rpx 0;
+    margin: 0 -10rpx;
+    padding: 24rpx 10rpx;
+    border-radius: 20rpx;
     border-bottom: 1rpx solid $divider;
+    transition: background-color 0.18s ease;
 
     &:last-child {
       border-bottom: none;
+    }
+
+    &:active {
+      background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
     }
   }
 
@@ -137,7 +145,7 @@ defineProps({
     text-align: center;
     font-size: 25rpx;
     font-weight: 700;
-    color: #b9bfb9;
+    color: $text-secondary;
     flex-shrink: 0;
 
     &.top {
@@ -145,6 +153,7 @@ defineProps({
     }
   }
 
+  // 图标砖：底色来自数据，另加 1rpx 玻璃高光边
   .cat-icon {
     width: 74rpx;
     height: 74rpx;
@@ -154,6 +163,7 @@ defineProps({
     justify-content: center;
     margin: 0 18rpx 0 12rpx;
     flex-shrink: 0;
+    box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.42);
 
     .cat-emoji {
       font-size: 36rpx;
@@ -171,6 +181,7 @@ defineProps({
     font-size: 32rpx;
     font-weight: 700;
     flex-shrink: 0;
+    box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.42);
   }
 
   .rank-main {
@@ -183,9 +194,14 @@ defineProps({
       justify-content: space-between;
 
       .rank-name {
+        min-width: 0;
+        margin-right: 16rpx;
         font-size: 28rpx;
         font-weight: 500;
         color: $text-primary;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
 
       .rank-amount {
@@ -206,10 +222,12 @@ defineProps({
       }
     }
 
+    // 占比轨道：玻璃凹陷分区（色条仍用数据里的 row.color）
     .rank-track {
       height: 10rpx;
       margin: 13rpx 0 9rpx;
-      background: $divider;
+      background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+      box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
       border-radius: 999rpx;
       overflow: hidden;
 
@@ -222,10 +240,14 @@ defineProps({
   }
 }
 
-// 空数据
+// 空数据：内凹玻璃块
 .empty-tip {
+  margin: 6rpx 0 2rpx;
   padding: 72rpx 0;
   text-align: center;
+  border-radius: 28rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
   .empty-text {
     font-size: 27rpx;

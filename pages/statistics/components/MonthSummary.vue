@@ -7,13 +7,22 @@
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-11
   @modify 2026-10-12 深色模式：错误态卡底色收敛至主题 token（概览卡渐变与白字保持）
+  @modify 2026-11-04 Liquid Glass 重构：品牌渐变卡改为玻璃面（.g-glass），
+                右上角保留一层随收支类型切换的极淡色晕 + 同心圆环暗纹；
+                文字改回主题 token（浅色深墨 / 深色调亮），环比胶囊改为压深玻璃片。
 -->
 <template>
   <!-- 概览加载失败错误态（点击整块重试，配色沿用空态文案体系） -->
-  <view v-if="error" class="overview-error" @click="emit('retry')">
+  <view
+    v-if="error"
+    class="overview-error g-glass g-press"
+    @click="emit('retry')"
+  >
     <text class="oe-text">概览加载失败，点击重试</text>
   </view>
-  <view v-else class="overview-card" :class="billType">
+  <view v-else class="overview-card g-glass" :class="billType">
+    <!-- 品牌色晕染：玻璃面上的一层极淡色相，随收支类型切换 -->
+    <view class="card-glow"></view>
     <DecorRing class="card-decor" :size="270" :middle="186" :inner="102" />
     <view class="ov-top">
       <text class="ov-label">{{
@@ -100,16 +109,14 @@ const emit = defineEmits([
 </script>
 
 <style lang="scss" scoped>
-// 概览加载失败错误态（点击整块重试，配色沿用空态文案体系）
+// 概览加载失败错误态（点击整块重试，玻璃薄卡）
 .overview-error {
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 24rpx 24rpx;
   padding: 72rpx 0;
-  background: $bg-card;
-  border-radius: $radius-xl;
-  box-shadow: $shadow-card;
+  border-radius: 40rpx;
 
   .oe-text {
     font-size: 27rpx;
@@ -117,22 +124,39 @@ const emit = defineEmits([
   }
 }
 
-// 概览卡片
+// 概览卡片：玻璃面（折射壁纸）+ 品牌色晕染 + 同心圆环暗纹
 .overview-card {
-  position: relative;
   margin: 0 24rpx 24rpx;
   padding: 34rpx 30rpx 28rpx;
-  border-radius: $radius-xl;
+  border-radius: $glass-radius-lg;
   overflow: hidden;
+  box-shadow:
+    $glass-shadow,
+    inset 0 1rpx 0 $glass-highlight,
+    inset 0 -1rpx 0 $glass-shade;
 
-  &.expense {
-    background: $gradient-header;
-    box-shadow: 0 16rpx 40rpx rgba(12, 58, 46, 0.28);
+  // 右上角色晕：给玻璃加一层「有颜色但透光」的品牌感（不遮挡壁纸）
+  .card-glow {
+    position: absolute;
+    top: -150rpx;
+    right: -120rpx;
+    width: 440rpx;
+    height: 440rpx;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(79, 199, 148, 0.3) 0%,
+      rgba(79, 199, 148, 0) 68%
+    );
   }
 
-  &.income {
-    background: $gradient-income;
-    box-shadow: 0 16rpx 40rpx rgba(145, 53, 39, 0.26);
+  &.income .card-glow {
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(217, 122, 102, 0.28) 0%,
+      rgba(217, 122, 102, 0) 68%
+    );
   }
 
   // 同心圆环暗纹（DecorRing 组件根节点，环体样式内聚在组件内）
@@ -154,15 +178,17 @@ const emit = defineEmits([
 
     .ov-label {
       font-size: 24rpx;
-      color: rgba(237, 245, 240, 0.6);
+      color: $text-regular;
     }
 
+    // 环比胶囊：压深玻璃片（白字 + 白色箭头在深浅两套主题下都成立）
     .ov-chip {
       display: flex;
       align-items: center;
       padding: 7rpx 16rpx;
-      background: rgba(255, 255, 255, 0.15);
       border-radius: 999rpx;
+      background: rgba(12, 58, 46, 0.58);
+      box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.28);
 
       .chip-text {
         font-size: 21rpx;
@@ -172,13 +198,18 @@ const emit = defineEmits([
     }
   }
 
+  // 收入视角下胶囊换陶土色压深玻璃（白字依旧可读）
+  &.income .ov-chip {
+    background: rgba(145, 53, 39, 0.58);
+  }
+
   .ov-amount {
     position: relative;
     z-index: 1;
     margin-top: 10rpx;
     font-size: 68rpx;
     font-weight: 700;
-    color: $text-inverse;
+    color: $text-title;
     line-height: 1.15;
     font-variant-numeric: tabular-nums;
   }
@@ -192,6 +223,7 @@ const emit = defineEmits([
 
     .ov-stat {
       flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -199,24 +231,25 @@ const emit = defineEmits([
       .stat-value {
         font-size: 30rpx;
         font-weight: 700;
-        color: $text-inverse;
+        color: $text-strong;
         font-variant-numeric: tabular-nums;
       }
 
       .stat-label {
         margin-top: 9rpx;
         font-size: 21rpx;
-        color: rgba(237, 245, 240, 0.55);
+        color: $text-secondary;
       }
     }
 
     .ov-divider {
       width: 1rpx;
       height: 52rpx;
-      background: rgba(255, 255, 255, 0.16);
+      background: $divider;
     }
   }
 
+  // 结余行：玻璃卡内的一块凹陷分区
   .ov-balance {
     position: relative;
     z-index: 1;
@@ -225,17 +258,18 @@ const emit = defineEmits([
     justify-content: space-between;
     margin-top: 24rpx;
     padding: 16rpx 22rpx;
-    border-radius: 14rpx;
-    background: rgba(255, 255, 255, 0.07);
+    border-radius: 18rpx;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
     .balance-label {
       font-size: 23rpx;
-      color: rgba(237, 245, 240, 0.55);
+      color: $text-secondary;
     }
     .balance-value {
       font-size: 28rpx;
       font-weight: 600;
-      color: $text-inverse;
+      color: $text-strong;
       font-variant-numeric: tabular-nums;
     }
   }

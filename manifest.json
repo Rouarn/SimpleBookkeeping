@@ -2,8 +2,8 @@
     "name" : "小绿记账",
     "appid" : "__UNI__195FC35",
     "description" : "清新绿色风极简记账 APP",
-    "versionName" : "1.0.6",
-    "versionCode" : 106,
+    "versionName" : "1.0.7",
+    "versionCode" : 107,
     "transformPx" : false,
     "app-plus" : {
         /* 5+App特有相关 */
@@ -79,11 +79,16 @@
                 }
             },
             "splashscreen" : {
+                /* VaKao 品牌启动图：纸面网格 + 四芒星 + 小绿记账 */
+                "alwaysShowBeforeRender" : true,
+                "waiting" : true,
+                "autoclose" : true,
+                "delay" : 0,
                 "androidStyle" : "default",
                 "android" : {
-                    "hdpi" : "static/other/09.png",
-                    "xhdpi" : "static/other/09.png",
-                    "xxhdpi" : "static/other/09.png"
+                    "hdpi" : "static/splash/android-hdpi.png",
+                    "xhdpi" : "static/splash/android-xhdpi.png",
+                    "xxhdpi" : "static/splash/android-xxhdpi.png"
                 }
             }
         }

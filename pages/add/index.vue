@@ -6,79 +6,94 @@
                收付款方式（PayMethodPicker）、凭证照片（PhotoUploader）拆至
                pages/add/components/ 下，录入时间 picker 留在本页。
                新增时表单默认值取上次记账记忆；编辑时按 id 回填原账单。
+               视觉层（Liquid Glass）：本页以 slide-in-bottom 方式打开（非 tab 页，
+               无底部导航），首帧铺壁纸 GlassBackground，自上而下为
+               ① 悬浮玻璃标题栏（关闭 + 标题）② 玻璃记账主面板（收支分段 /
+               日期时间胶囊 / 凹陷金额格 / 分类玻璃块）③ 厚玻璃内容面板
+               （支付方式 / 凭证照片 / 备注，内部滚动）④ 悬浮玻璃保存按钮。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
   @modify 2026-10-11 凭证 v-for key 去 index（key + 自增 _uid 兜底）；
                页面底色渐变 / 保存按钮渐变改走 design token；
                P2-15 金额 / 照片 / 分类 / 支付方式拆为子组件，本页瘦身为编排层
   @modify 2026-10-12 深色模式：根节点接 themeClass，白色内容区 / 文字色收敛至主题 token
+  @modify 2026-11-04 Liquid Glass 重构：去掉整页深绿渐变 + 白色内容区 + uni-nav-bar，
+                改为壁纸 + 玻璃标题栏 + 玻璃面板 + 悬浮保存按钮；数据流 / 事件 /
+                表单状态与改造前完全一致，仅重排视觉层与容器结构
 -->
 <template>
   <view class="add-page" :class="themeClass">
-    <!-- 导航栏 -->
-    <uni-nav-bar
-      :title="pageTitle"
-      left-icon="closeempty"
-      background-color="transparent"
-      color="#ffffff"
-      :border="false"
-      status-bar
-      fixed
-      @clickLeft="handleClose"
-    />
+    <!-- 桌面壁纸：玻璃面的折射来源 -->
+    <GlassBackground />
 
-    <!-- 顶部深绿区域 -->
-    <view class="header">
-      <!-- 收支切换 + 日期 -->
-      <view class="toolbar">
-        <view class="tabs">
-          <text
-            class="tab"
-            :class="{ on: billType === 'expense' }"
-            @click="switchType('expense')"
-            >支出</text
-          >
-          <text
-            class="tab"
-            :class="{ on: billType === 'income' }"
-            @click="switchType('income')"
-            >收入</text
-          >
-        </view>
-        <view class="pill-group">
-          <picker mode="date" :value="date" @change="onDateChange">
-            <view class="date-pill">
-              <text>{{ dateText }}</text>
-              <uni-icons
-                type="arrow-down"
-                size="13"
-                color="#ffffff"
-              ></uni-icons>
-            </view>
-          </picker>
-          <!-- 时间选择：与日期联动，默认当前时刻；编辑时回填已选时间 -->
-          <picker mode="time" :value="time" @change="onTimeChange">
-            <view class="date-pill time-pill">
-              <text>{{ time }}</text>
-              <uni-icons
-                type="arrow-down"
-                size="13"
-                color="#ffffff"
-              ></uni-icons>
-            </view>
-          </picker>
-        </view>
+    <!-- 悬浮玻璃标题栏：关闭 + 标题（替代原 uni-nav-bar，status-bar 高度自管） -->
+    <view class="add-bar g-glass g-glass--thin g-pill g-float">
+      <view class="add-bar__close g-press" @click="handleClose">
+        <uni-icons
+          type="closeempty"
+          size="16"
+          color="var(--c-text, #202622)"
+        ></uni-icons>
       </view>
-
-      <!-- 金额（约束 / 千分位 / 键盘内聚在 AmountField） -->
-      <AmountField v-model="amount" />
-
-      <!-- 分类图标（图标表与选中态内聚在 CategoryPicker） -->
-      <CategoryPicker v-model="activeCategoryId" :bill-type="billType" />
+      <text class="add-bar__title">{{ pageTitle }}</text>
+      <!-- 与关闭钮等宽的占位，保证标题视觉居中 -->
+      <view class="add-bar__ghost"></view>
     </view>
 
-    <!-- 白色内容区：外壳只负责白色圆角与剩余高度，滚动交给内部 scroll-view -->
-    <view class="sheet">
+    <!-- 顶部记账主面板：收支切换 + 日期 / 时间 + 金额 + 分类 -->
+    <view class="header">
+      <view class="hero g-glass">
+        <!-- 收支切换 + 日期 -->
+        <view class="toolbar">
+          <view class="tabs">
+            <text
+              class="tab"
+              :class="{ on: billType === 'expense' }"
+              @click="switchType('expense')"
+              >支出</text
+            >
+            <text
+              class="tab"
+              :class="{ on: billType === 'income' }"
+              @click="switchType('income')"
+              >收入</text
+            >
+          </view>
+          <view class="pill-group">
+            <picker mode="date" :value="date" @change="onDateChange">
+              <view class="date-pill">
+                <text>{{ dateText }}</text>
+                <uni-icons
+                  type="arrow-down"
+                  size="12"
+                  color="var(--c-text-2, #6c736b)"
+                ></uni-icons>
+              </view>
+            </picker>
+            <!-- 时间选择：与日期联动，默认当前时刻；编辑时回填已选时间 -->
+            <picker mode="time" :value="time" @change="onTimeChange">
+              <view class="date-pill time-pill">
+                <text>{{ time }}</text>
+                <uni-icons
+                  type="arrow-down"
+                  size="12"
+                  color="var(--c-text-2, #6c736b)"
+                ></uni-icons>
+              </view>
+            </picker>
+          </view>
+        </view>
+
+        <!-- 金额（约束 / 千分位 / 键盘内聚在 AmountField） -->
+        <AmountField v-model="amount" />
+
+        <!-- 分类图标（图标表与选中态内聚在 CategoryPicker） -->
+        <CategoryPicker v-model="activeCategoryId" :bill-type="billType" />
+      </view>
+    </view>
+
+    <!-- 厚玻璃内容面板：外壳只负责玻璃圆角与剩余高度，滚动交给内部 scroll-view -->
+    <view class="sheet g-glass g-glass--thick g-radius-lg">
       <scroll-view class="sheet-scroll" scroll-y :show-scrollbar="false">
         <view class="sheet-inner">
           <!-- 收/付款方式 -->
@@ -95,16 +110,18 @@
               class="remark-input"
               maxlength="50"
               placeholder="请填写备注信息（限50字）"
-              placeholder-style="color: #b3b9c7"
+              placeholder-style="color: var(--c-text-placeholder, #8b938d)"
             />
           </view>
         </view>
       </scroll-view>
     </view>
 
-    <!-- 底部保存 -->
+    <!-- 底部悬浮玻璃保存按钮 -->
     <view class="footer">
-      <view class="save-btn" @click="handleSave">保存</view>
+      <view class="save-btn g-btn-primary g-press" @click="handleSave"
+        >保存</view
+      >
     </view>
   </view>
 </template>
@@ -379,13 +396,73 @@ async function handleSave() {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: $gradient-page;
+  overflow: hidden;
+  // 透明根节点：壁纸由 GlassBackground 铺底，玻璃面板才有可折射的内容
+  background: transparent;
 }
 
-// ===== 顶部深绿区域 =====
+/* ---------- 悬浮玻璃标题栏 ---------- */
+.add-bar {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  top: calc(var(--status-bar-height) + 12rpx);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 96rpx;
+  padding: 0 14rpx;
+  box-sizing: border-box;
+
+  // 关闭钮：凹陷玻璃圆钮（macOS 26 的交通灯位）
+  &__close {
+    width: 68rpx;
+    height: 68rpx;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+      inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
+  }
+
+  &__title {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 30rpx;
+    font-weight: 600;
+    letter-spacing: 0.5rpx;
+    color: $text-title;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__ghost {
+    width: 68rpx;
+    height: 68rpx;
+    flex-shrink: 0;
+  }
+}
+
+/* ---------- 顶部记账主面板 ---------- */
 .header {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
-  padding: 0 32rpx 24rpx;
+  // 给悬浮标题栏让出位置（96rpx 高度 + 12rpx 顶部间距 + 16rpx 呼吸）
+  padding: calc(var(--status-bar-height) + 124rpx) 20rpx 0;
+}
+
+.hero {
+  // .g-glass 给的 36rpx 圆角在玻璃大卡上偏小，改用连续大圆角
+  border-radius: 48rpx;
+  padding: 20rpx 26rpx 26rpx;
 }
 
 // 收支切换 + 日期
@@ -393,36 +470,60 @@ async function handleSave() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 22rpx;
 
+  // 分段控件：凹陷玻璃轨道 + 选中项强玻璃滑块
   .tabs {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
+    padding: 6rpx;
+    border-radius: 999rpx;
+    background-color: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+      inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
 
     .tab {
-      font-size: 38rpx;
-      color: rgba(255, 255, 255, 0.55);
-      margin-right: 52rpx;
-      transition: color 0.2s;
+      padding: 10rpx 26rpx;
+      border-radius: 999rpx;
+      font-size: 28rpx;
+      line-height: 1.25;
+      color: $text-regular;
+      transition:
+        color 0.2s ease,
+        background-color 0.2s ease,
+        box-shadow 0.2s ease;
 
       &.on {
-        color: #ffffff;
-        font-weight: 700;
+        background-color: var(--c-glass-strong, rgba(255, 255, 255, 0.74));
+        color: $color-primary-deep;
+        font-weight: 600;
+        box-shadow:
+          0 6rpx 16rpx rgba(22, 48, 38, 0.14),
+          inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95));
       }
     }
   }
 
+  // 日期 / 时间胶囊：凹陷玻璃胶囊
   .date-pill {
     display: flex;
     align-items: center;
-    background: rgba(255, 255, 255, 0.13);
-    border-radius: 999rpx;
     padding: 11rpx 22rpx;
+    border-radius: 999rpx;
+    background-color: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+      inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
 
     text {
-      font-size: 26rpx;
-      color: rgba(255, 255, 255, 0.9);
-      margin-right: 8rpx;
+      font-size: 25rpx;
+      line-height: 1.2;
+      color: $text-regular;
+      margin-right: 6rpx;
+      font-variant-numeric: tabular-nums;
     }
   }
 
@@ -430,85 +531,97 @@ async function handleSave() {
   .pill-group {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 
     .time-pill {
-      margin-left: 14rpx;
+      margin-left: 12rpx;
     }
   }
 }
 
-// ===== 白色内容区 =====
-// 外壳只负责白色圆角外形与「剩余高度」；不再用负 margin 上提（负 margin 会被
-// 计入 flex 主轴分配，偶发把 scroll-view 底部顶到 footer 下面）
+/* ---------- 厚玻璃内容面板 ---------- */
+// 外壳只负责玻璃圆角外形与「剩余高度」；滚动交给内部绝对定位铺满的 scroll-view
 .sheet {
   flex: 1;
   min-height: 0;
   position: relative;
-  background: $bg-card;
-  border-radius: 32rpx 32rpx 0 0;
+  z-index: 1;
+  margin: 20rpx 20rpx 0;
   overflow: hidden;
 }
 
 // scroll-view 用四边 inset 拿到确定高度：fixed 页面 -> flex:1 外壳 -> 绝对定位铺满，
-// 在 H5 / App / 小程序下高度都可解析，避免键盘弹收、照片加载重排后滚动高度失真
+// 在 H5 / App / 小程序下高度都可解析，避免键盘弹收、照片加载重排后滚动高度失真。
+// scroll-view 在小程序 / App 端可能是独立原生渲染层，父级圆角裁不到它，
+// 故圆角也要设在它自己身上（背景透明，由外层玻璃面板透出）
 .sheet-scroll {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  // scroll-view 在小程序/App 端是独立原生渲染层，父级圆角裁不到它，
-  // 白底与顶部圆角必须设在它自己身上，否则顶部会显示成方角
-  background: $bg-card;
-  border-radius: 32rpx 32rpx 0 0;
+  border-radius: 48rpx;
+  background: transparent;
 }
 
-// 内边距统一放在滚动内容上（直接给 scroll-view 设 padding 在部分平台会压缩滚动区），
-// 底部预留留白，保证最后一个区块（备注）在任何高度下都能完整滚出
+// 内边距统一放在滚动内容上（直接给 scroll-view 设 padding 在部分平台会压缩滚动区）
 .sheet-inner {
-  padding: 20rpx 40rpx 48rpx;
+  padding: 26rpx 28rpx 36rpx;
   box-sizing: border-box;
 }
 
 .section {
   .section-title {
-    font-size: 32rpx;
+    font-size: 28rpx;
     font-weight: 600;
+    letter-spacing: 0.5rpx;
     color: $text-title;
-    margin: 36rpx 0 24rpx;
+    margin: 24rpx 0 20rpx;
   }
 }
 
-// 备注
+// 备注：凹陷玻璃输入格（内底 + 内高光 + 发丝描边，聚焦时主色环）
 .remark-input {
   width: 100%;
   height: 96rpx;
-  border-bottom: 2rpx solid $divider;
+  padding: 0 26rpx;
+  box-sizing: border-box;
+  border-radius: 26rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+  border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
+  box-shadow:
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
   font-size: 29rpx;
   color: $text-title;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:focus {
+    border-color: rgba($color-accent, 0.6);
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+      0 0 0 2rpx rgba($color-accent, 0.26);
+  }
 }
 
-// ===== 底部保存 =====
+/* ---------- 底部悬浮玻璃保存按钮 ---------- */
 .footer {
-  flex-shrink: 0;
   position: relative;
-  z-index: 2;
-  background: $bg-card;
-  padding: 14rpx 32rpx;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: 20rpx 24rpx;
   padding-bottom: calc(20rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+}
 
-  .save-btn {
-    height: 92rpx;
-    border-radius: 999rpx;
-    background: $gradient-save;
-    color: #ffffff;
-    font-size: 32rpx;
-    font-weight: 600;
-    letter-spacing: 4rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+// 主按钮：纸面 + 四色细环 + 墨色字（材质由全局 .g-btn-primary 提供）
+.save-btn {
+  height: 100rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  letter-spacing: 4rpx;
+  /* 纸面 + 四色环 + 墨色字，与底部记账按钮同一套材质 */
 }
 </style>

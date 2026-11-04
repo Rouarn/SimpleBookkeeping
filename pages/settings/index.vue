@@ -1,18 +1,22 @@
 <!--
   @file 设置页（pages/settings/index.vue）
-  @description 应用设置中心：
-               1. 主题外观：深色模式三段选择器；
-               2. 数据与提醒：「导出数据」（App 写入 _doc 后拉起系统应用打开 /
+  @description 应用设置中心（macOS 26 / iOS 26 Liquid Glass 版）：
+               1. 桌面壁纸 + 玻璃页头 + 玻璃返回标题栏（PageHeader settings
+                  变体 + 玻璃胶囊导航，返回走 uni.navigateBack）；
+               2. 主题外观：深色模式三段选择器（玻璃卡内凹陷轨道 + 玻璃浮起
+                  选中胶囊）；
+               3. 数据与提醒：「导出数据」（App 写入 _doc 后拉起系统应用打开 /
                   H5 Blob 触发浏览器下载；服务端限流 6 次/小时，超限映射提示）、
                   「记账提醒」（App 端注册每日本地推送，H5/小程序仅保存设置）；
-               3. 账号：「注销账号」（editable 弹窗输入密码确认，成功后清理
+               4. 账号：「注销账号」（editable 弹窗输入密码确认，成功后清理
                   本地登录态并回登录页）；
-               4. 关于：App 端提供「检查更新」入口（右侧展示当前运行时版本号）；
-               5. 退出登录：二次确认后吊销服务端 token（失败不阻断），
+               5. 关于：App 端提供「检查更新」入口（右侧展示当前运行时版本号）；
+               6. 退出登录：二次确认后吊销服务端 token（失败不阻断），
                   按 key 清单清理账号相关本地数据（refresh token、旧版本
                   遗留的账单/账本/资料持久化键），并重置内存中的接口缓存 store；
                   设备标识、更新待安装回补标记、一言缓存等与账号无关的数据保留，
                   最后 reLaunch 回登录页。
+               所有分组统一为 .g-glass 玻璃卡，逻辑与改造前完全一致。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-16
   @modify 2026-10-11 抽取 PageHeader / MenuItem 公共组件
@@ -20,14 +24,22 @@
   @modify 2026-10-12 新增导出数据 / 记账提醒 / 注销账号；登出与注销共用本地清理
   @modify 2026-10-12 修复检查更新无弹窗：本页挂载 UpdatePopup 就地展示，
                移除「发现新版本自动返回上一页」的跳转逻辑
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 玻璃返回标题栏 + 玻璃分组卡
 -->
 <template>
   <view class="settings" :class="themeClass">
-    <!-- 顶部导航区（渐变 / 圆角 / 双圆由 PageHeader 内聚，settings 变体无色点） -->
+    <!-- 桌面壁纸：玻璃面的折射来源 -->
+    <GlassBackground />
+
+    <!-- 顶部导航区（玻璃页头，settings 变体无色点；导航条本身再叠一层薄玻璃胶囊） -->
     <PageHeader variant="settings">
-      <view class="nav">
-        <view class="back-btn" @click="onBack">
-          <uni-icons type="left" size="20" color="#eaf3ee"></uni-icons>
+      <view class="nav g-glass g-glass--thin g-pill">
+        <view class="back-btn g-press" @click="onBack">
+          <uni-icons
+            type="left"
+            size="20"
+            color="var(--c-text-title)"
+          ></uni-icons>
         </view>
         <text class="nav-title">设置</text>
       </view>
@@ -37,7 +49,7 @@
       <!-- 主题外观：跟随系统 / 浅色 / 深色（持久化于本地，见 composables/useTheme.js） -->
       <view class="group">
         <text class="group-label">主题外观</text>
-        <view class="card">
+        <view class="card g-glass">
           <view class="theme-row">
             <view class="theme-seg">
               <view
@@ -57,7 +69,7 @@
       <!-- 数据与提醒（导出仅 App / H5 端；记账提醒 H5/小程序仅保存设置） -->
       <view class="group">
         <text class="group-label">数据与提醒</text>
-        <view class="card">
+        <view class="card g-glass">
           <!-- #ifdef APP-PLUS || H5 -->
           <MenuItem
             icon="cloud-download-filled"
@@ -107,7 +119,7 @@
       <!-- 账号（危险操作：红色文字） -->
       <view class="group">
         <text class="group-label">账号</text>
-        <view class="card">
+        <view class="card g-glass">
           <view
             class="danger-row"
             hover-class="danger-hover"
@@ -130,7 +142,7 @@
       <!-- 关于（非 App 端菜单为空时不渲染该分组） -->
       <view v-if="aboutMenu.length" class="group">
         <text class="group-label">关于</text>
-        <view class="card">
+        <view class="card g-glass">
           <MenuItem
             v-for="item in aboutMenu"
             :key="item.title"
@@ -142,7 +154,7 @@
         </view>
       </view>
 
-      <!-- 退出登录 -->
+      <!-- 退出登录（玻璃面上的警示按钮，非实色填充） -->
       <button class="logout" :loading="loggingOut" @click="onLogout">
         退出登录
       </button>
@@ -708,45 +720,53 @@ async function doLogout() {
 </script>
 
 <style lang="scss" scoped>
+/* 页面根：底色交给壁纸层，页面本身 transparent；
+   底部留环境安全区（本页是从「我的」push 进来的普通页，无悬浮导航） */
 .settings {
+  position: relative;
   min-height: 100vh;
-  background: $bg-page;
+  background: transparent;
   padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部导航区：渐变 / 圆角 / 双圆装饰由 PageHeader 组件内聚，本页只保留插槽内导航样式
+/* ---------- 玻璃返回标题栏 ----------
+   PageHeader 已玻璃化（settings 变体无色点），导航条再叠一层薄玻璃胶囊：
+   返回按钮是嵌在胶囊里的玻璃圆钮，标题用浅色深字 / 深色浅字的主题 token */
 .nav {
   position: relative;
-  z-index: 2;
+  z-index: 1;
   display: flex;
   align-items: center;
   height: 96rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
 
   .back-btn {
     width: 64rpx;
     height: 64rpx;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
   }
 
   .nav-title {
-    margin-left: 22rpx;
+    margin-left: 20rpx;
     font-size: 36rpx;
     font-weight: 700;
-    color: $text-inverse;
+    color: $text-title;
     letter-spacing: 1rpx;
   }
 }
 
-// 内容区（白卡上浮压住头部圆角）
+/* 内容层（z-index 1）：从玻璃页头下方开始，不再负向压边 */
 .content {
   position: relative;
-  z-index: 2;
-  margin: -64rpx 24rpx 0;
+  z-index: 1;
+  margin: 0 24rpx;
 }
 
 .group {
@@ -761,16 +781,15 @@ async function doLogout() {
     color: $text-secondary;
   }
 
-  // 菜单行本体（图标砖 / 标题 / 版本号 / 箭头 / 分割线）由 MenuItem 组件内聚
+  /* 玻璃卡只保留圆角与裁切，材质由 .g-glass 提供；
+     菜单行本体（图标砖 / 标题 / 版本号 / 箭头 / 分割线）由 MenuItem 内聚 */
   .card {
-    background: $bg-card;
-    border-radius: $radius-card;
-    box-shadow: $shadow-card-lg;
+    border-radius: 36rpx;
     overflow: hidden;
   }
 }
 
-// 主题外观：三段选择器（与统计页月/年切换同一视觉语言）
+/* 主题外观：三段选择器（玻璃卡内的凹陷轨道 + 浮起玻璃胶囊） */
 .theme-row {
   padding: 20rpx 24rpx;
 }
@@ -778,8 +797,11 @@ async function doLogout() {
 .theme-seg {
   display: flex;
   padding: 4rpx;
-  background: $bg-toggle;
   border-radius: 999rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+  box-shadow:
+    inset 0 1rpx 2rpx var(--c-glass-shade, rgba(12, 58, 46, 0.06)),
+    inset 0 -1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
   .seg-item {
     flex: 1;
@@ -788,16 +810,26 @@ async function doLogout() {
     justify-content: center;
     padding: 14rpx 0;
     border-radius: 999rpx;
-    transition: all 0.25s ease;
+    transition:
+      background-color 0.25s ease,
+      box-shadow 0.25s ease;
 
     .seg-text {
       font-size: 26rpx;
       color: $text-regular;
     }
 
+    /* 未选中项按压：玻璃高光提亮 */
+    &:not(.on):active {
+      background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
+    }
+
+    /* 选中项：浮起的小玻璃胶囊 */
     &.on {
-      background: $bg-card;
-      box-shadow: $shadow-float;
+      background: var(--c-glass-strong, rgba(255, 255, 255, 0.72));
+      box-shadow:
+        var(--shadow-glass-soft, 0 10rpx 28rpx rgba(22, 48, 38, 0.08)),
+        inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 
       .seg-text {
         color: $color-primary-mid;
@@ -807,10 +839,10 @@ async function doLogout() {
   }
 }
 
-// 数据与提醒 / 账号分组里的自定义行（图标砖 + 标题 + 右侧控件，
-// 与 MenuItem 同一套行高与分割线视觉）。
-// 分割线约定：导出数据 MenuItem 自带底部分割线（非 last-child 时显示），
-// 提醒时间行自带顶部分割线；提醒主行与注销行分别处于卡片首行/独立卡片，无需分割线。
+/* 数据与提醒 / 账号分组里的自定义行（图标砖 + 标题 + 右侧控件，
+   与 MenuItem 同一套行高与分割线视觉）。
+   分割线约定：导出数据 MenuItem 自带底部分割线（非 last-child 时显示），
+   提醒时间行自带顶部分割线；提醒主行与注销行分别处于卡片首行/独立卡片，无需分割线。 */
 .remind-row,
 .remind-time-row,
 .danger-row {
@@ -830,6 +862,7 @@ async function doLogout() {
   background: $divider;
 }
 
+/* 图标砖：玻璃内衬 + 顶部内高光（与 MenuItem 的图标砖同一材质） */
 .remind-row .row-icon,
 .remind-time-row .row-icon,
 .danger-row .row-icon {
@@ -837,11 +870,12 @@ async function doLogout() {
   height: 64rpx;
   margin-right: 22rpx;
   border-radius: $radius-md;
-  background: $bg-tint-icon;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+  box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
 }
 
 .remind-row .row-title,
@@ -869,8 +903,10 @@ async function doLogout() {
 
 // 提醒时间行：picker 触发区右对齐
 .remind-time-row {
+  /* 占位砖块不落在玻璃上：清掉内衬与高光，只保留左侧对齐的缩进 */
   .row-icon-placeholder {
     background: transparent;
+    box-shadow: none;
   }
 
   .time-picker {
@@ -890,10 +926,10 @@ async function doLogout() {
   }
 }
 
-// 注销账号：危险行（红字），按压底色随主题 token
+/* 注销账号：危险行（红字），按压为玻璃高光而非实色底 */
 .danger-row {
   &.danger-hover {
-    background: $bg-hover;
+    background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
   }
 
   .danger-title {
@@ -901,7 +937,7 @@ async function doLogout() {
   }
 }
 
-// 退出登录
+/* 退出登录：玻璃面上的警示按钮（薄玻璃 + 高光边 + 低透明红字） */
 .logout {
   margin-top: 48rpx;
   width: 100%;
@@ -910,13 +946,30 @@ async function doLogout() {
   font-size: 30rpx;
   font-weight: 600;
   color: $color-danger-btn;
-  background: $bg-card;
-  border-radius: $radius-card;
-  border: none;
-  box-shadow: $shadow-card-lg;
+  background-color: var(--c-danger-glass, rgba(223, 84, 63, 0.1));
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.26) 0%,
+    rgba(255, 255, 255, 0.04) 34%,
+    rgba(255, 255, 255, 0) 62%
+  );
+  border-radius: 36rpx;
+  border: 1rpx solid var(--c-glass-border, rgba(255, 255, 255, 0.72));
+  box-shadow:
+    var(--shadow-glass-soft, 0 10rpx 28rpx rgba(22, 48, 38, 0.08)),
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 0.18s ease;
 
   &::after {
     border: none;
+  }
+
+  &:active {
+    transform: scale(0.985);
+    background-color: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
   }
 
   &[loading] {

@@ -11,6 +11,8 @@
   @date 2026-10-11
   @modify 2026-10-12 深色模式：标题 / 添加格 / 失败占位收敛至主题 token，
                添加加号图标色随主题取值
+  @modify 2026-11-04 Liquid Glass 重构：添加格改凹陷玻璃格 + 主色虚线描边，
+               凭证图加玻璃发丝边与投影，删除钮改深色玻璃 + 高光边
 -->
 <template>
   <!-- 凭证照片 -->
@@ -42,7 +44,11 @@
           <uni-icons type="closeempty" size="11" color="#ffffff"></uni-icons>
         </view>
       </view>
-      <view v-if="photos.length < 3" class="photo-add" @click="choosePhoto">
+      <view
+        v-if="photos.length < 3"
+        class="photo-add g-press"
+        @click="choosePhoto"
+      >
         <uni-icons type="plus" size="40" :color="addIcon"></uni-icons>
       </view>
     </view>
@@ -180,29 +186,32 @@ defineExpose({ setPhotos })
 <style lang="scss" scoped>
 .section {
   .section-title {
-    font-size: 32rpx;
+    font-size: 28rpx;
     font-weight: 600;
+    letter-spacing: 0.5rpx;
     color: $text-title;
-    margin: 36rpx 0 24rpx;
+    margin: 24rpx 0 20rpx;
   }
 }
 
-// 凭证照片
+// 凭证照片：玻璃方块（添加格为凹陷玻璃 + 主色虚线，凭证图为圆角缩略图）
 .photo-list {
   display: flex;
   flex-wrap: wrap;
 
   .photo-item,
   .photo-add {
-    width: 156rpx;
-    height: 156rpx;
-    border-radius: 20rpx;
-    margin: 0 20rpx 20rpx 0;
+    width: 150rpx;
+    height: 150rpx;
+    border-radius: 28rpx;
+    margin: 0 18rpx 18rpx 0;
   }
 
+  // 添加格：凹陷玻璃底 + 主色虚线（虚线色用固定 accent，两套主题下均可读）
   .photo-add {
-    background: $bg-tint;
-    border: 2rpx dashed #b9d4c7;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    border: 2rpx dashed rgba($color-accent, 0.55);
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95));
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -215,15 +224,19 @@ defineExpose({ setPhotos })
     .photo-img {
       width: 100%;
       height: 100%;
-      border-radius: 20rpx;
+      border-radius: 28rpx;
+      box-sizing: border-box;
+      border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
+      box-shadow: 0 10rpx 24rpx rgba(22, 48, 38, 0.16);
     }
 
-    // 凭证图加载失败占位（与图片同尺寸的灰底块）
+    // 凭证图加载失败占位（与图片同尺寸的凹陷玻璃块）
     .photo-fallback {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: $bg-fallback;
+      background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+      box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95));
 
       .photo-fallback-text {
         font-size: 20rpx;
@@ -231,6 +244,7 @@ defineExpose({ setPhotos })
       }
     }
 
+    // 删除钮：深色玻璃底保证白色图标在两套主题下都可读
     .photo-del {
       position: absolute;
       top: -14rpx;
@@ -238,7 +252,11 @@ defineExpose({ setPhotos })
       width: 40rpx;
       height: 40rpx;
       border-radius: 50%;
-      background: #2a3a33;
+      background: rgba(16, 30, 24, 0.72);
+      border: 1rpx solid rgba(255, 255, 255, 0.28);
+      box-shadow:
+        0 6rpx 14rpx rgba(0, 0, 0, 0.28),
+        inset 0 1rpx 0 rgba(255, 255, 255, 0.36);
       display: flex;
       align-items: center;
       justify-content: center;

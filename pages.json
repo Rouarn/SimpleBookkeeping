@@ -81,35 +81,21 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "iconPath": "static/tabBar/home.png",
-        "selectedIconPath": "static/tabBar/homeHL.png",
         "text": "首页"
       },
       {
         "pagePath": "pages/flowing/index",
-        "iconPath": "static/tabBar/flowing.png",
-        "selectedIconPath": "static/tabBar/flowingHL.png",
         "text": "流水"
       },
       {
         "pagePath": "pages/statistics/index",
-        "iconPath": "static/tabBar/apply.png",
-        "selectedIconPath": "static/tabBar/applyHL.png",
         "text": "统计"
       },
       {
         "pagePath": "pages/my/index",
-        "iconPath": "static/tabBar/my.png",
-        "selectedIconPath": "static/tabBar/myHL.png",
         "text": "我的"
       }
-    ],
-    "midButton": {
-      "width": "70px",
-      "height": "70px",
-      "iconWidth": "70px",
-      "iconPath": "static/tabBar/add.png"
-    }
+    ]
   },
   "globalStyle": {
     "navigationBarTextStyle": "@navTxtStyle",

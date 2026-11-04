@@ -10,81 +10,89 @@
                未读总数缓存于 user store（我的页角标共用），本页标已读后即时回写。
   @author 夏季 <2937375029@qq.com>
   @date 2026-10-12
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 玻璃工具条 / 玻璃分组列表，
+               行分隔线 $divider，未读圆点与已读逻辑不变
 -->
 <template>
   <view class="messages" :class="themeClass">
-    <!-- 顶部工具条：未读数 + 全部已读 -->
-    <view class="toolbar">
-      <text class="toolbar-hint">
-        {{ unreadTotal > 0 ? `${unreadTotal} 条未读` : '消息已全部读完' }}
-      </text>
-      <view
-        class="read-all"
-        :class="{ disabled: unreadTotal === 0 || markingAll }"
-        hover-class="read-all-hover"
-        :hover-stay-time="60"
-        @click="onMarkAll"
-      >
-        <uni-icons
-          type="checkmarkempty"
-          size="14"
-          :color="accentIcon"
-        ></uni-icons>
-        <text class="read-all-text">全部已读</text>
-      </view>
-    </view>
+    <!-- 桌面壁纸：玻璃面的折射来源（固定铺满视口、不拦截事件） -->
+    <GlassBackground />
 
-    <!-- 消息列表 -->
-    <view class="msg-list">
-      <EmptyState
-        v-if="!loading && items.length === 0"
-        text="暂无消息"
-        sub="预算提醒与安全通知会出现在这里"
-      />
-      <template v-else>
+    <!-- 内容层：抬到壁纸之上（本页为原生导航 + 页面级滚动，不设高度） -->
+    <view class="messages__content">
+      <!-- 顶部工具条：未读数 + 全部已读 -->
+      <view class="toolbar">
+        <text class="toolbar-hint">
+          {{ unreadTotal > 0 ? `${unreadTotal} 条未读` : '消息已全部读完' }}
+        </text>
         <view
-          v-for="item in items"
-          :key="item.id"
-          class="msg-item"
-          hover-class="row-hover"
+          class="read-all g-glass g-glass--thin g-pill"
+          :class="{ disabled: unreadTotal === 0 || markingAll }"
+          hover-class="read-all-hover"
           :hover-stay-time="60"
-          @click="onTapItem(item)"
+          @click="onMarkAll"
         >
-          <!-- 未读圆点占位列（已读时空置，保持正文对齐） -->
-          <view class="dot-col">
-            <view v-if="!item.isRead" class="unread-dot"></view>
-          </view>
-          <view class="msg-icon">
-            <uni-icons
-              :type="typeMeta(item.type).icon"
-              size="20"
-              :color="typeMeta(item.type).color"
-            ></uni-icons>
-          </view>
-          <view class="msg-body">
-            <view class="msg-row">
-              <text class="msg-title" :class="{ strong: !item.isRead }">
-                {{ item.title }}
-              </text>
-              <text class="msg-type" :class="`type-${item.type}`">
-                {{ typeMeta(item.type).label }}
-              </text>
-            </view>
-            <text class="msg-content">{{ item.content }}</text>
-            <text class="msg-time">{{ relativeTime(item.createdAt) }}</text>
-          </view>
+          <uni-icons
+            type="checkmarkempty"
+            size="14"
+            :color="accentIcon"
+          ></uni-icons>
+          <text class="read-all-text">全部已读</text>
         </view>
+      </view>
 
-        <!-- 分页底态：触底加载中 / 已加载全部 -->
-        <view
-          v-if="items.length > 0 && (loadingMore || finished)"
-          class="list-footer"
-        >
-          <text class="footer-text">
-            {{ loadingMore ? '加载中…' : '没有更多了' }}
-          </text>
-        </view>
-      </template>
+      <!-- 消息列表 -->
+      <view class="msg-list g-glass">
+        <EmptyState
+          v-if="!loading && items.length === 0"
+          text="暂无消息"
+          sub="预算提醒与安全通知会出现在这里"
+        />
+        <template v-else>
+          <view
+            v-for="item in items"
+            :key="item.id"
+            class="msg-item"
+            hover-class="row-hover"
+            :hover-stay-time="60"
+            @click="onTapItem(item)"
+          >
+            <!-- 未读圆点占位列（已读时空置，保持正文对齐） -->
+            <view class="dot-col">
+              <view v-if="!item.isRead" class="unread-dot"></view>
+            </view>
+            <view class="msg-icon">
+              <uni-icons
+                :type="typeMeta(item.type).icon"
+                size="20"
+                :color="typeMeta(item.type).color"
+              ></uni-icons>
+            </view>
+            <view class="msg-body">
+              <view class="msg-row">
+                <text class="msg-title" :class="{ strong: !item.isRead }">
+                  {{ item.title }}
+                </text>
+                <text class="msg-type" :class="`type-${item.type}`">
+                  {{ typeMeta(item.type).label }}
+                </text>
+              </view>
+              <text class="msg-content">{{ item.content }}</text>
+              <text class="msg-time">{{ relativeTime(item.createdAt) }}</text>
+            </view>
+          </view>
+
+          <!-- 分页底态：触底加载中 / 已加载全部 -->
+          <view
+            v-if="items.length > 0 && (loadingMore || finished)"
+            class="list-footer"
+          >
+            <text class="footer-text">
+              {{ loadingMore ? '加载中…' : '没有更多了' }}
+            </text>
+          </view>
+        </template>
+      </view>
     </view>
   </view>
 </template>
@@ -287,13 +295,22 @@ async function onMarkAll() {
 </script>
 
 <style lang="scss" scoped>
+/* 页面根节点：透明；壁纸由 GlassBackground（固定定位、不拦截事件）绘制。
+   本页为原生导航 + 页面级滚动（onReachBottom），故不设固定高度。 */
 .messages {
+  position: relative;
   min-height: 100vh;
-  background: $bg-page;
+  background: transparent;
+}
+
+/* 内容层：盖在壁纸（z-index 0）之上 */
+.messages__content {
+  position: relative;
+  z-index: 1;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部工具条
+/* 顶部工具条 */
 .toolbar {
   display: flex;
   align-items: center;
@@ -305,12 +322,11 @@ async function onMarkAll() {
     color: $text-secondary;
   }
 
+  /* 全部已读：薄玻璃胶囊（底色 / 模糊 / 亮边来自 .g-glass--thin） */
   .read-all {
     display: flex;
     align-items: center;
     padding: 8rpx 20rpx;
-    border-radius: 999rpx;
-    background: $bg-tint-icon;
 
     .read-all-text {
       margin-left: 6rpx;
@@ -319,23 +335,22 @@ async function onMarkAll() {
       font-weight: 500;
     }
 
+    /* 按压：玻璃提亮（覆盖 .g-glass--thin 的底色） */
     &.read-all-hover {
-      background: $bg-hover;
+      background-color: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
     }
 
-    // 无未读 / 处理中：弱化（仍可点击，服务端幂等）
+    /* 无未读 / 处理中：弱化（仍可点击，服务端幂等） */
     &.disabled {
       opacity: 0.45;
     }
   }
 }
 
-// 消息列表
+/* 消息分组列表：整块玻璃卡，行内透明、由外层统一折射 */
 .msg-list {
   margin: 16rpx 24rpx 0;
-  background: $bg-card;
-  border-radius: $radius-card;
-  box-shadow: $shadow-card-lg;
+  border-radius: 40rpx;
   overflow: hidden;
 }
 
@@ -345,6 +360,7 @@ async function onMarkAll() {
   align-items: flex-start;
   padding: 26rpx 28rpx 26rpx 16rpx;
 
+  /* 行间发丝线：玻璃上的 $divider */
   &::after {
     content: '';
     position: absolute;
@@ -357,11 +373,13 @@ async function onMarkAll() {
   &:last-child::after {
     display: none;
   }
+
+  /* 按压：玻璃提亮 */
   &.row-hover {
-    background: $bg-hover;
+    background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
   }
 
-  // 未读圆点占位列
+  /* 未读圆点占位列（样式逻辑不变：仅未读渲染红点） */
   .dot-col {
     width: 44rpx;
     display: flex;
@@ -374,15 +392,20 @@ async function onMarkAll() {
       height: 14rpx;
       border-radius: 50%;
       background: $color-danger;
+      box-shadow: 0 0 0 4rpx var(--c-danger-soft-glass, rgba(223, 84, 63, 0.12));
     }
   }
 
+  /* 类型图标砖：凹陷玻璃小方块 */
   .msg-icon {
     width: 64rpx;
     height: 64rpx;
     margin-right: 20rpx;
     border-radius: $radius-md;
-    background: $bg-tint-icon;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+      inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -406,13 +429,14 @@ async function onMarkAll() {
         white-space: nowrap;
         text-overflow: ellipsis;
 
-        // 未读主文字加重
+        /* 未读主文字加重（逻辑不变） */
         &.strong {
           font-weight: 700;
           color: $text-strong;
         }
       }
 
+      /* 类型徽标：文字色沿用原 token，底改为同色系半透明玻璃着色 */
       .msg-type {
         margin-left: 12rpx;
         padding: 2rpx 14rpx;
@@ -420,19 +444,20 @@ async function onMarkAll() {
         font-size: 20rpx;
         line-height: 30rpx;
         flex-shrink: 0;
+        border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
 
-        // 徽标配色：预算=金 / 安全=红 / 报告=主题绿（底色取对应浅底 token）
+        // 预算=金 / 安全=红 / 报告=主题绿
         &.type-budget_over {
           color: $color-gold;
-          background: $bg-tint;
+          background: rgba(192, 138, 62, 0.16);
         }
         &.type-security {
           color: $color-danger;
-          background: $color-danger-bg;
+          background: var(--c-danger-soft-glass, rgba(223, 84, 63, 0.12));
         }
         &.type-monthly_report {
           color: $color-primary-mid;
-          background: $bg-tint-icon;
+          background: rgba(79, 199, 148, 0.16);
         }
       }
     }
@@ -455,7 +480,7 @@ async function onMarkAll() {
   }
 }
 
-// 分页底态
+/* 分页底态 */
 .list-footer {
   padding: 24rpx 0 12rpx;
   display: flex;

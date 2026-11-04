@@ -135,9 +135,9 @@ watch(
     display: none;
   }
 
-  // hover-class 会把 row-hover 加到本节点自身
+  // hover-class 会把 row-hover 加到本节点自身（玻璃内透明高光，不遮挡底层折射）
   &.row-hover {
-    background: $bg-hover;
+    background: var(--c-glass-hover, rgba(255, 255, 255, 0.44));
   }
 
   .flow-icon-wrap {

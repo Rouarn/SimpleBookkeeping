@@ -2,124 +2,137 @@
   @file 登录/注册页（pages/login/index.vue）
   @description 账号密码登录与注册切换；登录成功后 reLaunch 到首页。
                未登录访问其他页面时由 App.vue onLaunch / http 401 拦截统一跳转。
-               设计语言与首页/我的页一致：深松绿渐变头 + 暖灰背景 + 白卡。
+               macOS 26 Liquid Glass 版：壁纸铺底 + 玻璃页头 + 玻璃表单卡
+               + 凹陷玻璃输入框 + 品牌渐变主按钮（玻璃高光 / 按压态）。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-16
   @modify 2026-10-11 抽取 PageHeader 公共渐变页头
   @modify 2026-10-12 深色模式：根节点接 themeClass，表单卡 / 输入框 / 勾选框
                底色边框收敛至主题 token（头部深绿渐变与品牌区保持）
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 玻璃页头 + .g-glass 表单卡
+               输入框改凹陷玻璃、主按钮加玻璃高光与按压态（逻辑零改动）
 -->
 <template>
   <view class="login" :class="themeClass">
-    <!-- 顶部装饰区（渐变 / 圆角 / 双圆 + 双点由 PageHeader 内聚） -->
-    <PageHeader variant="login">
-      <view class="brand">
-        <view class="brand-coin">
-          <text class="brand-coin-text">绿</text>
+    <!-- 桌面壁纸：玻璃面的折射来源（固定铺满视口、不拦截事件） -->
+    <GlassBackground />
+
+    <!-- 内容层：抬到壁纸之上，玻璃页头 / 卡片才能折射其下的极光 -->
+    <view class="login__content">
+      <!-- 顶部玻璃页头（圆角 / 双圆 + 双点由 PageHeader 内聚，现为玻璃面） -->
+      <PageHeader variant="login">
+        <view class="brand">
+          <view class="brand-coin">
+            <text class="brand-coin-text">绿</text>
+          </view>
+          <text class="brand-title">小绿记账</text>
+          <text class="brand-sub">记一笔，知一月</text>
         </view>
-        <text class="brand-title">小绿记账</text>
-        <text class="brand-sub">记一笔，知一月</text>
-      </view>
-    </PageHeader>
+      </PageHeader>
 
-    <!-- 表单卡片 -->
-    <view class="card">
-      <!-- 模式切换 -->
-      <view class="tabs">
-        <view
-          class="tab"
-          :class="{ active: mode === 'login' }"
-          @click="switchMode('login')"
-        >
-          <text>登录</text>
+      <!-- 表单卡片（玻璃面：模糊折射 / 亮边 / 高光由 .g-glass 承担） -->
+      <view class="card g-glass">
+        <!-- 模式切换 -->
+        <view class="tabs">
+          <view
+            class="tab"
+            :class="{ active: mode === 'login' }"
+            @click="switchMode('login')"
+          >
+            <text>登录</text>
+          </view>
+          <view
+            class="tab"
+            :class="{ active: mode === 'register' }"
+            @click="switchMode('register')"
+          >
+            <text>注册</text>
+          </view>
+          <view
+            class="tab-indicator"
+            :class="{ right: mode === 'register' }"
+          ></view>
         </view>
-        <view
-          class="tab"
-          :class="{ active: mode === 'register' }"
-          @click="switchMode('register')"
-        >
-          <text>注册</text>
+
+        <!-- 表单字段 -->
+        <view class="field">
+          <text class="label">手机号</text>
+          <input
+            class="input"
+            v-model="form.phone"
+            placeholder="请输入手机号"
+            maxlength="11"
+            cursor-spacing="20"
+          />
         </view>
-        <view
-          class="tab-indicator"
-          :class="{ right: mode === 'register' }"
-        ></view>
-      </view>
 
-      <!-- 表单字段 -->
-      <view class="field">
-        <text class="label">手机号</text>
-        <input
-          class="input"
-          v-model="form.phone"
-          placeholder="请输入手机号"
-          maxlength="11"
-          cursor-spacing="20"
-        />
-      </view>
-
-      <view class="field" v-if="mode === 'register'">
-        <text class="label">昵称</text>
-        <input
-          class="input"
-          v-model="form.nickname"
-          placeholder="请输入昵称（可留空）"
-          maxlength="12"
-          cursor-spacing="20"
-        />
-      </view>
-
-      <view class="field">
-        <text class="label">密码</text>
-        <input
-          class="input"
-          v-model="form.password"
-          password
-          placeholder="请输入密码"
-          maxlength="32"
-          cursor-spacing="20"
-        />
-      </view>
-
-      <view class="field" v-if="mode === 'register'">
-        <text class="label">确认密码</text>
-        <input
-          class="input"
-          v-model="form.confirm"
-          password
-          placeholder="请再次输入密码"
-          maxlength="32"
-          cursor-spacing="20"
-        />
-      </view>
-
-      <!-- 协议勾选（仅注册强制；点击文案跳协议页） -->
-      <view class="agree-row" v-if="mode === 'register'">
-        <view
-          class="agree-box"
-          :class="{ checked: form.agree }"
-          @click="toggleAgree"
-        >
-          <text v-if="form.agree" class="agree-tick">✓</text>
+        <view class="field" v-if="mode === 'register'">
+          <text class="label">昵称</text>
+          <input
+            class="input"
+            v-model="form.nickname"
+            placeholder="请输入昵称（可留空）"
+            maxlength="12"
+            cursor-spacing="20"
+          />
         </view>
-        <text class="agree-text" @click="toggleAgree">我已阅读并同意</text>
-        <text class="agree-link" @click.stop="openAgreement"
-          >《用户协议与隐私政策》</text
+
+        <view class="field">
+          <text class="label">密码</text>
+          <input
+            class="input"
+            v-model="form.password"
+            password
+            placeholder="请输入密码"
+            maxlength="32"
+            cursor-spacing="20"
+          />
+        </view>
+
+        <view class="field" v-if="mode === 'register'">
+          <text class="label">确认密码</text>
+          <input
+            class="input"
+            v-model="form.confirm"
+            password
+            placeholder="请再次输入密码"
+            maxlength="32"
+            cursor-spacing="20"
+          />
+        </view>
+
+        <!-- 协议勾选（仅注册强制；点击文案跳协议页） -->
+        <view class="agree-row" v-if="mode === 'register'">
+          <view
+            class="agree-box"
+            :class="{ checked: form.agree }"
+            @click="toggleAgree"
+          >
+            <text v-if="form.agree" class="agree-tick">✓</text>
+          </view>
+          <text class="agree-text" @click="toggleAgree">我已阅读并同意</text>
+          <text class="agree-link" @click.stop="openAgreement"
+            >《用户协议与隐私政策》</text
+          >
+        </view>
+
+        <button
+          class="submit g-btn-primary"
+          :loading="loading"
+          @click="onSubmit"
         >
+          {{ mode === 'login' ? '登录' : '注册并登录' }}
+        </button>
       </view>
 
-      <button class="submit" :loading="loading" @click="onSubmit">
-        {{ mode === 'login' ? '登录' : '注册并登录' }}
-      </button>
-    </view>
-
-    <view
-      class="footer-tip"
-      @click="switchMode(mode === 'login' ? 'register' : 'login')"
-    >
-      <text>{{
-        mode === 'login' ? '还没有账号？点击注册' : '已有账号？去登录'
-      }}</text>
+      <view
+        class="footer-tip"
+        @click="switchMode(mode === 'login' ? 'register' : 'login')"
+      >
+        <text>{{
+          mode === 'login' ? '还没有账号？点击注册' : '已有账号？去登录'
+        }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -234,15 +247,27 @@ async function onSubmit() {
 </script>
 
 <style lang="scss" scoped>
+/* 页面根节点：透明；壁纸由 GlassBackground（固定定位、不拦截事件）绘制 */
 .login {
+  position: relative;
   min-height: 100vh;
-  background: $bg-page;
-  display: flex;
-  flex-direction: column;
+  background: transparent;
 }
 
-// 顶部装饰区的渐变 / 圆角 / 双圆 + 双点由 PageHeader 组件内聚，
-// 本页只保留插槽内品牌区样式
+/* 内容层：盖在壁纸（z-index 0）之上 */
+.login__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding-bottom: calc(8rpx + env(safe-area-inset-bottom));
+}
+
+/* 页头插槽内的品牌区。
+   页头本体已改为玻璃面（不再压深绿渐变），原先的白色标题在浅色玻璃上
+   不可读，故标题 / 副标题改用标题与辅助文本 token；品牌币保留深绿调，
+   做成玻璃上的「着色玻璃」元器件。 */
 .brand {
   position: relative;
   z-index: 2;
@@ -251,20 +276,24 @@ async function onSubmit() {
   align-items: center;
   margin-top: 56rpx;
 
+  /* 着色玻璃球：深绿半透明底 + 亮边 + 顶内高光 + 底部内暗边 */
   .brand-coin {
     width: 132rpx;
     height: 132rpx;
     border-radius: 50%;
     background: linear-gradient(
       150deg,
-      rgba(143, 226, 189, 0.25) 0%,
-      rgba(23, 81, 66, 0.4) 100%
+      rgba(143, 226, 189, 0.3) 0%,
+      rgba(23, 81, 66, 0.52) 100%
     );
-    border: 3rpx solid rgba(143, 226, 189, 0.45);
+    border: 3rpx solid var(--c-glass-border, rgba(255, 255, 255, 0.78));
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 14rpx 36rpx rgba(0, 0, 0, 0.25);
+    box-shadow:
+      inset 0 2rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.95)),
+      inset 0 -2rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.28)),
+      0 18rpx 44rpx rgba(12, 58, 46, 0.22);
 
     &-text {
       font-size: 60rpx;
@@ -278,36 +307,39 @@ async function onSubmit() {
     margin-top: 26rpx;
     font-size: 44rpx;
     font-weight: 700;
-    color: $text-inverse;
+    color: $text-title;
     letter-spacing: 2rpx;
   }
 
   .brand-sub {
     margin-top: 12rpx;
     font-size: 24rpx;
-    color: rgba(237, 245, 240, 0.62);
+    color: $text-secondary;
     letter-spacing: 1rpx;
   }
 }
 
-// 表单卡片
+/* 表单卡片：玻璃面（底色 / 折射 / 亮边 / 投影）全部由 .g-glass 提供，
+   这里只保留几何、以及上压页头的负边距叠层 */
 .card {
   margin: -64rpx 32rpx 0;
   position: relative;
   z-index: 2;
-  background: $bg-card;
-  border-radius: $radius-xl;
   padding: 36rpx 36rpx 44rpx;
-  box-shadow: $shadow-raised;
+  border-radius: $glass-radius-lg;
 }
 
+/* 模式切换：凹陷玻璃轨道 + 上浮玻璃指示块 */
 .tabs {
   position: relative;
   display: flex;
   margin-bottom: 36rpx;
-  background: $bg-page;
-  border-radius: $radius-sm;
   padding: 6rpx;
+  border-radius: $radius-sm;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+  box-shadow:
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
 
   .tab {
     position: relative;
@@ -331,9 +363,11 @@ async function onSubmit() {
     left: 6rpx;
     width: calc(50% - 6rpx);
     height: calc(100% - 12rpx);
-    background: $bg-card;
+    background: var(--c-glass-strong, rgba(255, 255, 255, 0.74));
     border-radius: $radius-xs;
-    box-shadow: $shadow-float;
+    box-shadow:
+      var(--shadow-glass-soft, 0 10rpx 28rpx rgba(22, 48, 38, 0.08)),
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
     transition: transform 0.25s;
 
     &.right {
@@ -342,6 +376,7 @@ async function onSubmit() {
   }
 }
 
+/* 输入字段 */
 .field {
   margin-bottom: 28rpx;
 
@@ -353,25 +388,35 @@ async function onSubmit() {
     margin-left: 4rpx;
   }
 
+  /* 凹陷玻璃输入槽：半透明白底 + 顶部内高光 + 底部内暗边，
+     在玻璃卡片上形成「蚀刻」层次 */
   .input {
     width: 100%;
     height: 88rpx;
     padding: 0 24rpx;
     font-size: 30rpx;
     color: $text-primary;
-    background: $bg-warm;
-    border: 1rpx solid $border;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    border: 1rpx solid var(--c-glass-border-soft, rgba(255, 255, 255, 0.44));
     border-radius: $radius-md;
     box-sizing: border-box;
-    transition: border-color 0.2s;
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+      inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
 
     &:focus {
       border-color: $color-accent;
+      box-shadow:
+        inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+        0 0 0 4rpx rgba(76, 175, 135, 0.16);
     }
   }
 }
 
-// 协议勾选行
+/* 协议勾选行（勾选逻辑不变，仅底色改凹陷玻璃） */
 .agree-row {
   display: flex;
   align-items: center;
@@ -382,7 +427,8 @@ async function onSubmit() {
     height: 32rpx;
     border-radius: 8rpx;
     border: 2rpx solid $border-strong;
-    background: $bg-card;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow: inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -392,6 +438,9 @@ async function onSubmit() {
     &.checked {
       background: $color-primary;
       border-color: $color-primary;
+      box-shadow:
+        inset 0 1rpx 0 rgba(255, 255, 255, 0.35),
+        0 4rpx 12rpx rgba(23, 81, 66, 0.28);
     }
   }
 
@@ -413,6 +462,7 @@ async function onSubmit() {
   }
 }
 
+/* 主按钮：纸面 + 四色细环 + 墨色字（材质来自全局 .g-btn-primary） */
 .submit {
   margin-top: 16rpx;
   width: 100%;
@@ -420,14 +470,18 @@ async function onSubmit() {
   line-height: 92rpx;
   font-size: 32rpx;
   font-weight: 600;
-  color: #fff;
   letter-spacing: 2rpx;
-  background: $gradient-submit;
-  border-radius: $radius-btn-lg;
-  border: none;
+  border: 3rpx solid transparent;
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.18s ease;
 
   &::after {
     border: none;
+  }
+
+  &:active {
+    transform: scale(0.985);
   }
 
   &[loading] {
@@ -435,6 +489,7 @@ async function onSubmit() {
   }
 }
 
+/* 底部模式切换提示 */
 .footer-tip {
   margin-top: 36rpx;
   text-align: center;

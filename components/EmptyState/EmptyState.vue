@@ -36,9 +36,11 @@ defineProps({
     height: 104rpx;
     margin-bottom: 28rpx;
     border-radius: 50%;
-    border: 2rpx solid $border;
-    background: $bg-warm;
-    box-shadow: 0 0 0 10rpx rgba(76, 175, 135, 0.08);
+    border: 2rpx solid var(--c-glass-border, rgba(255, 255, 255, 0.68));
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.5));
+    box-shadow:
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+      0 0 0 10rpx rgba(76, 175, 135, 0.06);
     display: flex;
     align-items: center;
     justify-content: center;

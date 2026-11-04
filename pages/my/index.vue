@@ -1,76 +1,96 @@
 <!--
   @file 我的页（pages/my/index.vue）
-  @description 个人中心页面：
-               1. 顶部个人信息区：PageHeader 公共渐变页头承载背景装饰，
-                  头像与昵称（点击可修改昵称 / 更换头像）、加入产品天数提示；
-               2. 记账统计：记账总笔数、记账总天数、账本数量（来自 GET /users/me/stats）；
-               3. 功能菜单：MenuItem 公共菜单项（消息中心带未读数角标，
-                  未读数来自 GET /users/me/messages/unread-count；设置页承载
-                  检查更新 / 退出登录等真实可用的应用级配置）。
-               用户资料持久化在 user store，统计数字不落地存储。
+  @description 个人中心页面（macOS 26 / iOS 26 Liquid Glass 版）：
+               1. 桌面壁纸 + 玻璃页头：PageHeader（my 变体，已玻璃化）承载
+                  头像 / 昵称 / 加入产品天数与记账统计；页头内的文字与头像区
+                  改用可在玻璃上阅读的主题 token（浅色深字 / 深色浅字）；
+               2. 记账统计：玻璃页头内的凹陷玻璃分区（var(--c-glass-inner) +
+                  顶部内高光），记账总笔数 / 总天数 / 账本数量来自
+                  GET /users/me/stats；
+               3. 功能菜单：.g-glass 玻璃卡分组包裹 MenuItem（消息中心带未读数
+                  角标，未读数来自 GET /users/me/messages/unread-count），
+                  分组标题用 $text-secondary 小字；
+               4. 底部悬浮玻璃导航（GlassTabBar）与 calc(200rpx + safe-area)
+                  安全区留白。
+               数据与动作与改造前完全一致，仅重构视觉层。
   @author 夏季 <2937375029@qq.com>
   @date 2026-09-14
   @modify 2026-10-11 抽取 PageHeader / MenuItem 公共组件
   @modify 2026-10-12 深色模式：根节点接 themeClass，硬编码颜色收敛至主题 token
   @modify 2026-10-12 恢复消息中心活入口（未读数角标，>99 显示 99+）
+  @modify 2026-11-04 Liquid Glass 重构：壁纸 + 玻璃页头 + 玻璃菜单卡 + 悬浮玻璃导航
 -->
 <template>
   <view class="my" :class="themeClass">
-    <!-- 顶部个人信息区（渐变 / 圆角 / 双圆 + 双点由 PageHeader 内聚） -->
-    <PageHeader variant="my">
-      <!-- 用户资料 -->
-      <view class="profile">
-        <image
-          class="avatar"
-          :src="avatarSrc"
-          mode="aspectFill"
-          lazy-load
-          @click="onEditProfile"
-          @error="onAvatarError"
-        ></image>
-        <view class="profile-info">
-          <view class="name-row">
-            <text class="name">{{ profile.name }}</text>
-            <uni-icons
-              class="edit-icon"
-              type="compose"
-              size="23"
-              color="#8fe2bd"
-              @click="onEditProfile"
-            ></uni-icons>
+    <!-- 桌面壁纸：玻璃面的折射来源 -->
+    <GlassBackground />
+
+    <!-- 内容层（z-index 1） -->
+    <view class="my__body">
+      <!-- 顶部个人信息区（玻璃页头，圆角 / 双圆 + 双点由 PageHeader 内聚） -->
+      <PageHeader variant="my">
+        <!-- 用户资料 -->
+        <view class="profile">
+          <image
+            class="avatar"
+            :src="avatarSrc"
+            mode="aspectFill"
+            lazy-load
+            @click="onEditProfile"
+            @error="onAvatarError"
+          ></image>
+          <view class="profile-info">
+            <view class="name-row">
+              <text class="name">{{ profile.name }}</text>
+              <!-- 图标色走 CSS 变量：uni-icons 的 color 为内联样式，无法继承主题类，
+                   这里直接写 var()，浅色 / 深色两盘自动取值 -->
+              <uni-icons
+                class="edit-icon"
+                type="compose"
+                size="23"
+                color="var(--c-primary-mid)"
+                @click="onEditProfile"
+              ></uni-icons>
+            </view>
+            <text class="welcome">小绿记账陪伴你的第 {{ joinDays }} 天</text>
           </view>
-          <text class="welcome">小绿记账陪伴你的第 {{ joinDays }} 天</text>
+        </view>
+
+        <!-- 记账统计（凹陷玻璃分区） -->
+        <view class="stats">
+          <view class="stat-item">
+            <text class="stat-num">{{ stats.records }}</text>
+            <text class="stat-label">记账总笔数</text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">{{ stats.days }}</text>
+            <text class="stat-label">记账总天数</text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">{{ stats.books }}</text>
+            <text class="stat-label">账本数量</text>
+          </view>
+        </view>
+      </PageHeader>
+
+      <!-- 功能菜单：玻璃卡分组（菜单项本体由 MenuItem 组件内聚） -->
+      <view class="menu-group">
+        <text class="menu-group__label">功能</text>
+        <view class="menu-group__card g-glass">
+          <MenuItem
+            v-for="item in menuList"
+            :key="item.key"
+            :icon="item.icon"
+            :label="item.title"
+            :badge="item.key === 'messages' ? unreadCount : 0"
+            @click="onMenuTap(item)"
+          />
         </view>
       </view>
-
-      <!-- 记账统计 -->
-      <view class="stats">
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.records }}</text>
-          <text class="stat-label">记账总笔数</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.days }}</text>
-          <text class="stat-label">记账总天数</text>
-        </view>
-        <view class="stat-item">
-          <text class="stat-num">{{ stats.books }}</text>
-          <text class="stat-label">账本数量</text>
-        </view>
-      </view>
-    </PageHeader>
-
-    <!-- 功能菜单 -->
-    <view class="menu">
-      <MenuItem
-        v-for="item in menuList"
-        :key="item.key"
-        :icon="item.icon"
-        :label="item.title"
-        :badge="item.key === 'messages' ? unreadCount : 0"
-        @click="onMenuTap(item)"
-      />
     </view>
+
+    <!-- 底部悬浮玻璃导航 -->
+    <GlassTabBar current="my" />
   </view>
 </template>
 
@@ -107,6 +127,13 @@ let lastMePullAt = 0
 let lastStatsPullAt = 0
 
 onShow(() => {
+  // App 端 tabBar.custom 不会隐藏原生条（H5 由 App.vue 的 CSS 兜底），
+  // 这里每次显示都再隐藏一次，避免切换页面时原生条重新出现。
+  try {
+    uni.hideTabBar({ animation: false })
+  } catch (e) {
+    // ignore：无原生 tabBar 的环境（H5 已用 CSS 隐藏）
+  }
   const now = Date.now()
   if (now - lastMePullAt >= PROFILE_TTL) {
     lastMePullAt = now
@@ -173,17 +200,28 @@ const onEditProfile = () => {
 </script>
 
 <style lang="scss" scoped>
+/* 页面根：底色交给壁纸层，页面本身 transparent；
+   底部预留悬浮玻璃导航（GlassTabBar）与 iPhone 手势条的空间 */
 .my {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
   min-height: calc(
     100vh - var(--status-bar-height) - var(--window-top) - 80rpx
   );
-  background: $bg-page;
-  padding-bottom: 160rpx;
+  background: transparent;
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 }
 
-// 顶部个人信息区的渐变 / 圆角 / 背景装饰由 PageHeader 组件内聚，
-// 本页只保留插槽内用户资料与统计的样式；消息中心入口位于下方功能菜单
-//（带未读数角标），以下为用户资料样式
+/* 内容层：抬到壁纸（z-index 0）之上，玻璃才有可折射的壁纸 */
+.my__body {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 页头内用户资料 ----------
+   PageHeader 已玻璃化：文字与头像描边改走浅色深字 / 深色浅字的主题 token，
+   头像用玻璃高光边（1rpx 亮边 + 内高光）替代原来的半透明白描边 */
 .profile {
   position: relative;
   display: flex;
@@ -194,12 +232,17 @@ const onEditProfile = () => {
     width: 124rpx;
     height: 124rpx;
     border-radius: 32rpx;
-    border: 3rpx solid rgba(255, 255, 255, 0.35);
-    box-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.2);
     flex-shrink: 0;
+    background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+    border: 3rpx solid var(--c-glass-border, rgba(255, 255, 255, 0.72));
+    box-shadow:
+      0 10rpx 24rpx rgba(22, 48, 38, 0.18),
+      inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9));
   }
 
   .profile-info {
+    flex: 1;
+    min-width: 0;
     margin-left: 26rpx;
 
     .name-row {
@@ -207,14 +250,19 @@ const onEditProfile = () => {
       align-items: center;
 
       .name {
+        max-width: 100%;
         font-size: 40rpx;
         font-weight: 700;
-        color: $text-inverse;
+        color: $text-title;
         letter-spacing: 1rpx;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
       }
 
       .edit-icon {
         margin-left: 14rpx;
+        flex-shrink: 0;
       }
     }
 
@@ -222,19 +270,24 @@ const onEditProfile = () => {
       display: block;
       margin-top: 12rpx;
       font-size: 24rpx;
-      color: rgba(237, 245, 240, 0.55);
+      color: $text-secondary;
     }
   }
 }
 
-// 记账统计
+/* ---------- 记账统计：凹陷玻璃分区 ----------
+   var(--c-glass-inner) 半透明内衬 + 顶部内高光 / 底部内暗边，
+   与凸起的玻璃卡形成「玻璃里再嵌一层玻璃」的层级 */
 .stats {
   position: relative;
   display: flex;
-  margin-top: 58rpx;
-  padding: 24rpx 0;
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.06);
+  margin-top: 48rpx;
+  padding: 26rpx 0;
+  border-radius: 28rpx;
+  background: var(--c-glass-inner, rgba(255, 255, 255, 0.55));
+  box-shadow:
+    inset 0 1rpx 0 var(--c-glass-hi, rgba(255, 255, 255, 0.9)),
+    inset 0 -1rpx 0 var(--c-glass-shade, rgba(12, 58, 46, 0.06));
 
   .stat-item {
     flex: 1;
@@ -243,13 +296,13 @@ const onEditProfile = () => {
     align-items: center;
 
     & + & {
-      border-left: 1rpx solid rgba(255, 255, 255, 0.12);
+      border-left: 1rpx solid $divider;
     }
 
     .stat-num {
       font-size: 42rpx;
       font-weight: 700;
-      color: $text-inverse;
+      color: $text-title;
       line-height: 1.1;
       font-variant-numeric: tabular-nums;
     }
@@ -257,19 +310,30 @@ const onEditProfile = () => {
     .stat-label {
       margin-top: 12rpx;
       font-size: 22rpx;
-      color: rgba(237, 245, 240, 0.52);
+      color: $text-secondary;
     }
   }
 }
 
-// 功能菜单（上浮白卡，压住头部圆角，层级更清晰；菜单项本体由 MenuItem 组件内聚）
-.menu {
+/* ---------- 功能菜单：玻璃卡分组 ----------
+   PageHeader 底部自带 96rpx 内边距，分组从玻璃页头下方的留白里开始；
+   不再负向压边，避免标题骑在页头圆角上被“切掉”。 */
+.menu-group {
   position: relative;
-  z-index: 2;
-  margin: -52rpx 24rpx 0;
-  background: $bg-card;
-  border-radius: $radius-card;
-  box-shadow: $shadow-card-lg;
-  overflow: hidden;
+  z-index: 1;
+  margin: 8rpx 24rpx 0;
+
+  &__label {
+    display: block;
+    margin: 0 8rpx 14rpx;
+    font-size: 23rpx;
+    color: $text-secondary;
+    letter-spacing: 0.5rpx;
+  }
+
+  &__card {
+    border-radius: 36rpx;
+    overflow: hidden;
+  }
 }
 </style>
